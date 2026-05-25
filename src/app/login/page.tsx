@@ -128,7 +128,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300">
-                কোডনেম অথবা ইমেল (Codename / Email)
+                কোডনেম (Codename)
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -139,7 +139,7 @@ export default function LoginPage() {
                   name="email"
                   type="text"
                   required
-                  placeholder="যেমন: KAMRUL অথবা user@domain.com"
+                  placeholder="যেমন: KI1024"
                   value={email}
                   onChange={(e) => {
                     const val = e.target.value;

@@ -1,0 +1,22 @@
+{
+  "step_index": 2271,
+  "source": "MODEL",
+  "type": "PLANNER_RESPONSE",
+  "status": "DONE",
+  "created_at": "2026-05-23T16:57:28Z",
+  "content": "I will update our map extraction script to read `src_0627fe7._.js.map` and `src_00nbpew._.js.map`. This is highly likely to contain the actual source code of `page.tsx` before it was broken.",
+  "tool_calls": [
+    {
+      "name": "write_to_file",
+      "args": {
+        "CodeContent": "\"const fs = require('fs');\\nconst path = require('path');\\n\\nconst mapPaths = [\\n  'C:/Users/kamru/.gemini/antigravity/scratch/chuti/.next/dev/server/chunks/ssr/src_0627fe7._.js.map',\\n  'C:/Users/kamru/.gemini/antigravity/scratch/chuti/.next/dev/static/chunks/src_00nbpew._.js.map'\\n];\\n\\nmapPaths.forEach(mapPath => {\\n  if (!fs.existsSync(mapPath)) {\\n    console.log(`File does not exist: ${mapPath}`);\\n    return;\\n  }\\n  \\n  console.log(`Checking map: ${mapPath}`);\\n  try {\\n    const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));\\n    if (map.sourcesContent && map.sourcesContent.length > 0) {\\n      console.log(`Found sourcesContent! Count: ${map.sourcesContent.length}`);\\n      map.sources.forEach((source, i) => {\\n        console.log(`Source ${i}: ${source}`);\\n        if (source.includes('page.tsx') && !source.includes('login')) {\\n          const code = map.sourcesContent[i];\\n          if (code) {\\n            console.log(`SUCCESS! Found page.tsx in ${source} (${code.length} bytes)`);\\n            fs.writeFileSync('C:/Users/kamru/.gemini/antigravity/brain/32a2227a-666c-4153-85ef-062c691512c9/scratch/extracted_page_from_map.tsx', code);\\n            console.log(`Saved code to extracted_page_from_map.tsx`);\\n          }\\n        }\\n      });\\n    } else {\\n      console.log(`No sourcesContent in ${mapPath}`);\\n    }\\n  } catch (e) {\\n    console.error(`Error processing ${mapPath}:`, e.message);\\n  }\\n});\\n\"",
+        "Description": "\"Extract page.tsx from target chunk map files\"",
+        "IsArtifact": "false",
+        "Overwrite": "true",
+        "TargetFile": "\"C:\\\\Users\\\\kamru\\\\.gemini\\\\antigravity\\\\brain\\\\32a2227a-666c-4153-85ef-062c691512c9\\\\scratch\\\\extract_map_general.js\"",
+        "toolAction": "\"Editing file\"",
+        "toolSummary": "\"File edit\""
+      }
+    }
+  ]
+}

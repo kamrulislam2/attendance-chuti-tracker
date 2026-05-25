@@ -1,0 +1,22 @@
+{
+  "step_index": 2220,
+  "source": "MODEL",
+  "type": "PLANNER_RESPONSE",
+  "status": "DONE",
+  "created_at": "2026-05-23T16:54:21Z",
+  "content": "I will update the map extraction script to recursively scan all map files under `.next` and extract the source of `src/app/page.tsx`. This is the most robust recovery method if the source maps are in a different file.",
+  "tool_calls": [
+    {
+      "name": "write_to_file",
+      "args": {
+        "CodeContent": "\"const fs = require('fs');\\nconst path = require('path');\\n\\nfunction getMapFiles(dir) {\\n  let results = [];\\n  const list = fs.readdirSync(dir);\\n  list.forEach(file => {\\n    const fullPath = path.join(dir, file);\\n    const stat = fs.statSync(fullPath);\\n    if (stat && stat.isDirectory()) {\\n      results = results.concat(getMapFiles(fullPath));\\n    } else if (file.endsWith('.map')) {\\n      results.push(fullPath);\\n    }\\n  });\\n  return results;\\n}\\n\\nconst nextDir = 'C:/Users/kamru/.gemini/antigravity/scratch/chuti/.next';\\nif (!fs.existsSync(nextDir)) {\\n  console.log(`.next directory not found`);\\n  process.exit(1);\\n}\\n\\nconst maps = getMapFiles(nextDir);\\nconsole.log(`Found ${maps.length} map files. Scanning...`);\\n\\nlet found = false;\\nmaps.forEach(mapPath => {\\n  try {\\n    const content = fs.readFileSync(mapPath, 'utf8');\\n    if (!content.includes('page.tsx')) return;\\n    \\n    const map = JSON.parse(content);\\n    if (map.sourcesContent && map.sourcesContent.length > 0) {\\n      map.sources.forEach((source, i) => {\\n        if (source.includes('page.tsx') && !source.includes('login') && !source.includes('node_modules')) {\\n          const code = map.sourcesContent[i];\\n          if (code && code.length > 5000) { // must be the dashboard, which is large\\n            console.log(`SUCCESS! Found dashboard page.tsx in ${mapPath} (source: ${source}, length: ${code.length})`);\\n            fs.writeFileSync('C:/Users/kamru/.gemini/antigravity/brain/32a2227a-666c-4153-85ef-062c691512c9/scratch/extracted_page_from_map.tsx', code);\\n            console.log(`Saved code to extracted_page_from_map.tsx`);\\n            found = true;\\n          }\\n        }\\n      });\\n    }\\n  } catch (e) {\\n    // ignore parsing errors\\n  }\\n});\\n\\nif (!found) {\\n  console.log(`Could not find dashboard page.tsx code in any map files.`);\\n}\\n\"",
+        "Description": "\"Search all maps in .next directory for dashboard page.tsx code\"",
+        "IsArtifact": "false",
+        "Overwrite": "true",
+        "TargetFile": "\"C:\\\\Users\\\\kamru\\\\.gemini\\\\antigravity\\\\brain\\\\32a2227a-666c-4153-85ef-062c691512c9\\\\scratch\\\\extract_map_general.js\"",
+        "toolAction": "\"Editing file\"",
+        "toolSummary": "\"File edit\""
+      }
+    }
+  ]
+}

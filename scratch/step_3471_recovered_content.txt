@@ -1,0 +1,17 @@
+Created At: 2026-05-23T18:59:47Z
+Completed At: 2026-05-23T18:59:48Z
+
+				The command completed successfully.
+				Output:
+				
+src\app\page.tsx:22:  Download, 
+src\app\page.tsx:563:    link.setAttribute('download', `chuti_report_${currentDate}.csv`);
+src\app\page.tsx:607:    link.setAttribute('download', `staff_leaves_summary_${new 
+Date().toISOString().split('T')[0]}.csv`);
+src\app\page.tsx:659:    link.download = `staff_leaves_summary_${new Date().toISOString().split('T')[0]}.xls`;
+src\app\page.tsx:1964:                    <Download className="h-4 w-4" /> CSV ??????? ????
+src\app\page.tsx:2086:                    <Download className="h-3.5 w-3.5" /> CSV ??????
+src\app\page.tsx:2092:                    <Download className="h-3.5 w-3.5" /> Excel ??????
+
+
+

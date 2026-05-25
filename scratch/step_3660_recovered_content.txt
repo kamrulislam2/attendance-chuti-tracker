@@ -1,0 +1,47 @@
+Created At: 2026-05-24T14:32:26Z
+Completed At: 2026-05-24T14:32:26Z
+File Path: `file:///C:/Users/kamru/.gemini/antigravity/scratch/chuti/src/app/page.tsx`
+Total Lines: 4513
+Total Bytes: 248944
+Showing lines 3190 to 3230
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3190:                           <p><span className="text-slate-500">ব্রেক টাইম:</span> {p.break_time} মিনিট</p>
+3191:                           <p><span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.default_sign_in) || '-'}</p>
+3192:                           <p><span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.default_sign_out) || '-'}</p>
+3193:                         </div>
+3194:                       </div>
+3195: 
+3196:                       <div className="bg-indigo-950/20 p-3 rounded-lg border border-indigo-900/30">
+3197:                         <span className="block font-bold text-indigo-400 mb-2 border-b border-indigo-900/30 pb-1">অনুরোধকৃত নতুন তথ্য</span>
+3198:                         <div className="space-y-1 text-slate-200 font-medium">
+3199:                           <p className={p.requested_full_name && p.requested_full_name !== p.full_name ? 'text-indigo-300 font-bold' : ''}>
+3200:                             <span className="text-slate-500">নাম:</span> {p.requested_full_name || p.full_name || '-'}
+3201:                           </p>
+3202:                           <p className={p.requested_job_role && p.requested_job_role !== p.job_role ? 'text-indigo-300 font-bold' : ''}>
+3203:                             <span className="text-slate-500">জব রোল:</span> {p.requested_job_role || p.job_role || '-'}
+3204:                           </p>
+3205:                           <p className=
+<truncated 560 bytes>
+00">ব্রেক টাইম:</span> {p.requested_break_time || p.break_time} মিনিট
+3210:                           </p>
+3211:                           <p className={p.requested_default_sign_in && p.requested_default_sign_in !== p.default_sign_in ? 'text-indigo-300 font-bold' : ''}>
+3212:                             <span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_in || p.default_sign_in) || '-'}
+3213:                           </p>
+3214:                           <p className={p.requested_default_sign_out && p.requested_default_sign_out !== p.default_sign_out ? 'text-indigo-300 font-bold' : ''}>
+3215:                             <span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_out || p.default_sign_out) || '-'}
+3216:                           </p>
+3217:                         </div>
+3218:                       </div>
+3219:                     </div>
+3220: 
+3221:                     <div className="flex justify-end gap-3 pt-2">
+3222:                       <button
+3223:                         onClick={() => handleApproveProfileChangeRequest(p.id, false)}
+3224:                         disabled={approvingIds.has(p.id) || approvedIds.has(p.id)}
+3225:                         className="px-4 py-1.5 border border-red-500/30 hover:border-red-500 bg-red-950/20 hover:bg-red-950/50 text-red-400 hover:text-white rounded-lg text-xs font-semibold cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+3226:                       >
+3227:                         প্রত্যাখ্যান (Reject)
+3228:                       </button>
+3229:                       <button
+3230:                         onClick={() => handleApproveProfileChangeRequest(p.id, true)}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

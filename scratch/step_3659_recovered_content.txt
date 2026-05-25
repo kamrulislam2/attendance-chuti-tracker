@@ -1,0 +1,1 @@
+I will view lines 3190 to 3230 in `src/app/page.tsx` to see how the pending profile changes list is rendered for the admin.

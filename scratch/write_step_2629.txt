@@ -1,0 +1,24 @@
+{
+  "step_index": 2629,
+  "source": "MODEL",
+  "type": "PLANNER_RESPONSE",
+  "status": "DONE",
+  "created_at": "2026-05-24T09:38:41Z",
+  "content": "I will create a comprehensive implementation plan for adding selective leave type permissions (Overtime and Reserve) per user, and separating Overtime from Short Leave into its own column and card in the dashboard. I will save this in the `implementation_plan.md` artifact.",
+  "thinking": "**Adding Reserve Permissions**\n\nI'm now focusing on incorporating the `editAllowReserve` setting into the `handleUpdateSettings` function. It seems straightforward, much like the other state variables. This will modify the `profiles` data structure, along with the others.\n\n\n",
+  "tool_calls": [
+    {
+      "name": "write_to_file",
+      "args": {
+        "ArtifactMetadata": "{\"ArtifactType\":\"implementation_plan\",\"RequestFeedback\":true,\"Summary\":\"An implementation plan to introduce selective leave types (Overtime and Reserve) per user, separate Overtime into its own column and card, and add admin controls for enabling/disabling these categories.\"}",
+        "CodeContent": "\"# Implementation Plan - Selective Leave Types & Overtime Separation\\n\\nThis plan outlines the changes to implement selective leave permissions (`allow_reserve` and `allow_overtime`) per user/supervisor, separate Overtime from Short Leave into its own column/card, and add admin controls to manage these permissions during account creation and editing.\\n\\n## Proposed Changes\\n\\n### 1. Database Schema Updates\\nWe need to add boolean columns to the `profiles` table to store permission flags for Overtime and Reserve leaves.\\n\\n#### [MODIFY] [schema.sql](file:///C:/Users/kamru/.gemini/antigravity/scratch/chuti/supabase/schema.sql)\\n- Add two new boolean columns to the `public.profiles` table:\\n  - `allow_reserve` BOOLEAN DEFAULT FALSE\\n  - `allow_overtime` BOOLEAN DEFAULT FALSE\\n- Update the `handle_new_user()` trigger function to initialize these flags.\\n- Update the `create_new_user()` RPC function to accept `allow_reserve` and `allow_overtime` as parameters and insert them into the `profiles` table.\\n\\n---\\n\\n### 2. Frontend Application Updates\\n\\n#### [MODIFY] [page.tsx](file:///C:/Users/kamru/.gemini/antigravity/scratch/chuti/src/app/page.tsx)\\n- **State variables**:\\n  - Add `newStaffAllowReserve` / `setNewStaffAllowReserve` (default `false`).\\n  - Add `newStaffAllowOvertime` / `setNewStaffAllowOvertime` (default `false`).\\n  - Add `editAllowReserve` / `setEditAllowReserve` (default `false`).\\n  - Add `editAllowOvertime` / `setEditAllowOvertime` (default `false`).\\n- **Create User Modal & RPC**:\\n  - Add checkbox/toggles for \\\"Allow Overtime\\\" and \\\"Allow Reserve\\\" in the Create User modal.\\n  - Pass these new values in the `create_new_user` RPC call.\\n- **Profile Edit Modal**:\\n  - When opening the edit modal for a staff member (as admin), initialize the states `editAllowReserve` and `editAllowOvertime` from the staff's profile.\\n  - In the Profile Edit modal, render checkbox/toggles for \\\"Allow Overtime\\\" and \\\"Allow Reserve\\\" (only visible to admins).\\n  - Update `handleUpdateSettings` to save these values in \n<truncated 1832 bytes>",
+        "Description": "\"Create the implementation plan for selective leave types and overtime separation.\"",
+        "IsArtifact": "true",
+        "Overwrite": "true",
+        "TargetFile": "\"C:\\\\Users\\\\kamru\\\\.gemini\\\\antigravity\\\\brain\\\\32a2227a-666c-4153-85ef-062c691512c9\\\\implementation_plan.md\"",
+        "toolAction": "\"Creating the implementation plan artifact\"",
+        "toolSummary": "\"Create implementation_plan.md\""
+      }
+    }
+  ]
+}

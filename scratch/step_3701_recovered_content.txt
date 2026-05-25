@@ -1,0 +1,1 @@
+I will modify the default database values in `supabase/schema.sql` for sign-in and sign-out times so that they are nullable and default to `NULL` for new users, ensuring a blank profile state until explicitly set by the user during their first setup.

@@ -1,0 +1,51 @@
+Created At: 2026-05-24T14:13:20Z
+Completed At: 2026-05-24T14:13:20Z
+File Path: `file:///C:/Users/kamru/.gemini/antigravity/scratch/chuti/src/app/page.tsx`
+Total Lines: 4477
+Total Bytes: 246412
+Showing lines 3200 to 3250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+3200:                         )}
+3201:                         {approvedIds.has(p.id) && (
+3202:                           <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+3203:                         )}
+3204:                         {approvedIds.has(p.id) ? 'অনুমোদিত' : approvingIds.has(p.id) ? 'অনুমোদন হচ্ছে...' : 'অনুমোদন (Approve)'}
+3205:                       </button>
+3206:                     </div>
+3207:                   </div>
+3208:                 ))
+3209:               )}
+3210:             </div>
+3211:           </div>
+3212:         </div>
+3213:       )}
+3214: 
+3215:       {/* Admin Leave Approvals Modal */}
+3216:       {showLeaveApprovalModal && profile?.role === 'admin' && (
+3217:         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
+3218:           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col relative overflow-hidden">
+3219:             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-amber-900/10 blur-[80px] pointer-events-none" />
+3220:             
+3221:             <div className="flex justify-between items-center border-b border-slate-800/80 p-6">
+3222:               <h3 className="text-lg font-bold text-white flex items-center gap-2">
+3223:                 <Calendar className="h-5 w-5 text-amber-400" /> ছুটির তথ্য অনুমোদন প্যানেল
+3224:               </h3>
+3225:       
+<truncated 573 bytes>
+সংশোধনের নিয়মাবলী:</p>
+3236:                 <p>সুপারভাইজার বা অ্যাডমিন সরাসরি ছুটির অনুরোধ প্রত্যাখ্যান (Reject) করতে পারবেন না। তথ্যে ভুল বা সংশোধন প্রয়োজন হলে <strong>'রিভিশন পাঠান (Needs Review)'</strong> বাটনে ক্লিক করে ইউজারের কাছে সংশোধনের জন্য পাঠানো যাবে। ইউজার তথ্য সংশোধন করে পুনরায় সাবমিট করলে তা পুনরায় সুপারভাইজারের অনুমোদন হয়ে অ্যাডমিনের কাছে আসবে।</p>
+3237:               </div>
+3238:               {/* Section 1: Leave Approvals */}
+3239:               <div>
+3240:                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+3241:                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> ছুটির অনুরোধসমূহ (Pending Admin Approval)
+3242:                 </h4>
+3243:                 {pendingChutiRequests.length === 0 ? (
+3244:                   <div className="text-center py-6 bg-slate-950/40 border border-slate-850 rounded-xl text-slate-500 text-xs">
+3245:                     অনুমোদনের জন্য কোনো পেন্ডিং ছুটি নেই।
+3246:                   </div>
+3247:                 ) : (
+3248:                   <div className="space-y-3">
+3249:                     {pendingChutiRequests.map(r => {
+3250:                       const user = profilesList.find(p => p.id === r.user_id);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

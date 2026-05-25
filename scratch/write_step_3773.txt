@@ -1,0 +1,23 @@
+{
+  "step_index": 3773,
+  "source": "MODEL",
+  "type": "PLANNER_RESPONSE",
+  "status": "DONE",
+  "created_at": "2026-05-24T15:03:29Z",
+  "content": "I will update `walkthrough.md` to document the addition of the adjustment data in the leave approval cards.",
+  "tool_calls": [
+    {
+      "name": "write_to_file",
+      "args": {
+        "ArtifactMetadata": "{\"ArtifactType\":\"walkthrough\",\"RequestFeedback\":false,\"Summary\":\"Walkthrough updated to include displaying adjustment and short leave adjustment status inside the pending leave approval cards in the Leave Approval modal.\"}",
+        "CodeContent": "\"# Walkthrough - Username Editing, Settings UX & Approval Adjustments\\n\\nThis document outlines the modifications made to support:\\n1. Enabling admins to edit user usernames (codenames) directly in the Profile Settings modal.\\n2. Allowing users to edit their profile settings directly on the **first edit** (inputs unlocked, direct \\\"Save Settings\\\" button) without needing admin approval, and requiring approval from the **second edit onwards** (inputs locked, \\\"Send Profile Change Request\\\" button).\\n3. Having Working Hours, Break, and Default Sign-In/Out times start as **blank (empty)** by default for all new profiles (users, supervisors, and admins).\\n4. Displaying **Adjustment** and **Short Leave Adjustment** status inside the pending leave cards within the Leave Approval modal for admin verification.\\n\\n## Changes Made\\n\\n### 1. Database Schema Updates (`supabase/schema.sql`)\\n- Modified the `profiles` table:\\n  - Added `has_edited_profile BOOLEAN NOT NULL DEFAULT FALSE`.\\n  - Changed `working_hours` to default to `NULL`.\\n  - Changed `break_time` to default to `NULL`.\\n  - Removed `NOT NULL DEFAULT '13:00'` from `default_sign_in` (now `TEXT DEFAULT NULL`).\\n  - Removed `NOT NULL DEFAULT '22:30'` from `default_sign_out` (now `TEXT DEFAULT NULL`).\\n- Modified the `handle_new_user()` SQL trigger:\\n  - Removed default sign-in/out times from the `INSERT` statement so new rows fallback to `NULL`.\\n\\n### 2. Onboarding Setup UI Updates (`src/app/page.tsx`)\\n- Changed the default states of `setupWorkingHours`, `setupBreakTime`, `setupSignInTime`, and `setupSignOutTime` to empty string `''`.\\n- Added a blank placeholder option `<option value=\\\"\\\" disabled hidden>নির্বাচন করুন</option>` to the onboarding \\\"দৈনিক কর্মঘণ্টা\\\" select dropdown and made it `required`.\\n- Modified the fallback upsert for profiles to not include `working_hours` or `break_time` (meaning they default to `NULL`), and set `is_setup_completed: false` for all roles (including admin) so that everyone\n<truncated 1615 bytes>",
+        "Description": "\"Update walkthrough to include leave card adjustment details in approval modal\"",
+        "IsArtifact": "true",
+        "Overwrite": "true",
+        "TargetFile": "\"C:\\\\Users\\\\kamru\\\\.gemini\\\\antigravity\\\\brain\\\\32a2227a-666c-4153-85ef-062c691512c9\\\\walkthrough.md\"",
+        "toolAction": "\"Updating walkthrough file\"",
+        "toolSummary": "\"File write\""
+      }
+    }
+  ]
+}

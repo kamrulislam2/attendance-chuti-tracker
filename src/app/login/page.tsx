@@ -82,7 +82,7 @@ export default function LoginPage() {
 
       if (authError) {
         setError(authError.message === 'Invalid login credentials' 
-          ? 'ভুল কোডনেম/ইমেল অথবা পাসওয়ার্ড দেওয়া হয়েছে।' 
+          ? 'ভুল কোডনেম বা ভুল পাসওয়ার্ড দেওয়া হয়েছে...' 
           : authError.message);
         setLoading(false);
         return;

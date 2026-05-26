@@ -43,7 +43,8 @@ CREATE TABLE public.profiles (
   needs_supervisor_approval BOOLEAN DEFAULT TRUE,
   allow_reserve BOOLEAN DEFAULT FALSE,
   allow_overtime BOOLEAN DEFAULT FALSE,
-  has_edited_profile BOOLEAN NOT NULL DEFAULT FALSE
+  has_edited_profile BOOLEAN NOT NULL DEFAULT FALSE,
+  has_changed_password BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Enable RLS on Profiles

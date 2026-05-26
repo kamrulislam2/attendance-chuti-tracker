@@ -33,7 +33,8 @@ import {
   Edit2,
   ArrowLeft,
   MoreVertical,
-  Bell
+  Bell,
+  Lock
 } from 'lucide-react';
 
 // Helper function to clean supervisor/admin approval prefix from comment for table display
@@ -45,6 +46,32 @@ const getCleanComment = (comment: string | null | undefined): string => {
     clean = clean.replace(regex, '');
   }
   return clean.trim();
+};
+
+const getPasswordMatchIndicator = (password: string, confirm: string) => {
+  if (!confirm) return null;
+  if (password !== confirm) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-red-500 mt-1 font-medium">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span>পাসওয়ার্ড মেলেনি!</span>
+      </div>
+    );
+  }
+  if (password.length < 4) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-amber-500 mt-1 font-medium">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <span>পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-emerald-500 mt-1 font-medium">
+      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+      <span>পাসওয়ার্ড মিলেছে</span>
+    </div>
+  );
 };
 
 export default function Dashboard() {
@@ -172,13 +199,28 @@ export default function Dashboard() {
   const [newStaffAllowReserve, setNewStaffAllowReserve] = useState(false);
   const [newStaffAllowOvertime, setNewStaffAllowOvertime] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
+  const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('');
   
   // Credentials Edit Modal states
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [credTargetUserId, setCredTargetUserId] = useState<string | null>(null);
   const [credNewUsername, setCredNewUsername] = useState('');
   const [credNewPassword, setCredNewPassword] = useState('');
+  const [credConfirmPassword, setCredConfirmPassword] = useState('');
   const [updatingCredentials, setUpdatingCredentials] = useState(false);
+
+  // First-Time Password Change & Setup states
+  const [showFirstTimePasswordModal, setShowFirstTimePasswordModal] = useState(false);
+  const [firstTimePassword, setFirstTimePassword] = useState('');
+  const [firstTimeConfirmPassword, setFirstTimeConfirmPassword] = useState('');
+  const [firstTimePasswordSubmitting, setFirstTimePasswordSubmitting] = useState(false);
+  const [firstTimePasswordError, setFirstTimePasswordError] = useState('');
+  const [firstTimeSetupFullName, setFirstTimeSetupFullName] = useState('');
+  const [firstTimeSetupJobRole, setFirstTimeSetupJobRole] = useState('');
+  const [firstTimeSetupWorkingHours, setFirstTimeSetupWorkingHours] = useState('9.5');
+  const [firstTimeSetupBreakTime, setFirstTimeSetupBreakTime] = useState('0');
+  const [firstTimeSetupSignInTime, setFirstTimeSetupSignInTime] = useState('09:30');
+  const [firstTimeSetupSignOutTime, setFirstTimeSetupSignOutTime] = useState('19:00');
   
   // Delete User Modal states
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
@@ -270,9 +312,11 @@ export default function Dashboard() {
       // Fetch user profile
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('username, role, full_name, working_hours, break_time, is_setup_completed, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
+        .select('username, role, full_name, working_hours, break_time, is_setup_completed, has_changed_password, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
         .eq('id', session.user.id)
         .maybeSingle();
+
+      let currentProfile: any = userProfile;
 
       if (profileError || !userProfile) {
         // If profile doesn't exist, create one dynamically for fallback
@@ -297,6 +341,7 @@ export default function Dashboard() {
           .single();
 
         if (newProfile) {
+          currentProfile = newProfile;
           setProfile(newProfile);
           setSetupUsername((newProfile.username || '').toUpperCase());
           setSetupFullName(newProfile.full_name || '');
@@ -339,6 +384,17 @@ export default function Dashboard() {
         setProfileSignInTime(userProfile.requested_default_sign_in || userProfile.default_sign_in || '13:00');
         setProfileSignOutTime(userProfile.requested_default_sign_out || userProfile.default_sign_out || '22:30');
       }
+      
+      if (currentProfile && currentProfile.has_changed_password === false) {
+        setShowFirstTimePasswordModal(true);
+        setFirstTimeSetupFullName(currentProfile.full_name || '');
+        setFirstTimeSetupJobRole(currentProfile.job_role || '');
+        setFirstTimeSetupWorkingHours(String(currentProfile.working_hours || '9.5'));
+        setFirstTimeSetupBreakTime(String(currentProfile.break_time || '0'));
+        setFirstTimeSetupSignInTime(currentProfile.default_sign_in || '09:30');
+        setFirstTimeSetupSignOutTime(currentProfile.default_sign_out || '19:00');
+      }
+      
       setLoading(false);
     };
 
@@ -1076,6 +1132,72 @@ export default function Dashboard() {
     }
   };
 
+  // First-Time Setup & Password Change Submit
+  const handleFirstTimeSetupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessionUser || !profile) return;
+    if (firstTimePassword !== firstTimeConfirmPassword) {
+      setFirstTimePasswordError('পাসওয়ার্ড মেলেনি!');
+      return;
+    }
+    if (firstTimePassword.length < 4) {
+      setFirstTimePasswordError('পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!');
+      return;
+    }
+
+    setFirstTimePasswordSubmitting(true);
+    setFirstTimePasswordError('');
+
+    try {
+      // 1. Update auth password in Supabase
+      const { error: authError } = await supabase.auth.updateUser({
+        password: firstTimePassword,
+      });
+      if (authError) throw authError;
+
+      // 2. Prepare profile update updates
+      const updates: any = {
+        has_changed_password: true,
+      };
+
+      // If user profile setup is not completed and they are not Admin, save setup fields too
+      const needsProfileSetup = profile.role !== 'admin' && !profile.is_setup_completed;
+      if (needsProfileSetup) {
+        updates.full_name = firstTimeSetupFullName;
+        updates.job_role = firstTimeSetupJobRole;
+        updates.working_hours = parseFloat(firstTimeSetupWorkingHours) || 9.5;
+        updates.break_time = parseInt(firstTimeSetupBreakTime) || 0;
+        updates.default_sign_in = firstTimeSetupSignInTime;
+        updates.default_sign_out = firstTimeSetupSignOutTime;
+        updates.is_setup_completed = true;
+      }
+
+      const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', sessionUser.id)
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      setProfile(updatedProfile);
+      setEditFullName(updatedProfile.full_name || '');
+      setEditWorkingHours(Number(updatedProfile.working_hours || 9.5).toFixed(1));
+      setEditBreakTime(String(updatedProfile.break_time || 0));
+      setEditJobRole(updatedProfile.job_role || '');
+      setProfileSignInTime(updatedProfile.default_sign_in || '09:30');
+      setProfileSignOutTime(updatedProfile.default_sign_out || '19:00');
+
+      setShowFirstTimePasswordModal(false);
+      setMessage({ type: 'success', text: 'পাসওয়ার্ড পরিবর্তন ও প্রোফাইল সেটআপ সফল হয়েছে!' });
+    } catch (err: any) {
+      setFirstTimePasswordError(err.message || 'পাসওয়ার্ড আপডেট করতে সমস্যা হয়েছে।');
+    } finally {
+      setFirstTimePasswordSubmitting(false);
+    }
+  };
+
   // Approve/Reject Profile Change request from Admin view
   const handleApproveProfileChangeRequest = async (profileId: string, approve: boolean) => {
     setApprovingIds(prev => new Set(prev).add(profileId));
@@ -1415,6 +1537,7 @@ export default function Dashboard() {
       setShowCreateUserModal(false);
       setNewStaffEmail('');
       setNewStaffPassword('');
+      setNewStaffConfirmPassword('');
       setNewStaffUsername('');
       setNewStaffRole('user');
       setNewStaffFullName('');
@@ -1435,6 +1558,14 @@ export default function Dashboard() {
       setMessage({ type: 'error', text: 'কমপক্ষে কোডনেম অথবা পাসওয়ার্ড দিন!' });
       return;
     }
+    if (credNewPassword && credNewPassword !== credConfirmPassword) {
+      setMessage({ type: 'error', text: 'পাসওয়ার্ড মেলেনি!' });
+      return;
+    }
+    if (credNewPassword && credNewPassword.length < 4) {
+      setMessage({ type: 'error', text: 'পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!' });
+      return;
+    }
     setUpdatingCredentials(true);
     try {
       const { error } = await supabase.rpc('admin_update_user_credentials', {
@@ -1449,6 +1580,7 @@ export default function Dashboard() {
       setCredTargetUserId(null);
       setCredNewUsername('');
       setCredNewPassword('');
+      setCredConfirmPassword('');
       fetchRecords();
     } catch (err: any) {
       setMessage({ type: 'error', text: 'ক্রিডেনশিয়াল আপডেট করতে ব্যর্থ: ' + err.message });
@@ -2592,9 +2724,9 @@ export default function Dashboard() {
                             setCredNewPassword('');
                             setShowCredentialsModal(true);
                           }}
-                          className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md"
+                          className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                         >
-                          ক্রিডেনশিয়াল এডিট
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Change Password
                         </button>
                         <button
                           onClick={() => {
@@ -2612,9 +2744,9 @@ export default function Dashboard() {
                             setEditAllowOvertime(staffProfile?.allow_overtime === true);
                             setShowProfileSettingsModal(true);
                           }}
-                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-blue-900/10 border border-blue-700"
+                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-blue-900/10 border border-blue-700 flex items-center gap-1.5"
                         >
-                          প্রোফাইল এডিট
+                          <Edit className="h-3.5 w-3.5" /> Edit Profile
                         </button>
                         {staffProfile?.role !== 'admin' && (
                           <button
@@ -2622,9 +2754,9 @@ export default function Dashboard() {
                               setDeleteTargetUser(staffProfile);
                               setShowDeleteUserModal(true);
                             }}
-                            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-650 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md"
+                            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-650 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                           >
-                            ইউজার ডিলিট করুন
+                            <Trash2 className="h-3.5 w-3.5" /> Delete User
                           </button>
                         )}
                       </div>
@@ -3030,6 +3162,158 @@ export default function Dashboard() {
         )}
 
       </main>
+      
+      {/* First-Time Password Change & Setup Modal */}
+      {showFirstTimePasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/90 backdrop-blur-xl p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden my-8">
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
+            
+            <div className="text-center mb-6">
+              <div className="inline-flex p-3 bg-blue-600/10 border border-blue-500/20 text-blue-400 rounded-2xl mb-3">
+                <Lock className="h-6 w-6 animate-pulse" />
+              </div>
+              <h3 className="text-lg font-bold text-white">পাসওয়ার্ড ও প্রোফাইল সেটআপ সম্পন্ন করুন</h3>
+              <p className="text-xs text-slate-400 mt-1">প্রথমবার লগইন করার পর নিরাপত্তা পাসওয়ার্ড পরিবর্তন এবং আপনার প্রোফাইল তথ্য সেট করা আবশ্যক</p>
+            </div>
+
+            {firstTimePasswordError && (
+              <div className="p-3 bg-red-950/50 border border-red-800/50 text-red-300 text-xs rounded-lg mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+                <span>{firstTimePasswordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleFirstTimeSetupSubmit} className="space-y-4">
+              <div className="p-3 bg-slate-950/60 border border-slate-850 rounded-xl space-y-4">
+                <div className="text-xs font-semibold text-blue-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" /> পাসওয়ার্ড পরিবর্তন
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-450 uppercase tracking-wider">নতুন পাসওয়ার্ড (New Password)</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="কমপক্ষে ৪টি ক্যারেক্টার"
+                    value={firstTimePassword}
+                    onChange={(e) => setFirstTimePassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-450 uppercase tracking-wider">পাসওয়ার্ড নিশ্চিত করুন (Confirm Password)</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="পাসওয়ার্ডটি আবার লিখুন"
+                    value={firstTimeConfirmPassword}
+                    onChange={(e) => setFirstTimeConfirmPassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {getPasswordMatchIndicator(firstTimePassword, firstTimeConfirmPassword)}
+                </div>
+              </div>
+
+              {/* Render profile fields only if they are not Admin and profile setup is NOT completed */}
+              {profile?.role !== 'admin' && !profile?.is_setup_completed && (
+                <div className="p-3 bg-slate-950/60 border border-slate-850 rounded-xl space-y-4 mt-2">
+                  <div className="text-xs font-semibold text-purple-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" /> প্রোফাইল তথ্য
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">সম্পূর্ণ নাম (Full Name)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="যেমন: কামরুল হাসান"
+                      value={firstTimeSetupFullName}
+                      onChange={(e) => setFirstTimeSetupFullName(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">জব রোল (Job Role)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="যেমন: IT Officer"
+                      value={firstTimeSetupJobRole}
+                      onChange={(e) => setFirstTimeSetupJobRole(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">দৈনিক কর্মঘণ্টা</label>
+                      <select
+                        required
+                        value={firstTimeSetupWorkingHours}
+                        onChange={(e) => setFirstTimeSetupWorkingHours(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="" disabled hidden>নির্বাচন করুন</option>
+                        <option value="7.5">৭ ঘণ্টা ৩০ মিনিট</option>
+                        <option value="8.0">৮ ঘণ্টা</option>
+                        <option value="8.5">৮ ঘণ্টা ৩০ মিনিট</option>
+                        <option value="9.0">৯ ঘণ্টা</option>
+                        <option value="9.5">৯ ঘণ্টা ৩০ মিনিট</option>
+                        <option value="10.0">১০ ঘণ্টা</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">ব্রেক (মিনিট)</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        value={firstTimeSetupBreakTime}
+                        onChange={(e) => setFirstTimeSetupBreakTime(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">ডিফল্ট সাইন-ইন টাইম</label>
+                      <input
+                        type="time"
+                        required
+                        value={firstTimeSetupSignInTime}
+                        onChange={(e) => setFirstTimeSetupSignInTime(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-455 uppercase tracking-wider">ডিফল্ট সাইন-আউট টাইম</label>
+                      <input
+                        type="time"
+                        required
+                        value={firstTimeSetupSignOutTime}
+                        onChange={(e) => setFirstTimeSetupSignOutTime(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={firstTimePasswordSubmitting || firstTimePassword !== firstTimeConfirmPassword || firstTimePassword.length < 4}
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 transition-all mt-6 flex items-center justify-center gap-1.5"
+              >
+                {firstTimePasswordSubmitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                {firstTimePasswordSubmitting ? 'সেটআপ সম্পন্ন হচ্ছে...' : 'সেটআপ সম্পন্ন করুন'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* First Login Onboarding Modal */}
       {!profile?.is_setup_completed && profile?.role !== 'admin' && (
@@ -4680,6 +4964,7 @@ export default function Dashboard() {
                   setShowCreateUserModal(false);
                   setNewStaffEmail('');
                   setNewStaffPassword('');
+                  setNewStaffConfirmPassword('');
                   setNewStaffUsername('');
                   setNewStaffFullName('');
                   setNewStaffRole('user');
@@ -4717,7 +5002,7 @@ export default function Dashboard() {
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">ইউজার আইডি (User ID)</label>
                 <input
                   type="email"
-                  placeholder="যেমন: ki1024@user.chuti"
+                  placeholder="যেমন: ki1024"
                   value={newStaffEmail}
                   onChange={(e) => setNewStaffEmail(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
@@ -4733,6 +5018,18 @@ export default function Dashboard() {
                   onChange={(e) => setNewStaffPassword(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">পাসওয়ার্ড নিশ্চিত করুন (Confirm Password)</label>
+                <input
+                  type="password"
+                  placeholder="পাসওয়ার্ডটি আবার লিখুন"
+                  value={newStaffConfirmPassword}
+                  onChange={(e) => setNewStaffConfirmPassword(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                {getPasswordMatchIndicator(newStaffPassword, newStaffConfirmPassword)}
               </div>
 
               <div>
@@ -4818,6 +5115,7 @@ export default function Dashboard() {
                     setShowCreateUserModal(false);
                     setNewStaffEmail('');
                     setNewStaffPassword('');
+                    setNewStaffConfirmPassword('');
                     setNewStaffUsername('');
                     setNewStaffFullName('');
                     setNewStaffRole('user');
@@ -4830,7 +5128,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={handleCreateNewUser}
-                  disabled={creatingUser}
+                  disabled={creatingUser || !newStaffPassword || newStaffPassword !== newStaffConfirmPassword || newStaffPassword.length < 4}
                   className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {creatingUser && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
@@ -4850,7 +5148,7 @@ export default function Dashboard() {
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Edit className="h-5 w-5 text-blue-500" /> ক্রিডেনশিয়াল এডিট প্যানেল
+                <Edit className="h-5 w-5 text-blue-500" /> Change Password প্যানেল
               </h3>
               <button 
                 onClick={() => {
@@ -4858,6 +5156,7 @@ export default function Dashboard() {
                   setCredTargetUserId(null);
                   setCredNewUsername('');
                   setCredNewPassword('');
+                  setCredConfirmPassword('');
                 }}
                 className="text-slate-450 hover:text-white text-sm cursor-pointer"
               >
@@ -4892,6 +5191,18 @@ export default function Dashboard() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">নতুন পাসওয়ার্ড নিশ্চিত করুন (Confirm Password)</label>
+                <input
+                  type="password"
+                  placeholder="নতুন পাসওয়ার্ডটি আবার লিখুন"
+                  value={credConfirmPassword}
+                  onChange={(e) => setCredConfirmPassword(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {getPasswordMatchIndicator(credNewPassword, credConfirmPassword)}
+              </div>
+
               <div className="flex gap-3 pt-4 border-t border-slate-800/80">
                 <button
                   type="button"
@@ -4900,6 +5211,7 @@ export default function Dashboard() {
                     setCredTargetUserId(null);
                     setCredNewUsername('');
                     setCredNewPassword('');
+                    setCredConfirmPassword('');
                   }}
                   className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
                 >
@@ -4908,7 +5220,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={handleUpdateCredentials}
-                  disabled={updatingCredentials}
+                  disabled={updatingCredentials || (credNewPassword ? (credNewPassword !== credConfirmPassword || credNewPassword.length < 4) : false)}
                   className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {updatingCredentials && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}

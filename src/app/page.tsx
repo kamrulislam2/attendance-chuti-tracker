@@ -1027,7 +1027,7 @@ export default function Dashboard() {
     const record = adjustmentRecord;
     try {
       const isShortLeave = record.leave_type === 'Short Leave';
-      const isAdmin = profile?.role === 'admin';
+      const isAdmin = profile?.role === 'admin' && adminActiveTab === 'admin';
       let requestedUpdates: any = {};
 
       if (isShortLeave) {

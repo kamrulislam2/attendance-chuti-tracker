@@ -72,7 +72,7 @@ export default function LoginPage() {
             loginEmail = `${loginEmail.toLowerCase()}@user.chuti`;
           }
         }
-      } catch (err) {
+      } catch {
         // fallback mapping
         if (loginEmail.toLowerCase().includes('admin') || loginEmail.toLowerCase() === 'kamrul') {
           loginEmail = `${loginEmail.toLowerCase()}@admin.chuti`;
@@ -105,7 +105,7 @@ export default function LoginPage() {
         router.push('/');
         router.refresh();
       }
-    } catch (err: any) {
+    } catch {
       setError('লগইন করার সময় একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       setLoading(false);
     }

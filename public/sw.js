@@ -92,7 +92,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(title, options)
     );
-  } catch (err) {
+  } catch {
     // Fallback if data is not JSON
     const text = event.data.text();
     event.waitUntil(

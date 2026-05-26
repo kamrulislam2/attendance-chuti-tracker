@@ -400,6 +400,7 @@ BEGIN
   END LOOP;
 
   -- Insert into public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime)
+  INSERT INTO public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime)
   VALUES (
     NEW.id,
     final_username,

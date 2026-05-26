@@ -12,6 +12,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
+  // Load theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   // Redirect if already logged in
   useEffect(() => {
     const checkUser = async () => {

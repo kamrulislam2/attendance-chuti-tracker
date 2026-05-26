@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { 
+  subscribeUserToPush, 
+  unsubscribeUserFromPush, 
+  checkSubscriptionStatus, 
+  sendPushNotification 
+} from '@/utils/webPushHelper';
+import { 
   saveOfflineRecord, 
   getOfflineRecords, 
   syncOfflineData, 
@@ -34,7 +40,9 @@ import {
   ArrowLeft,
   MoreVertical,
   Bell,
-  Lock
+  Lock,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Helper function to clean supervisor/admin approval prefix from comment for table display
@@ -78,6 +86,8 @@ export default function Dashboard() {
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+  const [isPushLoading, setIsPushLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
@@ -229,6 +239,32 @@ export default function Dashboard() {
   const [deletingRecord, setDeletingRecord] = useState(false);
   const [submittingRevision, setSubmittingRevision] = useState(false);
 
+  // Theme Toggle state
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Load theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme as 'dark' | 'light');
+    if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  // Theme toggle handler
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    if (nextTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  };
+
   // User form states
   const [date, setDate] = useState('');
   const [leaveType, setLeaveType] = useState('Short Leave');
@@ -267,6 +303,17 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
   }, [message]);
+
+  // Sync push notification subscription status
+  useEffect(() => {
+    if (sessionUser?.id) {
+      checkSubscriptionStatus(sessionUser.id).then(status => {
+        setIsPushSubscribed(status.isSubscribed);
+      });
+    }
+  }, [sessionUser, showProfileSettingsModal]);
+
+
 
   // 1. Check Authentication and Fetch Profile
   useEffect(() => {
@@ -480,6 +527,43 @@ export default function Dashboard() {
     }
   }, [loading, sessionUser, profile, fetchRecords]);
 
+  // Listen for real-time updates from Supabase to refresh dashboard without manual reload
+  useEffect(() => {
+    if (!sessionUser) return;
+
+    const chutiChannel = supabase
+      .channel('realtime-chuti-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chuti' },
+        (payload) => {
+          console.log('Realtime chuti change received:', payload);
+          fetchRecords();
+        }
+      )
+      .subscribe();
+
+    const profilesChannel = supabase
+      .channel('realtime-profile-changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload: any) => {
+          console.log('Realtime profile update received:', payload);
+          if (payload.new && payload.new.id === sessionUser.id) {
+            setProfile(payload.new);
+          }
+          fetchRecords();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(chutiChannel);
+      supabase.removeChannel(profilesChannel);
+    };
+  }, [sessionUser, fetchRecords]);
+
   // Set default form date to today
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -682,6 +766,15 @@ export default function Dashboard() {
 
       const { error: insertError } = await supabase.from('chuti').insert(recordData);
       if (insertError) throw insertError;
+
+      // Trigger Web Push Notification to Supervisors and/or Admins
+      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors'];
+      sendPushNotification({
+        userIds: targetRoles,
+        title: 'নতুন ছুটির আবেদন 🔔',
+        body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি ${leaveType} এর আবেদন করেছেন (${date})`,
+        url: '/'
+      }).catch(err => console.error('Error triggering push notification:', err));
 
       setMessage({ type: 'success', text: 'আপনার ছুটির তথ্য সফলভাবে সাবমিট করা হয়েছে!' });
       fetchRecords();
@@ -951,6 +1044,16 @@ export default function Dashboard() {
         .eq('id', record.id);
       
       if (error) throw error;
+
+      // Trigger Web Push Notification to Staff member
+      if (record?.user_id) {
+        sendPushNotification({
+          userIds: [record.user_id],
+          title: `রিজার্ভ সমন্বয় ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+          body: `আপনার রিজার্ভ ছুটি সমন্বয় আবেদনটি (${record.date}) ${approve ? 'অনুমোদন' : 'প্রত্যাখ্যান'} করা হয়েছে।`,
+          url: '/'
+        }).catch(err => console.error('Error sending push:', err));
+      }
 
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
       if (approve) {
@@ -1335,6 +1438,24 @@ export default function Dashboard() {
 
       if (error) throw error;
 
+      // Trigger Web Push Notification to Staff member
+      if (target?.user_id) {
+        sendPushNotification({
+          userIds: [target.user_id],
+          title: 'ছুটি সুপারভাইজার দ্বারা অনুমোদিত ✅',
+          body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (${target.date})। এটি এখন অ্যাডমিন অ্যাপ্রুভালের অপেক্ষায় রয়েছে।`,
+          url: '/'
+        }).catch(err => console.error('Error sending push:', err));
+      }
+
+      // Notify Admins
+      sendPushNotification({
+        userIds: ['admins'],
+        title: 'ছুটি সুপারভাইজার অ্যাপ্রুভড 🔔',
+        body: `${target?.profiles?.username || 'স্টাফ'}-এর ছুটি সুপারভাইজার অনুমোদন করেছেন (${target?.date || ''})। অ্যাডমিন প্যানেল চেক করুন।`,
+        url: '/'
+      }).catch(err => console.error('Error sending push to admin:', err));
+
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
       setApprovedIds(prev => new Set(prev).add(chutiId));
       setTimeout(() => setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; }), 1500);
@@ -1388,6 +1509,16 @@ export default function Dashboard() {
 
       if (error) throw error;
 
+      // Trigger Web Push Notification to Staff member
+      if (target?.user_id) {
+        sendPushNotification({
+          userIds: [target.user_id],
+          title: 'ছুটি চূড়ান্তভাবে অনুমোদিত 🎉',
+          body: `আপনার ${target.leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (${target.date})।`,
+          url: '/'
+        }).catch(err => console.error('Error sending push:', err));
+      }
+
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
       setApprovedIds(prev => new Set(prev).add(chutiId));
       setTimeout(() => setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; }), 1500);
@@ -1431,6 +1562,17 @@ export default function Dashboard() {
           .eq('id', chutiId);
 
         if (error) throw error;
+
+        // Trigger Web Push Notification to Staff member
+        if (target?.user_id) {
+          sendPushNotification({
+            userIds: [target.user_id],
+            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
+            body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন। কারণ: ${reasonText}`,
+            url: '/'
+          }).catch(err => console.error('Error sending push:', err));
+        }
+
         setMessage({ 
           type: 'success', 
           text: 'ছুটি সংশোধনের জন্য ইউজারের কাছে ফেরত পাঠানো হয়েছে।' 
@@ -1452,6 +1594,17 @@ export default function Dashboard() {
           .eq('id', chutiId);
 
         if (error) throw error;
+
+        // Trigger Web Push Notification to Staff member
+        if (target?.user_id) {
+          sendPushNotification({
+            userIds: [target.user_id],
+            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
+            body: `আপনার ${target.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন। কারণ: ${reasonText}`,
+            url: '/'
+          }).catch(err => console.error('Error sending push:', err));
+        }
+
         setMessage({ 
           type: 'success', 
           text: 'ছুটির তথ্য সংশোধনের জন্য ইউজারের কাছে ফেরত পাঠানো হয়েছে।' 
@@ -2316,6 +2469,19 @@ export default function Dashboard() {
               </button>
             )}
 
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer transition-all flex items-center justify-center"
+              title={theme === 'dark' ? 'লাইট মোড অন করুন' : 'ডার্ক মোড অন করুন'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4.5 w-4.5 text-amber-500" />
+              ) : (
+                <Moon className="h-4.5 w-4.5 text-indigo-400" />
+              )}
+            </button>
+
             {/* Notification Bell */}
             {profile && (
               <button
@@ -2754,7 +2920,7 @@ export default function Dashboard() {
                               setDeleteTargetUser(staffProfile);
                               setShowDeleteUserModal(true);
                             }}
-                            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-650 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                            className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                           >
                             <Trash2 className="h-3.5 w-3.5" /> Delete User
                           </button>
@@ -3062,7 +3228,7 @@ export default function Dashboard() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowCreateUserModal(true)}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-650 hover:bg-purple-600 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md mr-2"
+                      className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md mr-2"
                     >
                       <Plus className="h-3.5 w-3.5" /> Add Staff
                     </button>
@@ -3469,8 +3635,42 @@ export default function Dashboard() {
             )}
 
             <form onSubmit={handleUpdateSettings} className="space-y-4">
-              {profile?.role === 'admin' && (
-                <div className="flex items-center justify-between p-3 bg-purple-950/45 rounded-lg border border-purple-900/35 mb-4 shadow-inner">
+              {/* Web Push Notification Toggle */}
+              {!editingStaffProfileId && (
+                <div className="push-notification-banner flex items-center justify-between p-3 bg-blue-950/45 rounded-lg border border-blue-900/35 mb-4 shadow-inner">
+                  <div>
+                    <span className="block text-sm font-semibold text-white">ডেস্কটপ নোটিফিকেশন 🔔</span>
+                    <span className="block text-[11px] text-slate-400">ছুটি আপডেট ও নতুন আবেদনের তাৎক্ষণিক অ্যালার্ট পান</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isPushLoading}
+                    onClick={async () => {
+                      if (!sessionUser) return;
+                      setIsPushLoading(true);
+                      if (isPushSubscribed) {
+                        const success = await unsubscribeUserFromPush(sessionUser.id);
+                        if (success) setIsPushSubscribed(false);
+                      } else {
+                        const success = await subscribeUserToPush(sessionUser.id);
+                        if (success) setIsPushSubscribed(true);
+                      }
+                      setIsPushLoading(false);
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isPushSubscribed ? 'bg-blue-600' : 'bg-slate-800'
+                    } ${isPushLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isPushSubscribed ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+              {profile?.role === 'admin' && !editingStaffProfileId && (
+                <div className="admin-mode-banner flex items-center justify-between p-3 bg-purple-950/45 rounded-lg border border-purple-900/35 mb-4 shadow-inner">
                   <div>
                     <span className="block text-sm font-semibold text-white">অ্যাডমিন মোড (Admin Mode)</span>
                     <span className="block text-[11px] text-slate-400">অন করলে অ্যাডমিন প্যানেল ও অ্যাপ্রুভাল ফিচার চালু হবে</span>
@@ -4725,7 +4925,7 @@ export default function Dashboard() {
                 type="button"
                 disabled={deletingRecord}
                 onClick={handleConfirmDelete}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-650 hover:bg-red-600 text-white rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {deletingRecord && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 {deletingRecord ? 'ডিলিট হচ্ছে...' : 'হ্যাঁ, ডিলিট করুন'}
@@ -4835,7 +5035,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(false);
                       handleSaveAdjustment(false);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-650 hover:bg-blue-600 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer transition-all"
                   >
                     না, কেবল ওভারটাইম বাদ দিন
                   </button>
@@ -4871,7 +5071,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(false);
                       handleSaveAdjustment(false);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-650 hover:bg-blue-600 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer transition-all"
                   >
                     না, কেবল রিজার্ভ থেকে মাইনাস করুন
                   </button>
@@ -4941,7 +5141,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={handleConfirmCancelAdjustment}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-650 hover:bg-amber-600 text-white rounded-lg cursor-pointer transition-all"
+                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 text-white rounded-lg cursor-pointer transition-all"
               >
                 হ্যাঁ, বাতিল করুন
               </button>
@@ -5266,7 +5466,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleDeleteUser}
                 disabled={deletingUser}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-650 hover:bg-red-600 text-white rounded-lg cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {deletingUser && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 {deletingUser ? 'মুছে ফেলা হচ্ছে...' : 'হ্যাঁ, স্টাফ মুছে ফেলুন'}

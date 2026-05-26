@@ -1,0 +1,220 @@
+import { supabase } from './supabase';
+
+// Helper function to convert base64 VAPID key to Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+export async function subscribeUserToPush(userId: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Push messaging is not supported in this browser');
+    return false;
+  }
+
+  try {
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('Notification permission not granted');
+      return false;
+    }
+
+    // Register/get Service Worker
+    const registration = await navigator.serviceWorker.ready;
+
+    // Get VAPID Public Key
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      console.error('VAPID public key is missing');
+      return false;
+    }
+
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    // Subscribe to push service
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey as any,
+    });
+
+    // Extract details
+    const rawSub = subscription.toJSON();
+    const endpoint = rawSub.endpoint;
+    const p256dh = rawSub.keys?.p256dh;
+    const auth = rawSub.keys?.auth;
+
+    if (!endpoint || !p256dh || !auth) {
+      console.error('Failed to extract credentials from push subscription');
+      return false;
+    }
+
+    // Store in Supabase
+    // Using upsert on endpoint to prevent duplicate endpoint records
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        user_id: userId,
+        endpoint: endpoint,
+        p256dh: p256dh,
+        auth: auth,
+      }, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      console.error('Error saving push subscription to database:', error);
+      return false;
+    }
+
+    console.log('Successfully subscribed to Web Push notifications');
+    return true;
+  } catch (error) {
+    console.error('Error subscribing to Web Push:', error);
+    return false;
+  }
+}
+
+export async function unsubscribeUserFromPush(userId: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      const endpoint = subscription.endpoint;
+      
+      // Unsubscribe from browser push service
+      await subscription.unsubscribe();
+
+      // Delete from database
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', endpoint);
+
+      if (error) {
+        console.error('Error deleting push subscription from database:', error);
+      }
+    } else {
+      // Fallback clean database entries for this user
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error clearing push subscriptions from database:', error);
+      }
+    }
+
+    console.log('Successfully unsubscribed from Web Push notifications');
+    return true;
+  } catch (error) {
+    console.error('Error unsubscribing from Web Push:', error);
+    return false;
+  }
+}
+
+export async function checkSubscriptionStatus(userId: string): Promise<{
+  permission: NotificationPermission;
+  isSubscribed: boolean;
+}> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { permission: 'default', isSubscribed: false };
+  }
+
+  const permission = Notification.permission;
+  if (permission !== 'granted') {
+    return { permission, isSubscribed: false };
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      return { permission, isSubscribed: false };
+    }
+
+    // Check if it exists in our database
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .select('id')
+      .eq('endpoint', subscription.endpoint)
+      .maybeSingle();
+
+    if (error || !data) {
+      // Subscription exists in browser but not in DB, sync it
+      const rawSub = subscription.toJSON();
+      const endpoint = rawSub.endpoint;
+      const p256dh = rawSub.keys?.p256dh;
+      const auth = rawSub.keys?.auth;
+
+      if (endpoint && p256dh && auth) {
+        await supabase
+          .from('push_subscriptions')
+          .upsert({
+            user_id: userId,
+            endpoint: endpoint,
+            p256dh: p256dh,
+            auth: auth,
+          }, {
+            onConflict: 'endpoint'
+          });
+        return { permission, isSubscribed: true };
+      }
+      return { permission, isSubscribed: false };
+    }
+
+    return { permission, isSubscribed: true };
+  } catch (error) {
+    console.error('Error checking subscription status:', error);
+    return { permission, isSubscribed: false };
+  }
+}
+
+export async function sendPushNotification(params: {
+  userIds: string[];
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+}): Promise<boolean> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn('No active session to send push notification');
+      return false;
+    }
+
+    const response = await fetch('/api/send-push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(params)
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    return false;
+  }
+}
+

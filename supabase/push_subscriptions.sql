@@ -80,6 +80,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 4. Register or transfer a push subscription to a new user (handles account switching)
+CREATE OR REPLACE FUNCTION public.register_push_subscription(
+  p_user_id UUID,
+  p_endpoint TEXT,
+  p_p256dh TEXT,
+  p_auth TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+  -- Delete any existing subscription for this endpoint (regardless of owner)
+  DELETE FROM public.push_subscriptions WHERE endpoint = p_endpoint;
+  
+  -- Insert the new subscription
+  INSERT INTO public.push_subscriptions (user_id, endpoint, p256dh, auth)
+  VALUES (p_user_id, p_endpoint, p_p256dh, p_auth);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
 
 -- ============================================================
 -- Enable Supabase Realtime on chuti and profiles tables

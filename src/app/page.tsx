@@ -56,6 +56,16 @@ const getCleanComment = (comment: string | null | undefined): string => {
   return clean.trim();
 };
 
+// Helper function to format date from YYYY-MM-DD to DD-MM-YYYY
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateString;
+};
+
 const getPasswordMatchIndicator = (password: string, confirm: string) => {
   if (!confirm) return null;
   if (password !== confirm) {
@@ -448,26 +458,6 @@ export default function Dashboard() {
     fetchSession();
   }, [router]);
 
-  // Network Status Monitor
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsOnline(navigator.onLine);
-      const handleOnline = () => {
-        setIsOnline(true);
-        triggerAutoSync();
-      };
-      const handleOffline = () => setIsOnline(false);
-
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
-  }, []);
-
   // Sync Check Loop
   const checkOfflineQueue = useCallback(async () => {
     const records = await getOfflineRecords();
@@ -526,6 +516,38 @@ export default function Dashboard() {
       fetchRecords();
     }
   }, [loading, sessionUser, profile, fetchRecords]);
+
+  // Auto Sync Handler
+  const triggerAutoSync = useCallback(async () => {
+    if (!navigator.onLine) return;
+    const res = await syncOfflineData();
+    if (res.syncedCount > 0) {
+      setMessage({ type: 'success', text: `${res.syncedCount}টি অফলাইন ডাটা সফলভাবে ক্লাউডে সেভ করা হয়েছে!` });
+      checkOfflineQueue();
+      fetchRecords();
+      setTimeout(() => setMessage(null), 5000);
+    }
+  }, [checkOfflineQueue, fetchRecords]);
+
+  // Network Status Monitor
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      const handleOnline = () => {
+        setIsOnline(true);
+        triggerAutoSync();
+      };
+      const handleOffline = () => setIsOnline(false);
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, [triggerAutoSync]);
 
   // Listen for real-time updates from Supabase to refresh dashboard without manual reload
   useEffect(() => {
@@ -656,17 +678,6 @@ export default function Dashboard() {
   }, [revisionSignInTime, revisionSignOutTime, revisionLeaveType, profile]);
 
 
-  // Auto Sync Handler
-  const triggerAutoSync = async () => {
-    if (!navigator.onLine) return;
-    const res = await syncOfflineData();
-    if (res.syncedCount > 0) {
-      setMessage({ type: 'success', text: `${res.syncedCount}টি অফলাইন ডাটা সফলভাবে ক্লাউডে সেভ করা হয়েছে!` });
-      checkOfflineQueue();
-      fetchRecords();
-      setTimeout(() => setMessage(null), 5000);
-    }
-  };
 
   // 4. Form Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -772,7 +783,7 @@ export default function Dashboard() {
       sendPushNotification({
         userIds: targetRoles,
         title: 'নতুন ছুটির আবেদন 🔔',
-        body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি ${leaveType} এর আবেদন করেছেন (${date})`,
+        body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি ${leaveType} এর আবেদন করেছেন (${formatDate(date)})`,
         url: '/'
       }).catch(err => console.error('Error triggering push notification:', err));
 
@@ -1050,7 +1061,7 @@ export default function Dashboard() {
         sendPushNotification({
           userIds: [record.user_id],
           title: `রিজার্ভ সমন্বয় ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
-          body: `আপনার রিজার্ভ ছুটি সমন্বয় আবেদনটি (${record.date}) ${approve ? 'অনুমোদন' : 'প্রত্যাখ্যান'} করা হয়েছে।`,
+          body: `আপনার রিজার্ভ ছুটি সমন্বয় আবেদনটি (${formatDate(record.date)}) ${approve ? 'অনুমোদন' : 'প্রত্যাখ্যান'} করা হয়েছে।`,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1443,7 +1454,7 @@ export default function Dashboard() {
         sendPushNotification({
           userIds: [target.user_id],
           title: 'ছুটি সুপারভাইজার দ্বারা অনুমোদিত ✅',
-          body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (${target.date})। এটি এখন অ্যাডমিন অ্যাপ্রুভালের অপেক্ষায় রয়েছে।`,
+          body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (${formatDate(target.date)})। এটি এখন অ্যাডমিন অ্যাপ্রুভালের অপেক্ষায় রয়েছে।`,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1452,7 +1463,7 @@ export default function Dashboard() {
       sendPushNotification({
         userIds: ['admins'],
         title: 'ছুটি সুপারভাইজার অ্যাপ্রুভড 🔔',
-        body: `${target?.profiles?.username || 'স্টাফ'}-এর ছুটি সুপারভাইজার অনুমোদন করেছেন (${target?.date || ''})। অ্যাডমিন প্যানেল চেক করুন।`,
+        body: `${target?.profiles?.username || 'স্টাফ'}-এর ছুটি সুপারভাইজার অনুমোদন করেছেন (${formatDate(target?.date) || ''})। অ্যাডমিন প্যানেল চেক করুন।`,
         url: '/'
       }).catch(err => console.error('Error sending push to admin:', err));
 
@@ -1514,7 +1525,7 @@ export default function Dashboard() {
         sendPushNotification({
           userIds: [target.user_id],
           title: 'ছুটি চূড়ান্তভাবে অনুমোদিত 🎉',
-          body: `আপনার ${target.leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (${target.date})।`,
+          body: `আপনার ${target.leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (${formatDate(target.date)})।`,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1778,6 +1789,14 @@ export default function Dashboard() {
       const isReserve = revisionLeaveType === 'Reserve';
       const isFullLeave = revisionLeaveType === 'Full Leave';
 
+      // Determine if supervisor approval can be bypassed
+      const bypassSupervisor = 
+        profile?.needs_supervisor_approval === false ||
+        profile?.role === 'admin' ||
+        profile?.role === 'supervisor' ||
+        profile?.job_role === 'IT Manager' ||
+        profile?.job_role === 'IT Officer';
+
       const updates = {
         date: revisionDate,
         leave_type: revisionLeaveType,
@@ -1789,7 +1808,7 @@ export default function Dashboard() {
         reserve_holiday: isReserve ? revisionReserveHoliday : null,
         reserve_adjustment_status: isReserve ? (revisionAdjustment ? 'pending' : 'none') : 'none',
         comment: revisionComment || null,
-        status: (profile?.role === 'admin' || profile?.role === 'supervisor') ? 'approved_by_supervisor' : 'pending_supervisor'
+        status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor'
       };
 
       const { error } = await supabase
@@ -1799,11 +1818,22 @@ export default function Dashboard() {
 
       if (error) throw error;
 
+      // Trigger Web Push Notification to Supervisors and/or Admins for resubmission
+      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors'];
+      sendPushNotification({
+        userIds: targetRoles,
+        title: 'সংশোধিত ছুটির আবেদন 🔔',
+        body: `${profile?.full_name || profile?.username || 'স্টাফ'} ছুটির আবেদন সংশোধন করে পুনরায় পাঠিয়েছেন (${formatDate(revisionDate)})`,
+        url: '/'
+      }).catch(err => console.error('Error triggering push notification for revision:', err));
+
       fetchRecords();
       setShowUserRevisionModal(false);
       setMessage({ 
         type: 'success', 
-        text: 'সংশোধিত তথ্য সুপারভাইজারের কাছে পুনরায় পাঠানো হয়েছে।' 
+        text: bypassSupervisor 
+          ? 'সংশোধিত তথ্য অ্যাডমিনের কাছে পুনরায় পাঠানো হয়েছে।' 
+          : 'সংশোধিত তথ্য সুপারভাইজারের কাছে পুনরায় পাঠানো হয়েছে।' 
       });
     } catch (err: any) {
       alert('রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + err.message);
@@ -1875,7 +1905,7 @@ export default function Dashboard() {
 
     const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour', 'Overtime', 'Reserve Holiday', 'Comment', 'Status', 'Is Edited'];
     const rows = recordsToExport.map(record => [
-      record.date,
+      formatDate(record.date),
       record.leave_type,
       record.adjustment ? 'Yes' : 'No',
       record.sign_in_time || '-',
@@ -1932,7 +1962,7 @@ export default function Dashboard() {
     recordsToExport.forEach(r => {
       html += `
         <tr>
-          <td>${r.date}</td>
+          <td>${formatDate(r.date)}</td>
           <td>${r.leave_type}</td>
           <td>${r.adjustment ? 'Yes' : 'No'}</td>
           <td>${r.sign_in_time || '-'}</td>
@@ -2070,7 +2100,7 @@ export default function Dashboard() {
     // Map records to rows
     const rows = recordsToExport.map(record => [
       (record.profiles?.username || 'Unknown').toUpperCase(),
-      record.date,
+      formatDate(record.date),
       record.leave_type,
       record.adjustment ? 'Yes' : 'No',
       record.sign_in_time || '-',
@@ -2683,7 +2713,7 @@ export default function Dashboard() {
                           return (
                             <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white flex items-center gap-2">
-                                {r.date}
+                                {formatDate(r.date)}
                                 {isTemp && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-800 text-amber-400 animate-pulse">
                                     Pending
@@ -3075,7 +3105,7 @@ export default function Dashboard() {
                               {individualRecords.map((r) => (
                                 <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">
-                                    {r.date}
+                                    {formatDate(r.date)}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
@@ -3646,20 +3676,38 @@ export default function Dashboard() {
                     type="button"
                     disabled={isPushLoading}
                     onClick={async () => {
-                      if (!sessionUser) return;
+                      if (!sessionUser || isPushLoading) return;
+                      
+                      const willSubscribe = !isPushSubscribed;
+                      
+                      // Optimistically update the UI toggle state immediately
+                      setIsPushSubscribed(willSubscribe);
                       setIsPushLoading(true);
-                      if (isPushSubscribed) {
-                        const success = await unsubscribeUserFromPush(sessionUser.id);
-                        if (success) setIsPushSubscribed(false);
-                      } else {
-                        const success = await subscribeUserToPush(sessionUser.id);
-                        if (success) setIsPushSubscribed(true);
+                      
+                      try {
+                        if (!willSubscribe) {
+                          const success = await unsubscribeUserFromPush(sessionUser.id);
+                          if (!success) {
+                            // Revert state if failed
+                            setIsPushSubscribed(true);
+                          }
+                        } else {
+                          const success = await subscribeUserToPush(sessionUser.id);
+                          if (!success) {
+                            // Revert state if failed
+                            setIsPushSubscribed(false);
+                          }
+                        }
+                      } catch (err) {
+                        // Revert on error
+                        setIsPushSubscribed(!willSubscribe);
+                      } finally {
+                        setIsPushLoading(false);
                       }
-                      setIsPushLoading(false);
                     }}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                       isPushSubscribed ? 'bg-blue-600' : 'bg-slate-800'
-                    } ${isPushLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                    } ${isPushLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -3961,7 +4009,7 @@ export default function Dashboard() {
                               <span className="font-bold text-white text-sm">{user?.full_name || 'নাম নেই'}</span>
                               <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-800 rounded text-slate-400 font-mono">@{(user?.username || '').toUpperCase()}</span>
                             </div>
-                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{r.date}</span></p>
+                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{formatDate(r.date)}</span></p>
                             <p><span className="text-slate-500">ছুটির ধরন:</span> <span className="font-bold text-blue-400">{r.leave_type}</span></p>
                             {r.leave_type !== 'Reserve' && r.leave_type !== 'Full Leave' && (
                               <p><span className="text-slate-500">সময় ও ঘণ্টা:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} ঘণ্টা)</span></p>
@@ -4039,7 +4087,7 @@ export default function Dashboard() {
                               <span className="font-bold text-white text-sm">{user?.full_name || 'নাম নেই'}</span>
                               <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-800 rounded text-slate-400 font-mono">@{(user?.username || '').toUpperCase()}</span>
                             </div>
-                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{r.date}</span></p>
+                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{formatDate(r.date)}</span></p>
                             <p>
                               <span className="text-slate-500">ছুটির ধরন:</span>{' '}
                               <span className={`font-bold ${r.leave_type === 'Reserve' ? 'text-amber-500' : 'text-emerald-500'}`}>
@@ -4267,7 +4315,7 @@ export default function Dashboard() {
                           <span className="font-bold text-white text-sm">{user?.full_name || 'নাম নেই'}</span>
                           <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-800 rounded text-slate-400 font-mono">@{(user?.username || '').toUpperCase()}</span>
                         </div>
-                        <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{r.date}</span></p>
+                        <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{formatDate(r.date)}</span></p>
                         <p><span className="text-slate-500">ছুটির ধরন:</span> <span className="font-bold text-blue-400">{r.leave_type}</span></p>
                         {r.leave_type !== 'Reserve' && r.leave_type !== 'Full Leave' && (
                           <p><span className="text-slate-500">সময় ও ঘণ্টা:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} ঘণ্টা)</span></p>
@@ -4602,7 +4650,7 @@ export default function Dashboard() {
                   <div key={r.id} className="p-4 bg-slate-955/60 border border-slate-850 rounded-xl flex flex-col gap-3 shadow-md">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs text-slate-500 font-mono font-medium">{r.date}</span>
+                        <span className="text-xs text-slate-500 font-mono font-medium">{formatDate(r.date)}</span>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold w-fit ${
                           r.leave_type === 'Full Leave' 
                             ? 'bg-red-950/60 border border-red-900 text-red-400' 

@@ -60,20 +60,16 @@ export async function subscribeUserToPush(userId: string): Promise<boolean> {
     }
 
     // Store in Supabase
-    // Using upsert on endpoint to prevent duplicate endpoint records
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: userId,
-        endpoint: endpoint,
-        p256dh: p256dh,
-        auth: auth,
-      }, {
-        onConflict: 'endpoint'
-      });
+    // Use RPC function to handle RLS bypass and switch users smoothly on same endpoint
+    const { error } = await supabase.rpc('register_push_subscription', {
+      p_user_id: userId,
+      p_endpoint: endpoint,
+      p_p256dh: p256dh,
+      p_auth: auth
+    });
 
     if (error) {
-      console.error('Error saving push subscription to database:', error);
+      console.error('Error saving push subscription to database via RPC:', error);
       return false;
     }
 
@@ -150,31 +146,33 @@ export async function checkSubscriptionStatus(userId: string): Promise<{
       return { permission, isSubscribed: false };
     }
 
-    // Check if it exists in our database
+    // Check if it exists in our database and belongs to the current user
     const { data, error } = await supabase
       .from('push_subscriptions')
       .select('id')
       .eq('endpoint', subscription.endpoint)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error || !data) {
-      // Subscription exists in browser but not in DB, sync it
+      // Subscription exists in browser but not in DB (or belongs to another user), sync it
       const rawSub = subscription.toJSON();
       const endpoint = rawSub.endpoint;
       const p256dh = rawSub.keys?.p256dh;
       const auth = rawSub.keys?.auth;
 
       if (endpoint && p256dh && auth) {
-        await supabase
-          .from('push_subscriptions')
-          .upsert({
-            user_id: userId,
-            endpoint: endpoint,
-            p256dh: p256dh,
-            auth: auth,
-          }, {
-            onConflict: 'endpoint'
-          });
+        const { error: rpcError } = await supabase.rpc('register_push_subscription', {
+          p_user_id: userId,
+          p_endpoint: endpoint,
+          p_p256dh: p256dh,
+          p_auth: auth
+        });
+        
+        if (rpcError) {
+          console.error('Error syncing push subscription via RPC:', rpcError);
+          return { permission, isSubscribed: false };
+        }
         return { permission, isSubscribed: true };
       }
       return { permission, isSubscribed: false };
@@ -211,6 +209,9 @@ export async function sendPushNotification(params: {
     });
 
     const data = await response.json();
+    if (data.success !== true) {
+      console.warn('[WebPush] API failed to send notification:', data.error || data.message || JSON.stringify(data));
+    }
     return data.success === true;
   } catch (error) {
     console.error('Error sending push notification:', error);

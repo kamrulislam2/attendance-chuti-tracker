@@ -297,8 +297,12 @@ export default function Dashboard() {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
 
-  // Year Filter States
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('selectedYear') || new Date().getFullYear().toString();
+    }
+    return new Date().getFullYear().toString();
+  });
 
   const availableYears = Array.from(new Set([
     new Date().getFullYear().toString(),
@@ -875,6 +879,9 @@ export default function Dashboard() {
     if (sessionUser) {
       localStorage.removeItem(`session_start_time_${sessionUser.id}`);
       localStorage.removeItem(`last_access_time_${sessionUser.id}`);
+    }
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('selectedYear');
     }
     await supabase.auth.signOut();
     router.push('/login');
@@ -1844,7 +1851,15 @@ export default function Dashboard() {
 
   // Helper for computing summary statistics of an individual user
   const getUserSummaryStats = (userId: string) => {
-    const userRecs = adminRecords.filter(r => r.user_id === userId && r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
+    const userRecs = adminRecords.filter(r => {
+      if (r.user_id !== userId) return false;
+      if (r.status !== 'approved') return false;
+      if (selectedYear !== 'all' && r.date && r.date.substring(0, 4) !== selectedYear) return false;
+      if (filterType !== 'all' && r.leave_type !== filterType) return false;
+      if (filterStartDate && r.date < filterStartDate) return false;
+      if (filterEndDate && r.date > filterEndDate) return false;
+      return true;
+    });
     let full = 0;
     let shortMins = 0;
     let reserve = 0;
@@ -1895,28 +1910,69 @@ export default function Dashboard() {
 
   // Excel/CSV Export helper for individual staff
   const handleExportIndividualCSV = (userId: string) => {
-    const staffProfile = profilesList.find(p => p.id === userId);
-    let recordsToExport = (profile?.role === 'admin' || (profile?.role === 'supervisor' && userId !== sessionUser?.id)) ? adminRecords.filter(r => r.user_id === userId) : userRecords;
-    recordsToExport = recordsToExport.filter(r => r.date && r.date.substring(0, 4) === selectedYear);
+    const staffProfile = profilesList.find(p => p.id === userId) || (userId === sessionUser?.id ? profile : null);
+    const recordsToExport = getFilteredRecordsForUser(userId);
     if (recordsToExport.length === 0) {
       alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
       return;
     }
 
-    const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour', 'Overtime', 'Reserve Holiday', 'Comment', 'Status', 'Is Edited'];
-    const rows = recordsToExport.map(record => [
-      formatDate(record.date),
-      record.leave_type,
-      record.adjustment ? 'Yes' : 'No',
-      record.sign_in_time || '-',
-      record.sign_out_time || '-',
-      record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0] : '-'),
-      record.leave_type === 'Overtime' ? (record.leave_hour ? record.leave_hour.toString().split('.')[0] : '-') : '-',
-      record.reserve_holiday || '-',
-      `"${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
-      record.status,
-      record.is_edited ? 'Yes' : 'No'
-    ]);
+    const showOvertime = staffProfile?.allow_overtime === true;
+    const showReserve = staffProfile?.allow_reserve === true;
+
+    const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour'];
+    if (showOvertime) headers.push('Overtime');
+    if (showReserve) headers.push('Reserve Holiday');
+    headers.push('Comment', 'Status');
+
+    const rows = recordsToExport.map(record => {
+      let adjustmentVal = 'No';
+      if (record.leave_type === 'Reserve') {
+        if (record.reserve_adjustment_status === 'approved' || record.adjustment) {
+          adjustmentVal = 'Yes';
+        } else if (record.reserve_adjustment_status === 'pending') {
+          adjustmentVal = 'Pending';
+        } else if (record.reserve_adjustment_status === 'rejected') {
+          adjustmentVal = 'Rejected';
+        }
+      } else {
+        if (record.adjustment) {
+          adjustmentVal = 'Yes';
+        } else if (record.adjusted_hour) {
+          const adjHourStr = record.adjusted_hour.toString().split('.')[0].substring(0, 5);
+          adjustmentVal = `Partial (${adjHourStr})`;
+        }
+      }
+
+      const signInStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_in_time);
+      const signOutStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_out_time);
+      const leaveHourStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' || record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
+
+      const row = [
+        `="${formatDate(record.date)}"`, // force Excel to treat date as text
+        record.leave_type,
+        adjustmentVal,
+        signInStr,
+        signOutStr,
+        leaveHourStr
+      ];
+
+      if (showOvertime) {
+        const overtimeStr = record.leave_type === 'Overtime' ? (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
+        row.push(overtimeStr);
+      }
+
+      if (showReserve) {
+        row.push(record.reserve_holiday || '-');
+      }
+
+      row.push(
+        `"${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
+        record.status
+      );
+
+      return row;
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const link = document.createElement('a');
@@ -1928,15 +1984,80 @@ export default function Dashboard() {
   };
 
   const handleExportIndividualExcel = (userId: string) => {
-    const staffProfile = profilesList.find(p => p.id === userId);
-    let recordsToExport = (profile?.role === 'admin' || (profile?.role === 'supervisor' && userId !== sessionUser?.id)) ? adminRecords.filter(r => r.user_id === userId) : userRecords;
-    recordsToExport = recordsToExport.filter(r => r.date && r.date.substring(0, 4) === selectedYear);
+    const staffProfile = profilesList.find(p => p.id === userId) || (userId === sessionUser?.id ? profile : null);
+    const recordsToExport = getFilteredRecordsForUser(userId);
     if (recordsToExport.length === 0) {
       alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
       return;
     }
 
-    let html = `
+    const showOvertime = staffProfile?.allow_overtime === true;
+    const showReserve = staffProfile?.allow_reserve === true;
+
+    let headersHtml = `
+      <th>তারিখ</th>
+      <th>ধরন</th>
+      <th>Adjustment</th>
+      <th>সাইন ইন/আউট</th>
+      <th>লিভ আওয়ার</th>
+    `;
+    if (showOvertime) headersHtml += `<th>ওভারটাইম</th>`;
+    if (showReserve) headersHtml += `<th>রিজার্ভ ছুটি</th>`;
+    headersHtml += `
+      <th>মন্তব্য</th>
+      <th>অবস্থা</th>
+    `;
+
+    let rowsHtml = '';
+    recordsToExport.forEach(r => {
+      let adjustmentVal = 'না';
+      if (r.leave_type === 'Reserve') {
+        if (r.reserve_adjustment_status === 'approved' || r.adjustment) {
+          adjustmentVal = 'হ্যাঁ';
+        } else if (r.reserve_adjustment_status === 'pending') {
+          adjustmentVal = 'হ্যাঁ (Pending)';
+        } else if (r.reserve_adjustment_status === 'rejected') {
+          adjustmentVal = 'না (Rejected)';
+        }
+      } else {
+        if (r.adjustment) {
+          adjustmentVal = 'হ্যাঁ';
+        } else if (r.adjusted_hour) {
+          const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
+          adjustmentVal = `আংশিক (${adjHourStr})`;
+        }
+      }
+
+      const signInStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
+      const signOutStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
+      const leaveHourStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
+
+      rowsHtml += `
+        <tr>
+          <td style="mso-number-format:'\\@';">${formatDate(r.date)}</td>
+          <td>${r.leave_type}</td>
+          <td>${adjustmentVal}</td>
+          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${signInStr} / ${signOutStr}`}</td>
+          <td>${leaveHourStr}</td>
+      `;
+
+      if (showOvertime) {
+        const overtimeStr = r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
+        rowsHtml += `<td>${overtimeStr}</td>`;
+      }
+
+      if (showReserve) {
+        rowsHtml += `<td>${r.reserve_holiday || '-'}</td>`;
+      }
+
+      rowsHtml += `
+          <td>${getCleanComment(r.comment) || '-'}</td>
+          <td>${r.status}</td>
+        </tr>
+      `;
+    });
+
+    const html = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
@@ -1944,39 +2065,11 @@ export default function Dashboard() {
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
-              <th>তারিখ</th>
-              <th>ধরন</th>
-              <th>Adjustment</th>
-              <th>সাইন ইন</th>
-              <th>সাইন আউট</th>
-              <th>লিভ আওয়ার</th>
-              <th>ওভারটাইম</th>
-              <th>রিজার্ভ ছুটি</th>
-              <th>মন্তব্য</th>
-              <th>অবস্থা</th>
-              <th>Edited</th>
+              ${headersHtml}
             </tr>
           </thead>
           <tbody>
-    `;
-    recordsToExport.forEach(r => {
-      html += `
-        <tr>
-          <td>${formatDate(r.date)}</td>
-          <td>${r.leave_type}</td>
-          <td>${r.adjustment ? 'Yes' : 'No'}</td>
-          <td>${r.sign_in_time || '-'}</td>
-          <td>${r.sign_out_time || '-'}</td>
-          <td>${r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0] : '-')}</td>
-          <td>${r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0] : '-') : '-'}</td>
-          <td>${r.reserve_holiday || '-'}</td>
-          <td>${getCleanComment(r.comment) || ''}</td>
-          <td>${r.status}</td>
-          <td>${r.is_edited ? 'Yes' : 'No'}</td>
-        </tr>
-      `;
-    });
-    html += `
+            ${rowsHtml}
           </tbody>
         </table>
       </body>
@@ -2100,7 +2193,7 @@ export default function Dashboard() {
     // Map records to rows
     const rows = recordsToExport.map(record => [
       (record.profiles?.username || 'Unknown').toUpperCase(),
-      formatDate(record.date),
+      `="${formatDate(record.date)}"`,
       record.leave_type,
       record.adjustment ? 'Yes' : 'No',
       record.sign_in_time || '-',
@@ -2128,7 +2221,7 @@ export default function Dashboard() {
 
   // 6. User Leave Calculations (Google Sheets logic match)
   const calculateUserStats = () => {
-    const list = userRecords.filter(r => r.date && r.date.substring(0, 4) === selectedYear);
+    const list = getFilteredUserRecords();
     let totalShortMinutes = 0;
     let totalOvertimeMinutes = 0;
     let totalFullLeaves = 0;
@@ -2205,9 +2298,43 @@ export default function Dashboard() {
   const getFilteredAdminRecords = () => {
     return adminRecords.filter(r => {
       // Filter by Selected Year
-      if (r.date && r.date.substring(0, 4) !== selectedYear) return false;
+      if (selectedYear !== 'all' && r.date && r.date.substring(0, 4) !== selectedYear) return false;
       // Filter by User
       if (filterUser !== 'all' && r.user_id !== filterUser) return false;
+      // Filter by Leave Type
+      if (filterType !== 'all' && r.leave_type !== filterType) return false;
+      // Filter by Date Range
+      if (filterStartDate && r.date < filterStartDate) return false;
+      if (filterEndDate && r.date > filterEndDate) return false;
+      
+      return true;
+    });
+  };
+
+  // User filter helper
+  const getFilteredUserRecords = () => {
+    return userRecords.filter(r => {
+      // Filter by Selected Year
+      if (selectedYear !== 'all' && r.date && r.date.substring(0, 4) !== selectedYear) return false;
+      // Filter by Leave Type
+      if (filterType !== 'all' && r.leave_type !== filterType) return false;
+      // Filter by Date Range
+      if (filterStartDate && r.date < filterStartDate) return false;
+      if (filterEndDate && r.date > filterEndDate) return false;
+      
+      return true;
+    });
+  };
+
+  // Helper to get filtered records for a specific user ID (used by CSV/Excel individual exports)
+  const getFilteredRecordsForUser = (userId: string) => {
+    const baseRecords = (profile?.role === 'admin' || (profile?.role === 'supervisor' && userId !== sessionUser?.id)) 
+      ? adminRecords.filter(r => r.user_id === userId) 
+      : userRecords;
+      
+    return baseRecords.filter(r => {
+      // Filter by Selected Year
+      if (selectedYear !== 'all' && r.date && r.date.substring(0, 4) !== selectedYear) return false;
       // Filter by Leave Type
       if (filterType !== 'all' && r.leave_type !== filterType) return false;
       // Filter by Date Range
@@ -2319,7 +2446,7 @@ export default function Dashboard() {
   const staffProfile = viewingStaffId ? profilesList.find(p => p.id === viewingStaffId) : null;
   const individualRecords = viewingStaffId ? adminRecords.filter(r => {
     if (r.user_id !== viewingStaffId) return false;
-    if (r.date && r.date.substring(0, 4) !== selectedYear) return false;
+    if (selectedYear !== 'all' && r.date && r.date.substring(0, 4) !== selectedYear) return false;
     if (filterType !== 'all' && r.leave_type !== filterType) return false;
     if (filterStartDate && r.date < filterStartDate) return false;
     if (filterEndDate && r.date > filterEndDate) return false;
@@ -2331,7 +2458,7 @@ export default function Dashboard() {
   let staffFull = 0;
   let staffReserve = 0;
   if (viewingStaffId) {
-    adminRecords.filter(r => r.user_id === viewingStaffId && r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear).forEach(r => {
+    individualRecords.filter(r => r.status === 'approved').forEach(r => {
       if (r.leave_type === 'Full Leave') {
         if (!r.adjustment) staffFull++;
       } else if (r.leave_type === 'Reserve') {
@@ -2634,12 +2761,93 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {/* Filtering Panel for User */}
+              <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
+                  <SlidersHorizontal className="h-4 w-4 text-blue-500" /> আমার ছুটির ফিল্টারিং প্যানেল
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Filter Leave Type */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ছুটির ধরন</label>
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="all">সকল ক্যাটাগরি (All)</option>
+                      <option value="Short Leave">Short Leave</option>
+                      <option value="Full Leave">Full Leave</option>
+                      {profile?.allow_overtime && <option value="Overtime">Overtime</option>}
+                      {profile?.allow_reserve && <option value="Reserve">Reserve</option>}
+                    </select>
+                  </div>
+
+                  {/* Start Date */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
+                    <input
+                      type="date"
+                      min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                      max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                      value={filterStartDate}
+                      onChange={(e) => setFilterStartDate(e.target.value)}
+                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* End Date */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
+                    <input
+                      type="date"
+                      min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                      max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                      value={filterEndDate}
+                      onChange={(e) => setFilterEndDate(e.target.value)}
+                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-end gap-2">
+                    <button
+                      onClick={() => handleExportIndividualCSV(sessionUser?.id)}
+                      className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
+                      title="CSV Export"
+                    >
+                      <Download className="h-4 w-4" /> CSV
+                    </button>
+                    <button
+                      onClick={() => handleExportIndividualExcel(sessionUser?.id)}
+                      className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+                    >
+                      <Download className="h-4 w-4" /> Excel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFilterType('all');
+                        setFilterStartDate('');
+                        setFilterEndDate('');
+                      }}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs cursor-pointer transition-all"
+                      title="Filters Reset"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Chuti Records Table */}
               <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
                 <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="flex flex-col">
                     <h3 className="text-base font-bold text-white">আমার বাৎসরিক ছুটির রেকর্ডসমূহ</h3>
-                    <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {userRecords.filter(r => r.date && r.date.substring(0, 4) === selectedYear).length}টি এন্ট্রি</span>
+                    <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {getFilteredUserRecords().length}টি এন্ট্রি</span>
                   </div>
                   
                   {/* Export buttons for User/Supervisor */}
@@ -2658,23 +2866,16 @@ export default function Dashboard() {
                     >
                       <Plus className="h-3.5 w-3.5" /> Add Leave
                     </button>
-                    <button
-                      onClick={() => handleExportIndividualCSV(sessionUser?.id)}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-                    >
-                      <Download className="h-3.5 w-3.5" /> CSV
-                    </button>
-                    <button
-                      onClick={() => handleExportIndividualExcel(sessionUser?.id)}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Excel
-                    </button>
                     <select
                       value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedYear(val);
+                        sessionStorage.setItem('selectedYear', val);
+                      }}
                       className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-md"
                     >
+                      <option value="all" className="bg-slate-900 text-white">All</option>
                       {availableYears.map(y => (
                         <option key={y} value={y} className="bg-slate-900 text-white">
                           {y}
@@ -2685,7 +2886,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="overflow-x-auto">
-                  {userRecords.filter(r => r.date && r.date.substring(0, 4) === selectedYear).length === 0 ? (
+                  {getFilteredUserRecords().length === 0 ? (
                     <div className="py-12 text-center text-slate-500 text-sm">
                       কোনো ছুটির রেকর্ড পাওয়া যায়নি। নতুন এন্ট্রি সাবমিট করুন।
                     </div>
@@ -2706,8 +2907,7 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-                        {userRecords
-                          .filter(r => r.date && r.date.substring(0, 4) === selectedYear)
+                        {getFilteredUserRecords()
                           .map((r) => {
                           const isTemp = typeof r.id === 'string' && r.id.startsWith('temp-');
                           return (
@@ -3022,6 +3222,8 @@ export default function Dashboard() {
                           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
                           <input
                             type="date"
+                            min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                            max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
                             value={filterStartDate}
                             onChange={(e) => setFilterStartDate(e.target.value)}
                             onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
@@ -3034,6 +3236,8 @@ export default function Dashboard() {
                           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
                           <input
                             type="date"
+                            min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                            max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
                             value={filterEndDate}
                             onChange={(e) => setFilterEndDate(e.target.value)}
                             onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
@@ -3276,9 +3480,14 @@ export default function Dashboard() {
                     </button>
                     <select
                       value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedYear(val);
+                        sessionStorage.setItem('selectedYear', val);
+                      }}
                       className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-md"
                     >
+                      <option value="all" className="bg-slate-900 text-white">All</option>
                       {availableYears.map(y => (
                         <option key={y} value={y} className="bg-slate-900 text-white">
                           {y}

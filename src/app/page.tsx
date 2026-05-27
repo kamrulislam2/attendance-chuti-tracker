@@ -3432,7 +3432,7 @@ export default function Dashboard() {
                   <input
                     type="password"
                     required
-                    placeholder="কমপক্ষে ৪টি ক্যারেক্টার"
+                    placeholder="কমপক্ষে ৬টি ক্যারেক্টার"
                     value={firstTimePassword}
                     onChange={(e) => setFirstTimePassword(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -5319,7 +5319,7 @@ export default function Dashboard() {
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">পাসওয়ার্ড (Password)</label>
                 <input
                   type="password"
-                  placeholder="কমপক্ষে 4টি ক্যারেক্টার"
+                  placeholder="কমপক্ষে 4-6টি ক্যারেক্টার"
                   value={newStaffPassword}
                   onChange={(e) => setNewStaffPassword(e.target.value)}
                   className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"

@@ -3838,8 +3838,9 @@ export default function Dashboard() {
 
       {/* Profile Settings Modal */}
       {showProfileSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden my-8">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
@@ -4164,6 +4165,7 @@ export default function Dashboard() {
             </form>
           </div>
         </div>
+      </div>
       )}
 
       {/* Admin Leave Approvals Modal */}
@@ -5415,8 +5417,9 @@ export default function Dashboard() {
       )}
       {/* Create User Modal */}
       {showCreateUserModal && profile?.role === 'admin' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden my-8">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
@@ -5602,12 +5605,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Credentials Edit Modal */}
       {showCredentialsModal && profile?.role === 'admin' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden my-8">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
@@ -5694,6 +5699,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Delete User Modal */}
@@ -5742,8 +5748,9 @@ export default function Dashboard() {
 
       {/* Add Leave Info Modal */}
       {showAddLeaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-lg p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-lg p-6 relative overflow-hidden my-8">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
@@ -6003,6 +6010,7 @@ export default function Dashboard() {
             </form>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

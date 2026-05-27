@@ -36,6 +36,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 
 ### 🎨 Modern UI/UX Enhancements & Security
 *   **Glassmorphism Modals**: Delete, Adjustment, and Cancellation modals feature clean modern blurred backgrounds (`backdrop-blur-md bg-slate-900/80 border-slate-800`).
+*   **Scroll-Safe Overlay Modals**: Critical input forms and settings modals (Profile Settings, Add Leave, Create User, Credentials Edit) now feature `overflow-y-auto` overlay wrappers combined with centering min-height frames to dynamically support low-resolution (e.g. 19-inch monitors) or highly zoomed viewports without clipping headers or action buttons.
 *   **Micro-animations**: Dynamic scale interactions on action buttons (`hover:scale-[1.01] active:scale-[0.99]`) for premium responsiveness.
 *   **Automatic Offline/Online Toast**: Screen corner toasts alert users of offline status and background synchronization processes.
 *   **Password Toggle Visibility**: Sign-in page features an interactive eye icon to hide/show password characters on mobile or desktop.
@@ -188,6 +189,7 @@ npm run build
 
 ### 🎨 আধুনিক UI/UX এবং সিকিউরিটি আপডেট
 *   **গ্লাস-মরফিজম মডাল**: ডিলিট, সমন্বয় এবং ক্যানসেল কনফার্মেশন মডালগুলোকে আধুনিক ব্লার ও শ্যাডো ইফেক্ট (`backdrop-blur-md bg-slate-900/80 border-slate-800`) দেওয়া হয়েছে।
+*   **স্ক্রোল-সেফ মডাল ডিজাইন**: ইনপুট ফর্ম এবং সেটিংস মডালগুলোতে (প্রোফাইল সেটিংস, নতুন ছুটির এন্ট্রি, স্টাফ যুক্ত করা, ক্রেডেনশিয়াল এডিট) `overflow-y-auto` এবং ডাইনামিক সেন্টারিং যুক্ত করা হয়েছে। এর ফলে কম রেজোলিউশন বা মনিটর জুম করা থাকলেও মডাল কেটে না গিয়ে সম্পূর্ণ স্ক্রোলযোগ্য থাকে।
 *   **মাইক্রো-অ্যানিমেশন**: প্রতিটি অ্যাকশন বাটনে হোভার ও ক্লিকের সময়ে ইন্টারেক্টিভ ও স্মুথ স্কেল ট্রানজিশন ইফেক্ট বসানো হয়েছে।
 *   **পাসওয়ার্ড টোগল বাটন**: লগইন করার সুবিধার্থে পাসওয়ার্ড ফিল্ডের ডানে চোখ আইকনযুক্ত শো/হাইড বাটন যোগ করা হয়েছে।
 *   **পিনপয়েন্ট অটো-লগআউট টাইমার**: নতুন ইউজার লগইনের পর ১০ মিনিটের মধ্যে পাসওয়ার্ড পরিবর্তন না করলে স্বয়ংক্রিয়ভাবে লগআউট সম্পন্ন হবে। ব্রাউজার রিলোড বা স্লিপ মোডে গেলেও `localStorage` টাইমস্ট্যাম্পের কারণে টাইমার রিসেট হবে না। জরুরী প্রস্থানে সহায়তার জন্য ফার্স্ট-টাইম পাসওয়ার্ড মডালে সরাসরি লগআউট করার বোতাম যুক্ত রয়েছে।

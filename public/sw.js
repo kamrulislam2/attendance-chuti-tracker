@@ -42,8 +42,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone response and save to cache if successful
-        if (response.status === 200 && response.type === 'basic') {
+        // Clone response and save to cache if successful (GET requests only)
+        if (event.request.method === 'GET' && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -84,10 +84,13 @@ self.addEventListener('push', (event) => {
       data: {
         url: data.url || '/'
       },
-      tag: data.tag || 'chuti-alert',
-      renotify: true,
       actions: data.actions || []
     };
+
+    if (data.tag) {
+      options.tag = data.tag;
+      options.renotify = true;
+    }
 
     event.waitUntil(
       self.registration.showNotification(title, options)

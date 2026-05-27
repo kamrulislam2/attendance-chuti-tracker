@@ -63,6 +63,9 @@ export const saveOfflineRecord = async (record: Omit<ChutiRecord, 'localId' | 's
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+    
     const store = transaction.objectStore(STORE_NAME);
     const localId = generateUUID();
     const newRecord: ChutiRecord = {
@@ -83,6 +86,9 @@ export const saveOfflineUpdate = async (id: string, updates: Partial<Omit<ChutiR
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+    
     const store = transaction.objectStore(STORE_NAME);
     const localId = generateUUID();
     const newRecord: ChutiRecord = {
@@ -113,6 +119,9 @@ export const getOfflineRecords = async (): Promise<ChutiRecord[]> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+    
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
 
@@ -126,6 +135,9 @@ export const deleteOfflineRecord = async (localId: string): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+    
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(localId);
 
@@ -148,6 +160,8 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
 
     let syncedCount = 0;
     for (const record of offlineRecords) {
+      let isSyncedSuccessfully = false;
+
       if (record.action === 'update' && record.id && record.data) {
         // Sync offline update
         const { error: updateError } = await supabase
@@ -159,6 +173,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
           console.error('Error syncing offline update:', updateError);
           continue; // Skip this one, try the next
         }
+        isSyncedSuccessfully = true;
       } else {
         // Sync offline insert
         // Check if there is already a record for this user and date in the db (duplicate prevention)
@@ -183,17 +198,27 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             comment: record.comment,
             status: record.status || 'pending_supervisor',
             adjust_short_leave: record.adjust_short_leave || false,
+            reserve_adjustment_status: record.reserve_adjustment_status || 'none',
           });
 
           if (insertError) {
             console.error('Error syncing record:', insertError);
             continue; // Skip this one, try the next
           }
+          isSyncedSuccessfully = true;
+        } else {
+          // If already exists in DB, discard local one as duplicate (but don't count it as newly synced)
+          isSyncedSuccessfully = true;
+          // We can delete it from local IndexedDB, but don't increment syncedCount
+          if (record.localId) {
+            await deleteOfflineRecord(record.localId);
+          }
+          continue;
         }
       }
 
       // If synced successfully, delete from local DB
-      if (record.localId) {
+      if (isSyncedSuccessfully && record.localId) {
         await deleteOfflineRecord(record.localId);
         syncedCount++;
       }

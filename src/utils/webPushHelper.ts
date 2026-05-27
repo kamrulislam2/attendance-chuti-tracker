@@ -104,6 +104,7 @@ export async function unsubscribeUserFromPush(userId: string): Promise<boolean> 
 
       if (error) {
         console.error('Error deleting push subscription from database:', error);
+        return false;
       }
     } else {
       // Fallback clean database entries for this user
@@ -114,6 +115,7 @@ export async function unsubscribeUserFromPush(userId: string): Promise<boolean> 
 
       if (error) {
         console.error('Error clearing push subscriptions from database:', error);
+        return false;
       }
     }
 

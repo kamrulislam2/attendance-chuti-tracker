@@ -88,6 +88,17 @@ const getPasswordMatchIndicator = (password: string, confirm: string) => {
   );
 };
 
+const escapeHtml = (unsafeStr: any): string => {
+  if (unsafeStr === null || unsafeStr === undefined) return '';
+  return unsafeStr
+    .toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 // Helper functions for time parsing and formatting
 const parseTimeToMinutes = (timeStr: string) => {
   if (!timeStr) return 0;
@@ -109,7 +120,7 @@ const formatDuration = (totalMinutes: number) => {
 
 const parseIntervalToMinutes = (intervalStr: string | null | undefined) => {
   if (!intervalStr) return 0;
-  const clean = intervalStr.toString().replace('-', '');
+  const clean = intervalStr.toString().replace(/-/g, '');
   const parts = clean.split(':');
   if (parts.length >= 2) {
     const h = Number(parts[0]);
@@ -174,7 +185,7 @@ const calculateStats = (records: any[]) => {
   return {
     shortHours: formatDuration(totalShortMinutes),
     overtimeHours: formatDuration(totalOvertimeMinutes),
-    fullLeaves: totalFullLeaves,
+    fullLeaves: Math.max(0, totalFullLeaves),
     reserveLeaves: totalReserveLeaves,
     totalHours: formatDuration(totalShortMinutes)
   };
@@ -646,9 +657,13 @@ export default function Dashboard() {
       setIsOnline(navigator.onLine);
       const handleOnline = () => {
         setIsOnline(true);
+        setMessage({ type: 'success', text: 'আপনি পুনরায় অনলাইনের সাথে যুক্ত হয়েছেন।' });
         triggerAutoSync();
       };
-      const handleOffline = () => setIsOnline(false);
+      const handleOffline = () => {
+        setIsOnline(false);
+        setMessage({ type: 'error', text: 'আপনার ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে। আপনি অফলাইন মোডে আছেন।' });
+      };
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
@@ -839,7 +854,7 @@ export default function Dashboard() {
       if (insertError) throw insertError;
 
       // Trigger Web Push Notification to Supervisors and/or Admins
-      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors'];
+      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
       sendPushNotification({
         userIds: targetRoles,
         title: 'নতুন ছুটির আবেদন 🔔',
@@ -988,7 +1003,8 @@ export default function Dashboard() {
   };
 
   const handleConfirmCancelAdjustment = async () => {
-    if (!cancelAdjustmentRecord) return;
+    if (!cancelAdjustmentRecord || submitting) return;
+    setSubmitting(true);
     const record = cancelAdjustmentRecord;
     try {
       const updates = { 
@@ -1019,11 +1035,13 @@ export default function Dashboard() {
     } finally {
       setShowCancelAdjustmentModal(false);
       setCancelAdjustmentRecord(null);
+      setSubmitting(false);
     }
   };
 
   const handleSaveAdjustment = async (overrideAdjustShortLeave?: boolean) => {
-    if (!adjustmentRecord) return;
+    if (!adjustmentRecord || submitting) return;
+    setSubmitting(true);
     const record = adjustmentRecord;
     try {
       const isShortLeave = record.leave_type === 'Short Leave';
@@ -1037,6 +1055,7 @@ export default function Dashboard() {
           const timeRegex = /^([0-9]{1,2}):([0-5][0-9])$/;
           if (!timeRegex.test(partialAdjustmentTime)) {
             alert('সঠিক সময় ফরম্যাট ব্যবহার করুন (যেমন: ০২:৩০)।');
+            setSubmitting(false);
             return;
           }
           requestedUpdates = { adjustment: false, adjusted_hour: `${partialAdjustmentTime}:00`, adjust_short_leave: false };
@@ -1083,7 +1102,7 @@ export default function Dashboard() {
       }
       fetchRecords();
 
-      // Trigger Web Push Notification to Admins
+      // Trigger Web Push Notification to Admins (if requested by user) or to User (if approved by admin)
       if (!isAdmin) {
         sendPushNotification({
           userIds: ['admins'],
@@ -1091,6 +1110,14 @@ export default function Dashboard() {
           body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি (${record.leave_type}) ছুটির সমন্বয় অনুরোধ করেছেন (${formatDate(record.date)})।`,
           url: '/'
         }).catch(err => console.error('Error triggering push notification for adjustment:', err));
+      } else if (record?.user_id) {
+        const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        sendPushNotification({
+          userIds: [record.user_id],
+          title: `${actionLabel} অনুমোদিত ✅`,
+          body: `অ্যাডমিন আপনার (${formatDate(record.date)}) তারিখের ${record.leave_type} সমন্বয় আবেদনটি অনুমোদন করেছেন।`,
+          url: '/'
+        }).catch(err => console.error('Error sending adjustment push to user:', err));
       }
 
       setMessage({ 
@@ -1104,6 +1131,7 @@ export default function Dashboard() {
     } finally {
       setShowAdjustmentModal(false);
       setAdjustmentRecord(null);
+      setSubmitting(false);
     }
   };
 
@@ -1277,6 +1305,14 @@ export default function Dashboard() {
 
           if (error) throw error;
 
+          // Trigger Web Push Notification to Admins
+          sendPushNotification({
+            userIds: ['admins'],
+            title: 'প্রোফাইল পরিবর্তন অনুরোধ 👤',
+            body: `${profile?.full_name || profile?.username || 'স্টাফ'} তাঁর প্রোফাইল তথ্য পরিবর্তনের অনুরোধ জানিয়েছেন।`,
+            url: '/'
+          }).catch(err => console.error('Error triggering push notification for profile change:', err));
+
           setProfile(updatedProfile);
           setIsEditRequestMode(false);
           setMessage({ type: 'success', text: 'প্রোফাইল পরিবর্তনের অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।' });
@@ -1444,6 +1480,14 @@ export default function Dashboard() {
         .eq('id', profileId);
       
       if (error) throw error;
+
+      // Trigger Web Push Notification to Staff member
+      sendPushNotification({
+        userIds: [profileId],
+        title: `প্রোফাইল পরিবর্তন ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+        body: `আপনার প্রোফাইল তথ্য পরিবর্তনের অনুরোধটি অ্যাডমিন ${approve ? 'অনুমোদন' : 'প্রত্যাখ্যান'} করেছেন।`,
+        url: '/'
+      }).catch(err => console.error('Error sending profile change push:', err));
       
       setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
       if (approve) {
@@ -1753,6 +1797,16 @@ export default function Dashboard() {
 
       if (error) throw error;
 
+      // Trigger Web Push Notification to Staff member
+      if (adminEditRecord?.user_id) {
+        sendPushNotification({
+          userIds: [adminEditRecord.user_id],
+          title: 'ছুটির তথ্য সংশোধিত ✏️',
+          body: `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`,
+          url: '/'
+        }).catch(err => console.error('Error sending admin edit push:', err));
+      }
+
       fetchRecords();
       setShowAdminEditModal(false);
       setMessage({ 
@@ -1908,7 +1962,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       // Trigger Web Push Notification to Supervisors and/or Admins for resubmission
-      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors'];
+      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
       sendPushNotification({
         userIds: targetRoles,
         title: 'সংশোধিত ছুটির আবেদন 🔔',
@@ -2078,25 +2132,25 @@ export default function Dashboard() {
 
       rowsHtml += `
         <tr>
-          <td style="mso-number-format:'\\@';">${formatDate(r.date)}</td>
-          <td>${r.leave_type}</td>
-          <td>${adjustmentVal}</td>
-          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${signInStr} / ${signOutStr}`}</td>
-          <td>${leaveHourStr}</td>
+          <td style="mso-number-format:'\\@';">${escapeHtml(formatDate(r.date))}</td>
+          <td>${escapeHtml(r.leave_type)}</td>
+          <td>${escapeHtml(adjustmentVal)}</td>
+          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : escapeHtml(`${signInStr} / ${signOutStr}`)}</td>
+          <td>${escapeHtml(leaveHourStr)}</td>
       `;
 
       if (showOvertime) {
         const overtimeStr = r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
-        rowsHtml += `<td>${overtimeStr}</td>`;
+        rowsHtml += `<td>${escapeHtml(overtimeStr)}</td>`;
       }
 
       if (showReserve) {
-        rowsHtml += `<td>${r.reserve_holiday || '-'}</td>`;
+        rowsHtml += `<td>${escapeHtml(r.reserve_holiday) || '-'}</td>`;
       }
 
       rowsHtml += `
-          <td>${getCleanComment(r.comment) || '-'}</td>
-          <td>${r.status}</td>
+          <td>${escapeHtml(getCleanComment(r.comment)) || '-'}</td>
+          <td>${escapeHtml(r.status)}</td>
         </tr>
       `;
     });
@@ -2105,7 +2159,7 @@ export default function Dashboard() {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
-        <h3>ছুটির বিস্তারিত রিপোর্ট: ${staffProfile?.full_name || ''} (${(staffProfile?.username || '').toUpperCase()})</h3>
+        <h3>ছুটির বিস্তারিত রিপোর্ট: ${escapeHtml(staffProfile?.full_name)} (${escapeHtml((staffProfile?.username || '').toUpperCase())})</h3>
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
@@ -2414,7 +2468,7 @@ export default function Dashboard() {
             {offlineCount > 0 && (
               <button
                 onClick={handleManualSync}
-                className="flex items-center gap-2 px-3.5 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-500 text-xs font-semibold cursor-pointer shadow-lg shadow-amber-900/20 transition-all border border-amber-700"
+                className="flex items-center gap-2 px-3.5 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-500 text-xs font-semibold cursor-pointer shadow-lg shadow-amber-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all border border-amber-700"
               >
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                 সিঙ্ক করুন ({offlineCount})
@@ -2424,7 +2478,7 @@ export default function Dashboard() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer transition-all flex items-center justify-center"
+              className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center"
               title={theme === 'dark' ? 'লাইট মোড অন করুন' : 'ডার্ক মোড অন করুন'}
             >
               {theme === 'dark' ? (
@@ -2449,7 +2503,7 @@ export default function Dashboard() {
                     setShowUserNotificationsModal(true);
                   }
                 }}
-                className="relative p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer transition-all"
+                className="relative p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all"
                 title="নোটিফিকেশন"
               >
                 <Bell className="h-4.5 w-4.5" />
@@ -2473,7 +2527,7 @@ export default function Dashboard() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               <LogOut className="h-4 w-4" /> লগআউট
             </button>
@@ -4975,8 +5029,8 @@ export default function Dashboard() {
 
       {/* 1. Delete Confirmation Modal */}
       {showDeleteModal && recordToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/85 backdrop-blur-md p-4">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800/80 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-red-900/10 blur-[80px] pointer-events-none" />
             <div className="text-center mb-6">
               <div className="inline-flex p-3 bg-red-600/10 border border-red-500/20 text-red-400 rounded-2xl mb-3">
@@ -4993,7 +5047,7 @@ export default function Dashboard() {
                   setShowDeleteModal(false);
                   setRecordToDelete(null);
                 }}
-                className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all disabled:opacity-50"
+                className="flex-1 flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50"
               >
                 না, বাতিল করুন
               </button>
@@ -5001,7 +5055,7 @@ export default function Dashboard() {
                 type="button"
                 disabled={deletingRecord}
                 onClick={handleConfirmDelete}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-red-600 hover:bg-red-700 hover:scale-[1.01] active:scale-[0.99] text-white rounded-lg cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {deletingRecord && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 {deletingRecord ? 'ডিলিট হচ্ছে...' : 'হ্যাঁ, ডিলিট করুন'}
@@ -5013,8 +5067,8 @@ export default function Dashboard() {
 
       {/* 2. Adjustment Settings Modal */}
       {showAdjustmentModal && adjustmentRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/85 backdrop-blur-md p-4">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800/80 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
@@ -5036,7 +5090,7 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <p className="text-xs text-slate-400">শর্ট লিভের ক্ষেত্রে আপনি কি সম্পূর্ণ সময় নাকি আংশিক সময় সমন্বয় করতে চান তা সিলেক্ট করুন:</p>
                 <div className="flex gap-4">
-                  <label className="flex-1 flex items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer hover:border-slate-700 transition-all">
+                  <label className="flex-1 flex items-center gap-2 p-3 bg-slate-950/60 border border-slate-800 rounded-lg cursor-pointer hover:border-slate-700 hover:scale-[1.01] transition-all">
                     <input
                       type="radio"
                       name="adjustmentType"
@@ -5046,7 +5100,7 @@ export default function Dashboard() {
                     />
                     <span className="text-xs text-white font-medium">সম্পূর্ণ আওয়ার ({adjustmentRecord.leave_hour ? adjustmentRecord.leave_hour.toString().split('.')[0].substring(0, 5) : '-'})</span>
                   </label>
-                  <label className="flex-1 flex items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer hover:border-slate-700 transition-all">
+                  <label className="flex-1 flex items-center gap-2 p-3 bg-slate-950/60 border border-slate-800 rounded-lg cursor-pointer hover:border-slate-700 hover:scale-[1.01] transition-all">
                     <input
                       type="radio"
                       name="adjustmentType"
@@ -5078,14 +5132,14 @@ export default function Dashboard() {
                       setShowAdjustmentModal(false);
                       setAdjustmentRecord(null);
                     }}
-                    className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                    className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     বাতিল
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSaveAdjustment()}
-                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 cursor-pointer transition-all"
+                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     সমন্বয় করুন
                   </button>
@@ -5101,7 +5155,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(true);
                       handleSaveAdjustment(true);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     হ্যাঁ, শর্ট লিভ থেকে বিয়োগ করুন
                   </button>
@@ -5111,7 +5165,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(false);
                       handleSaveAdjustment(false);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     না, কেবল ওভারটাইম বাদ দিন
                   </button>
@@ -5121,7 +5175,7 @@ export default function Dashboard() {
                       setShowAdjustmentModal(false);
                       setAdjustmentRecord(null);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     বাতিল করুন
                   </button>
@@ -5137,7 +5191,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(true);
                       handleSaveAdjustment(true);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     হ্যাঁ, ফুল লিভ থেকে বিয়োগ করুন
                   </button>
@@ -5147,7 +5201,7 @@ export default function Dashboard() {
                       setAdjustShortLeaveOption(false);
                       handleSaveAdjustment(false);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     না, কেবল রিজার্ভ থেকে মাইনাস করুন
                   </button>
@@ -5157,7 +5211,7 @@ export default function Dashboard() {
                       setShowAdjustmentModal(false);
                       setAdjustmentRecord(null);
                     }}
-                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                    className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     বাতিল করুন
                   </button>
@@ -5173,14 +5227,14 @@ export default function Dashboard() {
                       setShowAdjustmentModal(false);
                       setAdjustmentRecord(null);
                     }}
-                    className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                    className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     না
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSaveAdjustment()}
-                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 cursor-pointer transition-all"
+                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
                   >
                     হ্যাঁ, সমন্বয় করুন
                   </button>
@@ -5193,8 +5247,8 @@ export default function Dashboard() {
 
       {/* 3. Cancel Adjustment Modal */}
       {showCancelAdjustmentModal && cancelAdjustmentRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/85 backdrop-blur-md p-4">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800/80 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-amber-900/10 blur-[80px] pointer-events-none" />
             <div className="text-center mb-6">
               <div className="inline-flex p-3 bg-amber-600/10 border border-amber-500/20 text-amber-400 rounded-2xl mb-3">
@@ -5210,14 +5264,14 @@ export default function Dashboard() {
                   setShowCancelAdjustmentModal(false);
                   setCancelAdjustmentRecord(null);
                 }}
-                className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                className="flex-1 flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
               >
                 না
               </button>
               <button
                 type="button"
                 onClick={handleConfirmCancelAdjustment}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 text-white rounded-lg cursor-pointer transition-all"
+                className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 hover:scale-[1.01] active:scale-[0.99] text-white rounded-lg cursor-pointer transition-all duration-200"
               >
                 হ্যাঁ, বাতিল করুন
               </button>

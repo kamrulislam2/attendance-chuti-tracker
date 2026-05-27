@@ -4,10 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 
 // Create a Supabase client for this API route
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// Prioritize service role key for bypassing RLS server-side
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Clean server-side client to execute RPCs bypassing user RLS/scopes
-const supabaseServer = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
 
 // Initialize web-push
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -22,6 +24,10 @@ if (!vapidPublicKey || !vapidPrivateKey) {
     vapidPrivateKey
   );
 }
+
+// Simple in-memory storage for rate limiting (storing userId -> timestamp)
+const rateLimitMap = new Map<string, number>();
+const RATE_LIMIT_WINDOW_MS = 5000; // 5 seconds cooldown
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +51,15 @@ export async function POST(request: NextRequest) {
       console.error('[SendPush] Auth verification failed:', authError?.message || 'No user session');
       return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
+
+    // Rate limiting check
+    const now = Date.now();
+    const lastRequestTime = rateLimitMap.get(user.id);
+    if (lastRequestTime && (now - lastRequestTime < RATE_LIMIT_WINDOW_MS)) {
+      console.warn(`[SendPush] Rate limit hit for user ${user.id}`);
+      return NextResponse.json({ error: 'Too Many Requests: Please wait 5 seconds between notification requests.' }, { status: 429 });
+    }
+    rateLimitMap.set(user.id, now);
 
     console.log(`[SendPush] Authenticated user: ${user.email} (ID: ${user.id})`);
 
@@ -103,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error('[SendPush] Error fetching push subscriptions:', dbError);
-      return NextResponse.json({ error: 'Internal Server Error: ' + dbError.message }, { status: 500 });
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 
     console.log(`[SendPush] Found ${subscriptions?.length || 0} subscriptions in database.`);
@@ -161,6 +176,6 @@ export async function POST(request: NextRequest) {
 
   } catch (err: any) {
     console.error('[SendPush] Unexpected error in send-push API route:', err);
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

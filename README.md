@@ -27,11 +27,23 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Master Data Export**: Export the entire company’s leave summary database to CSV/Excel in one click.
 
 ### 📶 Offline-First & Realtime Features (PWA)
-*   **Service Worker (`sw.js`)**: Caches static assets for offline startup and updates.
-*   **IndexedDB Storage (`offlineSync.ts`)**: Locally queues attendance logs and leave submissions if the device loses connection.
-*   **Background Synchronization**: Automatically syncs queued offline data to Supabase once internet connectivity is restored.
+*   **Service Worker (`sw.js`)**: Caches static assets for offline startup and updates. Handles GET requests only to prevent cache poisoning.
+*   **IndexedDB Storage (`offlineSync.ts`)**: Locally queues attendance logs and leave submissions if the device loses connection. Prevented connection leaks and duplicate synchronization issues.
+*   **Background Synchronization**: Automatically syncs queued offline data to Supabase once internet connectivity is restored, featuring a dynamic online reconnection toast.
 *   **Supabase Realtime Replication**: Real-time listeners automatically update dashboard metrics and tables when database changes occur, avoiding manual page reloads.
 *   **Web Push Notifications**: Alerts users of status updates, profile modifications, or approval events in real time.
+
+### 🎨 Modern UI/UX Enhancements & Security
+*   **Glassmorphism Modals**: Delete, Adjustment, and Cancellation modals feature clean modern blurred backgrounds (`backdrop-blur-md bg-slate-900/80 border-slate-800`).
+*   **Micro-animations**: Dynamic scale interactions on action buttons (`hover:scale-[1.01] active:scale-[0.99]`) for premium responsiveness.
+*   **Automatic Offline/Online Toast**: Screen corner toasts alert users of offline status and background synchronization processes.
+*   **Password Toggle Visibility**: Sign-in page features an interactive eye icon to hide/show password characters on mobile or desktop.
+*   **Rate Limiting**: The `/api/send-push` notification API limits users to 1 request per 5 seconds to prevent network spamming.
+*   **Stacked Push Notifications**: Enabled stacking and concurrent display of multiple push notifications by omitting static tags, preventing notifications from blocking or overwriting each other on the desktop.
+*   **Direct & Hierarchical Notification Triggers**:
+    *   Submitting a request (or a revision) now immediately notifies both Supervisors and Admins if supervisor approval is required.
+    *   Direct profile change submissions notify Admins, and their approval/rejection notifies the staff member.
+    *   Direct leave adjustments and edits applied by Admins immediately send push notifications to the corresponding staff member.
 
 ---
 
@@ -50,20 +62,20 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 
 ```text
 chuti/
-├── public/                 # PWA Icons, manifest.webmanifest, and sw.js
+├── public/                 # PWA Icons, manifest.webmanifest, and sw.js (GET-only caching)
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── send-push/  # Edge-compatible Web Push Notification API handler
+│   │   │   └── send-push/  # Push API handler with 5-second rate limiting
 │   │   │       └── route.ts
-│   │   ├── login/          # Login panel with username-to-email mapping
+│   │   ├── login/          # Login panel with username-to-email mapping & password toggle
 │   │   │   └── page.tsx
 │   │   ├── globals.css     # Dark-mode glassmorphic theme definitions
 │   │   ├── layout.tsx
-│   │   └── page.tsx        # Core App Dashboard (UI, stats, cards, filters, tables)
+│   │   └── page.tsx        # Core App Dashboard (Glassmorphic modals, stats, filters, tables)
 │   ├── js/                 # Organized directory for diagnostic and maintenance scripts
 │   └── utils/
-│       ├── offlineSync.ts  # IndexedDB store, fetch, and background sync logic
+│       ├── offlineSync.ts  # IndexedDB store, fetch, and connection leak-free background sync
 │       ├── supabase.ts     # Supabase Client configuration
 │       └── webPushHelper.ts# Push notification registration and helper routines
 ├── supabase/
@@ -71,7 +83,7 @@ chuti/
 │   └── push_subscriptions.sql # Push subscriptions schema and security definer functions
 ├── eslint.config.mjs       # ESLint configurations with global ignores
 ├── package.json
-└── tsconfig.json
+│── tsconfig.json
 ```
 
 ---
@@ -106,8 +118,12 @@ Run the SQL scripts in your Supabase SQL Editor in the following order:
 ### 3. Environment Setup
 Create a `.env.local` file in the root directory:
 ```env
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Web Push (VAPID) Configuration
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
 VAPID_PRIVATE_KEY=your_vapid_private_key
 ```
@@ -135,7 +151,7 @@ npm run build
 
 # 🌟 ছুটি (Chuti) — রোল-ভিত্তিক অফিস অ্যাটেনডেন্স অ্যান্ড লিভ ট্র্যাকার (Bangla Version)
 
-**Next.js (TypeScript)** এবং **Supabase (PostgreSQL)** দিয়ে তৈরি একটি আধুনিক, প্রিমিয়াম এবং অফলাইন-ফার্স্ট প্রোগ্রেসিভ ওয়েব অ্যাপ (PWA)। এটি মূলত অফিসের কর্মকর্তাদের প্রতিদিনের সাইন-ইন/আউট, কাজের সময় ট্র্যাকিং এবং রোল অনুযায়ী ছুটির অনুমোদন ও সমন্বয়ের (ফুল ডে লিভ, শর্ট লিভ, ওভারটাইম এবং রিজার্ভ হলিডে) কাজগুলো গুগল শিট-লেভেল গাণিতিক নিখুঁততায় স্বয়ংক্রিয় করার জন্য ডিজাইন করা হয়েছে।
+**Next.js (TypeScript)** এবং **Supabase (PostgreSQL)** দিয়ে তৈরি একটি আধুনিক, প্রিমিয়াম এবং অফলাইন-ফার্স্ট প্রোগ্রেসিভ ওয়েব অ্যাপ (PWA)। এটি মূলত অফিসের কর্মকর্তাদের প্রতিদিনের সাইন-ইন/আউট, কাজের সময় ট্র্যাকিং এবং রোল অনুযায়ী ছুটির অনুমোদন ও সমন্বয়ের (ফুল ডে লিভ, শর্ট লিভ, ওভারটাইম এবং রিজার্ভ হলিডে) কাজগুলো গাণিতিক নিখুঁততায় স্বয়ংক্রিয় করার জন্য ডিজাইন করা হয়েছে।
 
 ---
 
@@ -162,10 +178,21 @@ npm run build
 *   **মাস্টার ডেটা এক্সপোর্ট**: প্রতিষ্ঠানের সকল কর্মকর্তাদের ছুটির সামগ্রিক ডেটাবেজ এক ক্লিকে Excel/CSV-তে ডাউনলোড করা।
 
 ### 📶 অফলাইন-ফার্স্ট ও রিয়েল-টাইম প্রযুক্তি (PWA)
-*   **সার্ভিস ওয়ার্কার (`sw.js`)**: অফলাইনেও অ্যাপটি লোড হতে সাহায্য করে এবং ক্যাশ ফাইল ম্যানেজ করে।
-*   **IndexedDB ব্যাকআপ (`offlineSync.ts`)**: ইন্টারনেট চলে গেলে ইউজারের সাইন-ইন/আউট এবং ছুটির রিকোয়েস্ট লোকাল ডিভাইসে ব্যাকআপ রাখে।
-*   **ব্যাকগ্রাউন্ড সিঙ্ক**: ইন্টারনেট পুনরায় চালু হওয়ার সাথে সাথেই লোকাল ডেটা স্বয়ংক্রিয়ভাবে ডেটাবেজে পাঠিয়ে দেয়।
+*   **সার্ভিস ওয়ার্কার (`sw.js`)**: অফলাইনেও অ্যাপটি লোড হতে সাহায্য করে। এতে ক্যাশ পয়জনিং রুখতে কেবল GET রিকোয়েস্ট ক্যাশ করা হয়।
+*   **IndexedDB ব্যাকআপ (`offlineSync.ts`)**: ইন্টারনেট চলে গেলে ইউজারের সাইন-ইন/আউট এবং ছুটির রিকোয়েস্ট লোকাল ডিভাইসে ব্যাকআপ রাখে। ডাটাবেজ কানেকশন লিক ও ডুপ্লিকেট সিঙ্ক সম্পূর্ণ নিষ্ক্রিয় করা হয়েছে।
+*   **ব্যাকগ্রাউন্ড সিঙ্ক ও রিকানেক্ট টোস্ট**: ইন্টারনেট পুনরায় চালু হওয়ার সাথে সাথেই লোকাল ডেটা স্বয়ংক্রিয়ভাবে ডেটাবেজে পাঠিয়ে দেয় এবং স্ক্রিনে রিকানেক্ট সাকসেস টোস্ট শো করে।
 *   **পুশ নোটিফিকেশন**: ইউজারের আবেদন এডিট, রিজেক্ট বা অ্যাপ্রুভ হলে ব্রাউজারে সরাসরি ইনস্ট্যান্ট পুশ নোটিফিকেশন এলার্ট চলে যায়।
+
+### 🎨 আধুনিক UI/UX এবং সিকিউরিটি আপডেট
+*   **গ্লাস-মরফিজম মডাল**: ডিলিট, সমন্বয় এবং ক্যানসেল কনফার্মেশন মডালগুলোকে আধুনিক ব্লার ও শ্যাডো ইফেক্ট (`backdrop-blur-md bg-slate-900/80 border-slate-800`) দেওয়া হয়েছে।
+*   **মাইক্রো-অ্যানিমেশন**: প্রতিটি অ্যাকশন বাটনে হোভার ও ক্লিকের সময়ে ইন্টারেক্টিভ ও স্মুথ স্কেল ট্রানজিশন ইফেক্ট বসানো হয়েছে।
+*   **পাসওয়ার্ড টোগল বাটন**: লগইন করার সুবিধার্থে পাসওয়ার্ড ফিল্ডের ডানে চোখ আইকনযুক্ত শো/হাইড বাটন যোগ করা হয়েছে।
+*   **এপিআই রেট লিমিট**: প্রতি ব্যবহারকারী ৫ সেকেন্ডে ১ বারের বেশি পুশ রিকোয়েস্ট করতে পারবে না, যা নেটওয়ার্ক অপব্যবহার কমাবে।
+*   **স্ট্যাকড পুশ নোটিফিকেশন**: নোটিফিকেশন ওভাররাইট হওয়া রোধ করতে স্ট্যাটিক ট্যাগ সরিয়ে একাধিক নোটিফিকেশন একসাথে স্ক্রিনে স্ট্যাক বা শো করার ব্যবস্থা করা হয়েছে।
+*   **সরাসরি ও অনুক্রমিক নোটিফিকেশন ট্রিগার:**
+    *   ছুটির আবেদন বা রিভিশন সাবমিট করা হলে সুপারভাইজার ও এডমিন উভয়েই পুশ নোটিফিকেশন পাবেন (যদি সুপারভাইজার এপ্রুভাল অন থাকে)।
+    *   ইউজারের প্রোফাইল পরিবর্তনের আবেদনের জন্য এডমিনরা এবং এডমিনের সিদ্ধান্ত অনুযায়ী সংশ্লিষ্ট স্টাফ মেম্বার সাথে সাথে পুশ নোটিফিকেশন পাবেন।
+    *   এডমিন সরাসরি ছুটির তথ্য এডিট বা সমন্বয় অ্যাপ্রুভ করলে সংশ্লিষ্ট স্টাফ মেম্বার সাথে সাথে পুশ নোটিফিকেশন পাবেন।
 
 ---
 
@@ -182,7 +209,17 @@ npm run build
 
 ১. গিটহাব থেকে ক্লোন করে `npm install` দিয়ে প্যাকেজগুলো ইন্সটল করে নিন।
 ২. আপনার Supabase প্রোজেক্টের SQL এডিটরে গিয়ে প্রথমে `supabase/schema.sql` এবং পরবর্তীতে `supabase/push_subscriptions.sql` রান করুন।
-৩. প্রজেক্টের রুটে `.env.local` ফাইল তৈরি করে আপনার Supabase এবং VAPID Credentials বসিয়ে দিন।
+৩. প্রজেক্টের রুটে `.env.local` ফাইল তৈরি করে আপনার Supabase এবং VAPID Credentials বসিয়ে দিন:
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Web Push (VAPID) Configuration
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
+```
 ৪. রান করার জন্য টার্মিনালে কমান্ড ব্যবহার করুন:
    *   লোকাল রান: `npm run dev`
    *   বিল্ড টেস্ট: `npm run build`

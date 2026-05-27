@@ -10,6 +10,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Time Tracking**: Live tracking of daily working hours and break durations.
 *   **Sign-In / Sign-Out**: Single-click sign-in/out with customizable default timings.
 *   **Leave Requests**: Submit applications for 4 types of leaves (Full Leave, Short Leave, Overtime, and Reserve Holiday).
+*   **Bulk Full Leave Entry**: Dynamically submit up to 10 dates for Full Leave simultaneously using a "+" button in the interface. Prevents duplicate selection, inserts distinct entries in the database/offline queue, and sends a single unified notification to supervisors and admins.
 *   **Leave Adjustment**: Request adjustments (e.g., using accumulated overtime or reserve holidays to offset short leaves).
 *   **Personal Filtering Panel**: Filter personal records by category, year (with year-locked calendars), or custom date ranges.
 *   **Excel/CSV Exports**: Export filtered personal leave and attendance histories directly to Excel or CSV.
@@ -38,7 +39,8 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Micro-animations**: Dynamic scale interactions on action buttons (`hover:scale-[1.01] active:scale-[0.99]`) for premium responsiveness.
 *   **Automatic Offline/Online Toast**: Screen corner toasts alert users of offline status and background synchronization processes.
 *   **Password Toggle Visibility**: Sign-in page features an interactive eye icon to hide/show password characters on mobile or desktop.
-*   **Rate Limiting**: The `/api/send-push` notification API limits users to 1 request per 5 seconds to prevent network spamming.
+*   **Pinpoint Auto-Logout Timer**: Users are strictly logged out if they do not complete their password change and profile setup within 10 minutes. Utilizes resilient persistent `localStorage` timestamps to prevent timer reset on page reload or hibernation. Includes an immediate Logout button within the setup modal for convenience.
+*   **Rate Limiting & Bypass**: The `/api/send-push` notification API limits users to 1 request per 5 seconds to prevent network spamming, while supervisors and admins bypass this to allow unhindered bulk submissions.
 *   **Stacked Push Notifications**: Enabled stacking and concurrent display of multiple push notifications by omitting static tags, preventing notifications from blocking or overwriting each other on the desktop.
 *   **Direct & Hierarchical Notification Triggers**:
     *   Submitting a request (or a revision) now immediately notifies both Supervisors and Admins if supervisor approval is required.
@@ -161,6 +163,7 @@ npm run build
 *   **কাজের সময় ট্র্যাকিং**: দৈনিক মোট কাজের ঘণ্টা এবং ব্রেকের সময় সরাসরি ট্র্যাকিং।
 *   **সাইন-ইন / সাইন-আউট**: এক ক্লিকে সাইন-ইন/আউট করার সুবিধা এবং কাস্টম ডিফল্ট সময় সেট করা।
 *   **ছুটির আবেদন**: ৪ ধরণের ছুটির (ফুল লিভ, শর্ট লিভ, ওভারটাইম এবং রিজার্ভ হলিডে) আবেদন প্রক্রিয়া।
+*   **বাল্ক ফুল লিভ এন্ট্রি**: "Full Leave" সিলেক্ট করলে প্লাস (+) আইকন বোতামের সাহায্যে এক ক্লিকে সর্বোচ্চ ১০টি অতিরিক্ত তারিখ যোগ করার সুবিধা। ডুপ্লিকেট তারিখ নির্বাচন রোধের লাইভ সতর্কতা, এবং প্রতিটি তারিখের আলাদা রেকর্ড লোকাল/ক্লাউড ডেটাবেজে সংরক্ষিত হওয়ার সাথে সাথে সুপারভাইজার/এডমিনের নিকট একটি সিঙ্গেল ইউনিফাইড নোটিফিকেশন পাঠানোর মেকানিজম।
 *   **ছুটি সমন্বয় (Adjustment)**: কাজের অতিরিক্ত ঘণ্টা (Overtime) বা জমে থাকা রিজার্ভ ডে দিয়ে শর্ট লিভ অ্যাডজাস্ট করার রিকোয়েস্ট পাঠানো।
 *   **ব্যক্তিগত ফিল্টারিং প্যানেল**: বছর-লকড ক্যালেন্ডার এবং ক্যাটাগরি দিয়ে নিজের ছুটির রেকর্ড ফিল্টার করা।
 *   **এক্সপোর্ট সুবিধা**: ফিল্টার করা সমস্ত ডেটা এক ক্লিকে Excel বা CSV ফরম্যাটে ডাউনলোড করার সুবিধা।
@@ -187,7 +190,8 @@ npm run build
 *   **গ্লাস-মরফিজম মডাল**: ডিলিট, সমন্বয় এবং ক্যানসেল কনফার্মেশন মডালগুলোকে আধুনিক ব্লার ও শ্যাডো ইফেক্ট (`backdrop-blur-md bg-slate-900/80 border-slate-800`) দেওয়া হয়েছে।
 *   **মাইক্রো-অ্যানিমেশন**: প্রতিটি অ্যাকশন বাটনে হোভার ও ক্লিকের সময়ে ইন্টারেক্টিভ ও স্মুথ স্কেল ট্রানজিশন ইফেক্ট বসানো হয়েছে।
 *   **পাসওয়ার্ড টোগল বাটন**: লগইন করার সুবিধার্থে পাসওয়ার্ড ফিল্ডের ডানে চোখ আইকনযুক্ত শো/হাইড বাটন যোগ করা হয়েছে।
-*   **এপিআই রেট লিমিট**: প্রতি ব্যবহারকারী ৫ সেকেন্ডে ১ বারের বেশি পুশ রিকোয়েস্ট করতে পারবে না, যা নেটওয়ার্ক অপব্যবহার কমাবে।
+*   **পিনপয়েন্ট অটো-লগআউট টাইমার**: নতুন ইউজার লগইনের পর ১০ মিনিটের মধ্যে পাসওয়ার্ড পরিবর্তন না করলে স্বয়ংক্রিয়ভাবে লগআউট সম্পন্ন হবে। ব্রাউজার রিলোড বা স্লিপ মোডে গেলেও `localStorage` টাইমস্ট্যাম্পের কারণে টাইমার রিসেট হবে না। জরুরী প্রস্থানে সহায়তার জন্য ফার্স্ট-টাইম পাসওয়ার্ড মডালে সরাসরি লগআউট করার বোতাম যুক্ত রয়েছে।
+*   **এপিআই রেট লিমিট ও বাইপাস**: প্রতি ব্যবহারকারী ৫ সেকেন্ডে ১ বারের বেশি পুশ রিকোয়েস্ট করতে পারবে না, তবে এডমিন ও সুপারভাইজাররা এই উইন্ডো লিমিট থেকে মুক্ত থাকবেন যাতে বাল্ক রিকোয়েস্ট সহজে পাঠানো যায়।
 *   **স্ট্যাকড পুশ নোটিফিকেশন**: নোটিফিকেশন ওভাররাইট হওয়া রোধ করতে স্ট্যাটিক ট্যাগ সরিয়ে একাধিক নোটিফিকেশন একসাথে স্ক্রিনে স্ট্যাক বা শো করার ব্যবস্থা করা হয়েছে।
 *   **সরাসরি ও অনুক্রমিক নোটিফিকেশন ট্রিগার:**
     *   ছুটির আবেদন বা রিভিশন সাবমিট করা হলে সুপারভাইজার ও এডমিন উভয়েই পুশ নোটিফিকেশন পাবেন (যদি সুপারভাইজার এপ্রুভাল অন থাকে)।

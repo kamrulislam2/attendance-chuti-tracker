@@ -52,14 +52,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
 
-    // Rate limiting check
-    const now = Date.now();
-    const lastRequestTime = rateLimitMap.get(user.id);
-    if (lastRequestTime && (now - lastRequestTime < RATE_LIMIT_WINDOW_MS)) {
-      console.warn(`[SendPush] Rate limit hit for user ${user.id}`);
-      return NextResponse.json({ error: 'Too Many Requests: Please wait 5 seconds between notification requests.' }, { status: 429 });
+    // Fetch sender's role to check if admin/supervisor
+    const { data: senderProfile } = await supabaseWithAuth
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const isRateLimitedRole = !senderProfile || senderProfile.role === 'user';
+
+    // Rate limiting check (Only for regular users to prevent spam)
+    if (isRateLimitedRole) {
+      const now = Date.now();
+      const lastRequestTime = rateLimitMap.get(user.id);
+      if (lastRequestTime && (now - lastRequestTime < RATE_LIMIT_WINDOW_MS)) {
+        console.warn(`[SendPush] Rate limit hit for user ${user.id}`);
+        return NextResponse.json({ error: 'Too Many Requests: Please wait 5 seconds between notification requests.' }, { status: 429 });
+      }
+      rateLimitMap.set(user.id, now);
     }
-    rateLimitMap.set(user.id, now);
 
     console.log(`[SendPush] Authenticated user: ${user.email} (ID: ${user.id})`);
 

@@ -350,6 +350,7 @@ export default function Dashboard() {
 
   // First-Time Password Change & Setup states
   const [showFirstTimePasswordModal, setShowFirstTimePasswordModal] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [firstTimePassword, setFirstTimePassword] = useState('');
   const [firstTimeConfirmPassword, setFirstTimeConfirmPassword] = useState('');
   const [firstTimePasswordSubmitting, setFirstTimePasswordSubmitting] = useState(false);
@@ -404,6 +405,92 @@ export default function Dashboard() {
   const [leaveHour, setLeaveHour] = useState('00:00');
   const [reserveHoliday, setReserveHoliday] = useState('');
   const [comment, setComment] = useState('');
+  const [bulkDates, setBulkDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (leaveType !== 'Full Leave') {
+      setBulkDates([]);
+    }
+  }, [leaveType]);
+
+  useEffect(() => {
+    if (!showAddLeaveModal) {
+      setBulkDates([]);
+    }
+  }, [showAddLeaveModal]);
+
+  const handleAddBulkDate = () => {
+    if (bulkDates.length + 1 >= 10) {
+      alert('সর্বোচ্চ ১০ দিন পর্যন্ত ছুটি একসাথে আবেদন করতে পারবেন!');
+      return;
+    }
+    setBulkDates(prev => [...prev, '']);
+  };
+
+  const handleUpdateBulkDate = (index: number, val: string) => {
+    if (val === date || bulkDates.some((d, idx) => idx !== index && d === val)) {
+      alert('এই তারিখটি ইতিমধ্যে নির্বাচন করা হয়েছে!');
+      return;
+    }
+    setBulkDates(prev => prev.map((d, idx) => idx === index ? val : d));
+  };
+
+  const handleRemoveBulkDate = (index: number) => {
+    setBulkDates(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  // 10-minute auto-logout timer for first-time password change setup
+  useEffect(() => {
+    if (!showFirstTimePasswordModal || !sessionUser) return;
+
+    const key = `first_time_modal_start_time_${sessionUser.id}`;
+    let startTimeStr = localStorage.getItem(key);
+    if (!startTimeStr) {
+      startTimeStr = Date.now().toString();
+      localStorage.setItem(key, startTimeStr);
+    }
+    const startTime = parseInt(startTimeStr, 10);
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+    let timer: NodeJS.Timeout;
+    let interval: NodeJS.Timeout;
+
+    const checkAndLogout = async () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= TEN_MINUTES_MS) {
+        console.log('10 minutes expired without password change. Logging out user...');
+        try {
+          localStorage.removeItem(`session_start_time_${sessionUser.id}`);
+          localStorage.removeItem(`last_access_time_${sessionUser.id}`);
+          localStorage.removeItem(key);
+          await supabase.auth.signOut();
+          router.push('/login');
+        } catch (e) {
+          console.error('Error during auto-logout:', e);
+        }
+        return true;
+      }
+      return false;
+    };
+
+    checkAndLogout().then((loggedOut) => {
+      if (loggedOut) return;
+
+      const remainingDelay = Math.max(0, TEN_MINUTES_MS - (Date.now() - startTime));
+      timer = setTimeout(async () => {
+        await checkAndLogout();
+      }, remainingDelay);
+
+      interval = setInterval(async () => {
+        await checkAndLogout();
+      }, 5000);
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (interval) clearInterval(interval);
+    };
+  }, [showFirstTimePasswordModal, sessionUser, router]);
 
   // Lists states
   const [userRecords, setUserRecords] = useState<any[]>([]);
@@ -741,6 +828,17 @@ export default function Dashboard() {
     const isReserve = leaveType === 'Reserve';
     const isFullLeave = leaveType === 'Full Leave';
 
+    // Gather all selected dates
+    const allDates = isFullLeave 
+      ? [date, ...bulkDates].filter(d => d)
+      : [date];
+
+    if (allDates.length === 0) {
+      setMessage({ type: 'error', text: 'অন্তত একটি তারিখ নির্বাচন করুন!' });
+      setSubmitting(false);
+      return;
+    }
+
     const bypassSupervisor = 
       profile?.needs_supervisor_approval === false ||
       profile?.role === 'admin' ||
@@ -748,9 +846,10 @@ export default function Dashboard() {
       profile?.job_role === 'IT Manager' ||
       profile?.job_role === 'IT Officer';
 
-    const recordData = {
+    // Helper to build record format
+    const getRecordForDate = (targetDate: string) => ({
       user_id: sessionUser.id,
-      date,
+      date: targetDate,
       leave_type: leaveType,
       adjustment: isReserve ? false : adjustment, // Reserve adjustment starts as false until approved
       adjust_short_leave: (leaveType === 'Overtime' || leaveType === 'Reserve') && adjustment ? adjustShortLeave : false,
@@ -761,18 +860,17 @@ export default function Dashboard() {
       reserve_adjustment_status: isReserve ? (adjustment ? 'pending' : 'none') : 'none',
       status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
       comment: comment || null,
-    };
-
-
+    });
 
     // Duplicate Check in Offline Queue first
     const offlineItems = await getOfflineRecords();
-    const isOfflineDuplicate = offlineItems.some(
-      item => item.user_id === sessionUser.id && item.date === date
+    const offlineDuplicates = allDates.filter(d => 
+      offlineItems.some(item => item.user_id === sessionUser.id && item.date === d)
     );
 
-    if (isOfflineDuplicate) {
-      setMessage({ type: 'error', text: 'এই তারিখে অলরেডি একটি এন্ট্রি অফলাইনে জমা রয়েছে!' });
+    if (offlineDuplicates.length > 0) {
+      const dupStrings = offlineDuplicates.map(d => formatDate(d)).join(', ');
+      setMessage({ type: 'error', text: `এই তারিখগুলোতে অলরেডি এন্ট্রি অফলাইনে জমা রয়েছে: ${dupStrings}` });
       setSubmitting(false);
       return;
     }
@@ -780,26 +878,31 @@ export default function Dashboard() {
     if (!isOnline) {
       // Save locally to IndexedDB if offline
       try {
-        await saveOfflineRecord(recordData);
+        const addedTempRecords: any[] = [];
+        for (const targetDate of allDates) {
+          const rec = getRecordForDate(targetDate);
+          await saveOfflineRecord(rec);
+          addedTempRecords.push({
+            ...rec,
+            id: `temp-${Date.now()}-${targetDate}`,
+            localId: `local-${Date.now()}-${targetDate}`,
+            synced: false
+          });
+        }
         setMessage({ 
           type: 'success', 
-          text: 'ইন্টারনেট কানেকশন নেই। ডাটাটি অফলাইনে সংরক্ষিত হয়েছে। ইন্টারনেট ফিরে আসলে অটো সিঙ্ক হবে।' 
+          text: 'ইন্টারনেট কানেকশন নেই। ডাটাগুলো অফলাইনে সংরক্ষিত হয়েছে। ইন্টারনেট ফিরে আসলে অটো সিঙ্ক হবে।' 
         });
         checkOfflineQueue();
         
         // Add to local state list to show immediate feedback
-        const tempRecord = {
-          ...recordData,
-          id: `temp-${Date.now()}`,
-          localId: `local-${Date.now()}`,
-          synced: false
-        };
-        setUserRecords(prev => [tempRecord, ...prev]);
+        setUserRecords(prev => [...addedTempRecords, ...prev]);
 
-        // Reset form except date
+        // Reset form
         setComment('');
         setReserveHoliday('');
         setAdjustShortLeave(false);
+        setBulkDates([]);
         setShowAddLeaveModal(false);
       } catch {
         setMessage({ type: 'error', text: 'অফলাইনে ডাটা সেভ করার সময় সমস্যা হয়েছে।' });
@@ -813,28 +916,33 @@ export default function Dashboard() {
       // Check if duplicate entry exists on cloud
       const { data: existing, error: checkError } = await supabase
         .from('chuti')
-        .select('id')
+        .select('date')
         .eq('user_id', sessionUser.id)
-        .eq('date', date)
-        .maybeSingle();
+        .in('date', allDates);
 
       if (checkError) throw checkError;
 
-      if (existing) {
-        setMessage({ type: 'error', text: 'এই তারিখে অলরেডি একটি ডাটা সাবমিট করা হয়েছে!' });
+      if (existing && existing.length > 0) {
+        const dupStrings = existing.map((e: any) => formatDate(e.date)).join(', ');
+        setMessage({ type: 'error', text: `এই তারিখগুলোতে অলরেডি ডাটা সাবমিট করা হয়েছে: ${dupStrings}` });
         setSubmitting(false);
         return;
       }
 
-      const { error: insertError } = await supabase.from('chuti').insert(recordData);
+      // Build records to insert
+      const recordsToInsert = allDates.map(d => getRecordForDate(d));
+
+      const { error: insertError } = await supabase.from('chuti').insert(recordsToInsert);
       if (insertError) throw insertError;
 
-      // Trigger Web Push Notification to Supervisors and/or Admins
+      // Trigger Web Push Notification to Supervisors and/or Admins (Single push notification with comma-separated dates)
       const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
+      const formattedDates = allDates.map(d => formatDate(d)).join(', ');
+
       sendPushNotification({
         userIds: targetRoles,
         title: 'নতুন ছুটির আবেদন 🔔',
-        body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি ${leaveType} এর আবেদন করেছেন (${formatDate(date)})`,
+        body: `${profile?.full_name || profile?.username || 'স্টাফ'} ${leaveType}-এর আবেদন করেছেন (তারিখ: ${formattedDates})`,
         url: '/'
       }).catch(err => console.error('Error triggering push notification:', err));
 
@@ -845,6 +953,7 @@ export default function Dashboard() {
       setComment('');
       setReserveHoliday('');
       setAdjustShortLeave(false);
+      setBulkDates([]);
       setShowAddLeaveModal(false);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'ডাটা সাবমিট করার সময় ত্রুটি ঘটেছে।' });
@@ -1405,7 +1514,12 @@ export default function Dashboard() {
       setProfileSignOutTime(updatedProfile.default_sign_out || '19:00');
 
       setShowFirstTimePasswordModal(false);
-      setMessage({ type: 'success', text: 'পাসওয়ার্ড পরিবর্তন ও প্রোফাইল সেটআপ সফল হয়েছে!' });
+      localStorage.removeItem(`first_time_modal_start_time_${sessionUser.id}`);
+      setShowWelcomePopup(true);
+      setTimeout(() => {
+        setShowWelcomePopup(false);
+      }, 10000);
+      setMessage({ type: 'success', text: 'পাসওয়ার্ড পরিবর্তন সফল হয়েছে!' });
     } catch (err: any) {
       setFirstTimePasswordError(err.message || 'পাসওয়ার্ড আপডেট করতে সমস্যা হয়েছে।');
     } finally {
@@ -3401,6 +3515,36 @@ export default function Dashboard() {
 
       </main>
       
+      {/* Welcome & Profile Update Onboarding Popup */}
+      {showWelcomePopup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-sm p-6 relative overflow-hidden text-center">
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-emerald-900/10 blur-[80px] pointer-events-none" />
+            
+            <div className="inline-flex p-3 bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 rounded-2xl mb-4">
+              <CheckCircle className="h-8 w-8 text-emerald-500" />
+            </div>
+            
+            <h3 className="text-lg font-bold text-white mb-2">আপনার প্রোফাইলে স্বাগতম! 🎉</h3>
+            <p className="text-xs text-slate-350 leading-relaxed mb-4">
+              পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে।
+            </p>
+            <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800/80 text-left text-xs text-slate-400 leading-relaxed space-y-2">
+              <p className="font-semibold text-blue-400">💡 পরবর্তী করণীয়:</p>
+              <p>১. আপনার মূল ড্যাশবোর্ডের বাম পাশে উপরে অবস্থিত <span className="font-bold text-white">প্রোফাইল সেটিংস</span> (গিয়ার/মানুষ আইকন) এ ক্লিক করুন।</p>
+              <p>২. সেখানে আপনার প্রোফাইলের প্রয়োজনীয় তথ্য আপডেট করে নিন।</p>
+            </div>
+            
+            <button
+              onClick={() => setShowWelcomePopup(false)}
+              className="mt-5 w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
+            >
+              ঠিক আছে
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* First-Time Password Change & Setup Modal */}
       {showFirstTimePasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/90 backdrop-blur-xl p-4 overflow-y-auto">
@@ -3464,7 +3608,7 @@ export default function Dashboard() {
                     <input
                       type="text"
                       required
-                      placeholder="যেমন: কামরুল হাসান"
+                      placeholder="যেমন: Kamrul Islam"
                       value={firstTimeSetupFullName}
                       onChange={(e) => setFirstTimeSetupFullName(e.target.value)}
                       className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3540,14 +3684,28 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={firstTimePasswordSubmitting || firstTimePassword !== firstTimeConfirmPassword || firstTimePassword.length < 4}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 transition-all mt-6 flex items-center justify-center gap-1.5"
-              >
-                {firstTimePasswordSubmitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                {firstTimePasswordSubmitting ? 'সেটআপ সম্পন্ন হচ্ছে...' : 'সেটআপ সম্পন্ন করুন'}
-              </button>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (sessionUser) {
+                      localStorage.removeItem(`first_time_modal_start_time_${sessionUser.id}`);
+                    }
+                    await handleLogout();
+                  }}
+                  className="flex-1 flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-sm font-semibold text-slate-400 hover:text-slate-350 bg-slate-950 hover:bg-slate-900 cursor-pointer transition-all"
+                >
+                  লগআউট করুন
+                </button>
+                <button
+                  type="submit"
+                  disabled={firstTimePasswordSubmitting || firstTimePassword !== firstTimeConfirmPassword || firstTimePassword.length < 4}
+                  className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {firstTimePasswordSubmitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {firstTimePasswordSubmitting ? 'সেটআপ সম্পন্ন হচ্ছে...' : 'সেটআপ সম্পন্ন করুন'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -5605,14 +5763,33 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider font-semibold">তারিখ (Date)</label>
-                  <input
-                    type="date"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
+                  <div className="flex gap-2 items-center mt-1">
+                    <input
+                      type="date"
+                      required
+                      value={date}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (bulkDates.includes(val)) {
+                          alert('এই তারিখটি অলরেডি অতিরিক্ত তারিখ হিসেবে সিলেক্ট করা হয়েছে!');
+                          return;
+                        }
+                        setDate(val);
+                      }}
+                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                      className="block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    />
+                    {leaveType === 'Full Leave' && (
+                      <button
+                        type="button"
+                        onClick={handleAddBulkDate}
+                        className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all flex items-center justify-center cursor-pointer shrink-0 border border-blue-700 shadow-md"
+                        title="আরও তারিখ যোগ করুন"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -5620,7 +5797,7 @@ export default function Dashboard() {
                   <select
                     value={leaveType}
                     onChange={(e) => setLeaveType(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Short Leave">Short Leave</option>
                     <option value="Full Leave">Full Leave</option>
@@ -5629,6 +5806,36 @@ export default function Dashboard() {
                   </select>
                 </div>
               </div>
+
+              {/* Bulk Dates Input List */}
+              {leaveType === 'Full Leave' && bulkDates.length > 0 && (
+                <div className="space-y-2.5 p-3 bg-slate-950/40 rounded-lg border border-slate-800/80 max-h-48 overflow-y-auto">
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">অতিরিক্ত ছুটির তারিখসমূহ ({bulkDates.length} দিন)</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {bulkDates.map((bulkDate, index) => (
+                      <div key={index} className="flex gap-2 items-center">
+                        <span className="text-[10px] text-slate-500 font-mono w-4">{index + 2}.</span>
+                        <input
+                          type="date"
+                          required
+                          value={bulkDate}
+                          onChange={(e) => handleUpdateBulkDate(index, e.target.value)}
+                          onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                          className="block w-full px-3 py-1.5 bg-slate-955 border border-slate-850 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBulkDate(index)}
+                          className="p-1.5 bg-red-955/60 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-lg transition-all flex items-center justify-center cursor-pointer shrink-0"
+                          title="বাদ দিন"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Adjustment Switch & Overtime Switch */}
               <div className="grid grid-cols-1 gap-4">

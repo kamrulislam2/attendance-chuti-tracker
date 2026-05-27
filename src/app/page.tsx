@@ -495,74 +495,35 @@ export default function Dashboard() {
         .eq('id', session.user.id)
         .maybeSingle();
 
-      let currentProfile: any = userProfile;
-
       if (profileError || !userProfile) {
-        // If profile doesn't exist, create one dynamically for fallback
-        const defaultUsername = (session.user.email?.split('@')[0] || 'User').toUpperCase();
-        const defaultRole = 
-          session.user.email?.endsWith('@admin.local') || 
-          session.user.email?.endsWith('@admin.chuti') || 
-          session.user.email === 'admin@office.local' 
-            ? 'admin' 
-            : 'user';
-        
-        const { data: newProfile } = await supabase
-          .from('profiles')
-          .upsert({ 
-            id: session.user.id, 
-            username: defaultUsername, 
-            role: defaultRole,
-            is_setup_completed: false,
-            profile_change_status: 'none'
-          })
-          .select()
-          .single();
-
-        if (newProfile) {
-          currentProfile = newProfile;
-          setProfile(newProfile);
-          setSetupUsername((newProfile.username || '').toUpperCase());
-          setSetupFullName(newProfile.full_name || '');
-          setSetupWorkingHours(Number(newProfile.working_hours || 9.5).toFixed(1));
-          setSetupBreakTime(String(newProfile.break_time || 0));
-          setSetupJobRole(newProfile.job_role || '');
-          setSetupSignInTime(newProfile.default_sign_in || '13:00');
-          setSetupSignOutTime(newProfile.default_sign_out || '22:30');
-          setEditFullName(newProfile.full_name || '');
-          setEditWorkingHours(Number(newProfile.working_hours || 9.5).toFixed(1));
-          setEditBreakTime(String(newProfile.break_time || 0));
-          setEditJobRole(newProfile.job_role || '');
-          setProfileSignInTime(newProfile.default_sign_in || '13:00');
-          setProfileSignOutTime(newProfile.default_sign_out || '22:30');
-        } else {
-          setProfile({ 
-            username: defaultUsername, 
-            role: defaultRole,
-            working_hours: 9.5,
-            break_time: 0,
-            is_setup_completed: defaultRole === 'admin' ? true : false,
-            profile_change_status: 'none'
-          });
-          setSetupUsername(defaultUsername);
+        console.error('User profile not found. Logging out.', profileError);
+        localStorage.removeItem(`session_start_time_${userId}`);
+        localStorage.removeItem(`last_access_time_${userId}`);
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.error(e);
         }
-      } else {
-        setProfile(userProfile);
-        setSetupUsername((userProfile.username || '').toUpperCase());
-        setSetupFullName(userProfile.full_name || '');
-        setSetupWorkingHours(Number(userProfile.working_hours || 9.5).toFixed(1));
-        setSetupBreakTime(String(userProfile.break_time || 0));
-        setSetupJobRole(userProfile.job_role || '');
-        setSetupSignInTime(userProfile.default_sign_in || '13:00');
-        setSetupSignOutTime(userProfile.default_sign_out || '22:30');
-        
-        setEditFullName(userProfile.requested_full_name || userProfile.full_name || '');
-        setEditWorkingHours(Number(userProfile.requested_working_hours || userProfile.working_hours || 9.5).toFixed(1));
-        setEditBreakTime(String(userProfile.requested_break_time || userProfile.break_time || 0));
-        setEditJobRole(userProfile.requested_job_role || userProfile.job_role || '');
-        setProfileSignInTime(userProfile.requested_default_sign_in || userProfile.default_sign_in || '13:00');
-        setProfileSignOutTime(userProfile.requested_default_sign_out || userProfile.default_sign_out || '22:30');
+        router.push('/login');
+        return;
       }
+
+      const currentProfile: any = userProfile;
+      setProfile(userProfile);
+      setSetupUsername((userProfile.username || '').toUpperCase());
+      setSetupFullName(userProfile.full_name || '');
+      setSetupWorkingHours(Number(userProfile.working_hours || 9.5).toFixed(1));
+      setSetupBreakTime(String(userProfile.break_time || 0));
+      setSetupJobRole(userProfile.job_role || '');
+      setSetupSignInTime(userProfile.default_sign_in || '13:00');
+      setSetupSignOutTime(userProfile.default_sign_out || '22:30');
+      
+      setEditFullName(userProfile.requested_full_name || userProfile.full_name || '');
+      setEditWorkingHours(Number(userProfile.requested_working_hours || userProfile.working_hours || 9.5).toFixed(1));
+      setEditBreakTime(String(userProfile.requested_break_time || userProfile.break_time || 0));
+      setEditJobRole(userProfile.requested_job_role || userProfile.job_role || '');
+      setProfileSignInTime(userProfile.requested_default_sign_in || userProfile.default_sign_in || '13:00');
+      setProfileSignOutTime(userProfile.requested_default_sign_out || userProfile.default_sign_out || '22:30');
       
       if (currentProfile && currentProfile.has_changed_password === false) {
         setShowFirstTimePasswordModal(true);
@@ -695,10 +656,25 @@ export default function Dashboard() {
       .channel('realtime-profile-changes')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        { event: '*', schema: 'public', table: 'profiles' },
         (payload: any) => {
-          console.log('Realtime profile update received:', payload);
-          if (payload.new && payload.new.id === sessionUser.id) {
+          console.log('Realtime profile change received:', payload);
+          if (payload.eventType === 'DELETE' && payload.old && payload.old.id === sessionUser.id) {
+            console.log('Your profile has been deleted by admin. Logging out...');
+            const handleLogout = async () => {
+              try {
+                await supabase.auth.signOut();
+              } catch (e) {
+                console.error(e);
+              }
+              localStorage.removeItem(`session_start_time_${sessionUser.id}`);
+              localStorage.removeItem(`last_access_time_${sessionUser.id}`);
+              router.push('/login');
+            };
+            handleLogout();
+            return;
+          }
+          if (payload.eventType === 'UPDATE' && payload.new && payload.new.id === sessionUser.id) {
             setProfile(payload.new);
           }
           fetchRecords();
@@ -710,7 +686,7 @@ export default function Dashboard() {
       supabase.removeChannel(chutiChannel);
       supabase.removeChannel(profilesChannel);
     };
-  }, [sessionUser, fetchRecords]);
+  }, [sessionUser, fetchRecords, router]);
 
   // Set default form date to today
   useEffect(() => {

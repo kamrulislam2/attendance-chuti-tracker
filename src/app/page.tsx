@@ -839,6 +839,12 @@ export default function Dashboard() {
       return;
     }
 
+    const bulkId = allDates.length > 1 ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    })) : null;
+
     const bypassSupervisor = 
       profile?.needs_supervisor_approval === false ||
       profile?.role === 'admin' ||
@@ -860,6 +866,7 @@ export default function Dashboard() {
       reserve_adjustment_status: isReserve ? (adjustment ? 'pending' : 'none') : 'none',
       status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
       comment: comment || null,
+      bulk_id: bulkId,
     });
 
     // Duplicate Check in Offline Queue first
@@ -1651,33 +1658,48 @@ export default function Dashboard() {
       return;
     }
     try {
-      const target = adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId);
-      let updatedComment = target?.comment || '';
-      if (approve && profile?.username) {
-        const prefix = `${profile.username} Approved`;
-        if (!updatedComment.includes(prefix)) {
-          updatedComment = updatedComment 
-            ? `${prefix} | ${updatedComment}` 
-            : `${prefix}`;
-        }
+      const isBulk = chutiId.startsWith('bulk-');
+      const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
+
+      let targets: any[] = [];
+      if (isBulk) {
+        targets = adminRecords.filter(r => r.bulk_id === bulkId && r.status === 'pending_supervisor');
+      } else {
+        const target = adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId);
+        if (target) targets = [target];
       }
 
-      const { error } = await supabase
-        .from('chuti')
-        .update({ 
-          status: 'approved_by_supervisor',
-          comment: updatedComment || null
-        })
-        .eq('id', chutiId);
+      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
 
-      if (error) throw error;
+      const user_id = targets[0].user_id;
+      const leave_type = targets[0].leave_type;
+      const formattedDates = targets.map(t => formatDate(t.date)).join(', ');
+
+      await Promise.all(targets.map(async (t) => {
+        let updatedComment = t.comment || '';
+        if (profile?.username) {
+          const prefix = `${profile.username} Approved`;
+          if (!updatedComment.includes(prefix)) {
+            updatedComment = updatedComment ? `${prefix} | ${updatedComment}` : `${prefix}`;
+          }
+        }
+        const { error } = await supabase
+          .from('chuti')
+          .update({ 
+            status: 'approved_by_supervisor',
+            comment: updatedComment || null
+          })
+          .eq('id', t.id);
+
+        if (error) throw error;
+      }));
 
       // Trigger Web Push Notification to Staff member
-      if (target?.user_id) {
+      if (user_id) {
         sendPushNotification({
-          userIds: [target.user_id],
+          userIds: [user_id],
           title: 'ছুটি সুপারভাইজার দ্বারা অনুমোদিত ✅',
-          body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (${formatDate(target.date)})। এটি এখন অ্যাডমিন অ্যাপ্রুভালের অপেক্ষায় রয়েছে।`,
+          body: `আপনার ${leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (তারিখ: ${formattedDates})। এটি এখন অ্যাডমিন অ্যাপ্রuভালের অপেক্ষায় রয়েছে।`,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1686,7 +1708,7 @@ export default function Dashboard() {
       sendPushNotification({
         userIds: ['admins'],
         title: 'ছুটি সুপারভাইজার অ্যাপ্রুভড 🔔',
-        body: `${target?.profiles?.username || 'স্টাফ'}-এর ছুটি সুপারভাইজার অনুমোদন করেছেন (${formatDate(target?.date) || ''})। অ্যাডমিন প্যানেল চেক করুন।`,
+        body: `${targets[0]?.profiles?.username || 'স্টাফ'}-এর ছুটি সুপারভাইজার অনুমোদন করেছেন (তারিখ: ${formattedDates})। অ্যাডমিন প্যানেল চেক করুন।`,
         url: '/'
       }).catch(err => console.error('Error sending push to admin:', err));
 
@@ -1717,38 +1739,50 @@ export default function Dashboard() {
       return;
     }
     try {
-      const target = adminRecords.find(r => r.id === chutiId);
-      if (!target) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
+      const isBulk = chutiId.startsWith('bulk-');
+      const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
 
-      let updatedComment = target.comment || '';
-      if (approve && profile?.username) {
-        const prefix = `${profile.username} Approved`;
-        if (!updatedComment.includes(prefix)) {
-          updatedComment = updatedComment 
-            ? `${prefix} | ${updatedComment}` 
-            : `${prefix}`;
-        }
+      let targets: any[] = [];
+      if (isBulk) {
+        targets = adminRecords.filter(r => r.bulk_id === bulkId && r.status === 'approved_by_supervisor');
+      } else {
+        const target = adminRecords.find(r => r.id === chutiId);
+        if (target) targets = [target];
       }
 
-      const updates = {
-        status: 'approved',
-        reserve_adjustment_status: (target.leave_type === 'Reserve' && target.adjustment) ? 'approved' : 'none',
-        comment: updatedComment || null
-      };
+      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
 
-      const { error } = await supabase
-        .from('chuti')
-        .update(updates)
-        .eq('id', chutiId);
+      const user_id = targets[0].user_id;
+      const leave_type = targets[0].leave_type;
+      const formattedDates = targets.map(t => formatDate(t.date)).join(', ');
 
-      if (error) throw error;
+      await Promise.all(targets.map(async (t) => {
+        let updatedComment = t.comment || '';
+        if (profile?.username) {
+          const prefix = `${profile.username} Approved`;
+          if (!updatedComment.includes(prefix)) {
+            updatedComment = updatedComment ? `${prefix} | ${updatedComment}` : `${prefix}`;
+          }
+        }
+        const updates = {
+          status: 'approved',
+          reserve_adjustment_status: (t.leave_type === 'Reserve' && t.adjustment) ? 'approved' : 'none',
+          comment: updatedComment || null
+        };
+        const { error } = await supabase
+          .from('chuti')
+          .update(updates)
+          .eq('id', t.id);
+
+        if (error) throw error;
+      }));
 
       // Trigger Web Push Notification to Staff member
-      if (target?.user_id) {
+      if (user_id) {
         sendPushNotification({
-          userIds: [target.user_id],
+          userIds: [user_id],
           title: 'ছুটি চূড়ান্তভাবে অনুমোদিত 🎉',
-          body: `আপনার ${target.leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (${formatDate(target.date)})।`,
+          body: `আপনার ${leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (তারিখ: ${formattedDates})।`,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1783,26 +1817,47 @@ export default function Dashboard() {
     setReviewingIds(prev => new Set(prev).add(chutiId));
 
     try {
-      if (revisionPromptIsSupervisor) {
+      const isBulk = chutiId.startsWith('bulk-');
+      const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
+
+      let targets: any[] = [];
+      if (isBulk) {
+        targets = adminRecords.filter(r => r.bulk_id === bulkId);
+      } else {
         const target = adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId);
-        const updatedComment = `${profile?.username || 'Supervisor'} Revision: ${reasonText}`;
+        if (target) targets = [target];
+      }
 
-        const { error } = await supabase
-          .from('chuti')
-          .update({ 
-            status: 'needs_review',
-            comment: updatedComment
-          })
-          .eq('id', chutiId);
+      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
 
-        if (error) throw error;
+      const user_id = targets[0].user_id;
+      const leave_type = targets[0].leave_type;
+      const formattedDates = targets.map(t => formatDate(t.date)).join(', ');
+
+      if (revisionPromptIsSupervisor) {
+        const updatedCommentPrefix = `${profile?.username || 'Supervisor'} Revision: ${reasonText}`;
+
+        await Promise.all(targets.map(async (t) => {
+          let updatedComment = t.comment || '';
+          updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
+
+          const { error } = await supabase
+            .from('chuti')
+            .update({ 
+              status: 'needs_review',
+              comment: updatedComment
+            })
+            .eq('id', t.id);
+
+          if (error) throw error;
+        }));
 
         // Trigger Web Push Notification to Staff member
-        if (target?.user_id) {
+        if (user_id) {
           sendPushNotification({
-            userIds: [target.user_id],
+            userIds: [user_id],
             title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${target.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন। কারণ: ${reasonText}`,
+            body: `আপনার ${leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formattedDates})। কারণ: ${reasonText}`,
             url: '/'
           }).catch(err => console.error('Error sending push:', err));
         }
@@ -1812,29 +1867,32 @@ export default function Dashboard() {
           text: 'ছুটি সংশোধনের জন্য ইউজারের কাছে ফেরত পাঠানো হয়েছে।' 
         });
       } else {
-        const target = adminRecords.find(r => r.id === chutiId);
-        if (!target) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
-        const updatedComment = `${profile?.username || 'Admin'} Revision: ${reasonText}`;
+        const updatedCommentPrefix = `${profile?.username || 'Admin'} Revision: ${reasonText}`;
 
-        const updates = {
-          status: 'needs_review',
-          reserve_adjustment_status: 'none',
-          comment: updatedComment
-        };
+        await Promise.all(targets.map(async (t) => {
+          let updatedComment = t.comment || '';
+          updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
-        const { error } = await supabase
-          .from('chuti')
-          .update(updates)
-          .eq('id', chutiId);
+          const updates = {
+            status: 'needs_review',
+            reserve_adjustment_status: 'none',
+            comment: updatedComment
+          };
 
-        if (error) throw error;
+          const { error } = await supabase
+            .from('chuti')
+            .update(updates)
+            .eq('id', t.id);
+
+          if (error) throw error;
+        }));
 
         // Trigger Web Push Notification to Staff member
-        if (target?.user_id) {
+        if (user_id) {
           sendPushNotification({
-            userIds: [target.user_id],
+            userIds: [user_id],
             title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${target.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন। কারণ: ${reasonText}`,
+            body: `আপনার ${leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formattedDates})। কারণ: ${reasonText}`,
             url: '/'
           }).catch(err => console.error('Error sending push:', err));
         }
@@ -2412,6 +2470,43 @@ export default function Dashboard() {
 
   const userStats = calculateUserStats();
 
+  const groupPendingRequests = (requests: any[]) => {
+    const grouped: any[] = [];
+    const bulkMap = new Map<string, any[]>();
+
+    for (const req of requests) {
+      if (req.bulk_id) {
+        if (!bulkMap.has(req.bulk_id)) {
+          bulkMap.set(req.bulk_id, []);
+        }
+        bulkMap.get(req.bulk_id)!.push(req);
+      } else {
+        grouped.push(req);
+      }
+    }
+
+    bulkMap.forEach((subRequests, bulkId) => {
+      subRequests.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const representative = {
+        ...subRequests[0],
+        id: `bulk-${bulkId}`,
+        is_bulk: true,
+        bulk_id: bulkId,
+        all_bulk_dates: subRequests.map(s => s.date),
+        all_bulk_ids: subRequests.map(s => s.id),
+        all_bulk_records: subRequests,
+        formatted_bulk_dates: subRequests.map(s => formatDate(s.date)).join(', '),
+      };
+      grouped.push(representative);
+    });
+
+    return grouped.sort((a, b) => {
+      const aTime = new Date(a.created_at || a.date).getTime();
+      const bTime = new Date(b.created_at || b.date).getTime();
+      return bTime - aTime;
+    });
+  };
+
   const pendingProfileRequests = profilesList.filter(p => p.profile_change_status === 'pending');
   const pendingReserveRequests = adminRecords.filter(r => 
     (r.leave_type === 'Reserve' && (r.status === 'approved_by_supervisor' || r.reserve_adjustment_status === 'pending')) ||
@@ -2419,7 +2514,9 @@ export default function Dashboard() {
     (r.reserve_adjustment_status === 'pending')
   );
   const pendingChutiRequests = adminRecords.filter(r => r.status === 'approved_by_supervisor' && r.leave_type !== 'Reserve' && r.leave_type !== 'Overtime');
+  const groupedChutiRequests = groupPendingRequests(pendingChutiRequests);
   const pendingSupervisorRequests = adminRecords.filter(r => r.status === 'pending_supervisor' && r.user_id !== sessionUser?.id);
+  const groupedSupervisorRequests = groupPendingRequests(pendingSupervisorRequests);
   const userRevisionRequests = userRecords.filter(r => r.status === 'needs_review');
 
   // Viewed staff member calculations (for individual view)
@@ -2597,14 +2694,14 @@ export default function Dashboard() {
                 title="নোটিফিকেশন"
               >
                 <Bell className="h-4.5 w-4.5" />
-                {profile.role === 'supervisor' && (pendingSupervisorRequests.length + userRevisionRequests.length) > 0 && (
+                {profile.role === 'supervisor' && (groupedSupervisorRequests.length + userRevisionRequests.length) > 0 && (
                   <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                    {pendingSupervisorRequests.length + userRevisionRequests.length}
+                    {groupedSupervisorRequests.length + userRevisionRequests.length}
                   </span>
                 )}
-                {profile.role === 'admin' && adminActiveTab === 'admin' && (pendingChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length) > 0 && (
+                {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length) > 0 && (
                   <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                    {pendingChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length}
+                    {groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length}
                   </span>
                 )}
                 {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && userRevisionRequests.length > 0 && (
@@ -4196,13 +4293,13 @@ export default function Dashboard() {
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> ছুটির অনুরোধসমূহ (Pending Admin Approval)
                 </h4>
-                {pendingChutiRequests.length === 0 ? (
+                {groupedChutiRequests.length === 0 ? (
                   <div className="text-center py-6 bg-slate-950/40 border border-slate-850 rounded-xl text-slate-500 text-xs">
                     অনুমোদনের জন্য কোনো পেন্ডিং ছুটি নেই।
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {pendingChutiRequests.map(r => {
+                    {groupedChutiRequests.map(r => {
                       const user = profilesList.find(p => p.id === r.user_id);
                       return (
                         <div key={r.id} className="bg-slate-950/60 border border-slate-850 rounded-xl p-4 flex flex-col md:flex-row justify-between gap-4">
@@ -4211,7 +4308,7 @@ export default function Dashboard() {
                               <span className="font-bold text-white text-sm">{user?.full_name || 'নাম নেই'}</span>
                               <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-800 rounded text-slate-400 font-mono">@{(user?.username || '').toUpperCase()}</span>
                             </div>
-                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{formatDate(r.date)}</span></p>
+                            <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{r.is_bulk ? r.formatted_bulk_dates : formatDate(r.date)}</span></p>
                             <p><span className="text-slate-500">ছুটির ধরন:</span> <span className="font-bold text-blue-400">{r.leave_type}</span></p>
                             {r.leave_type !== 'Reserve' && r.leave_type !== 'Full Leave' && (
                               <p><span className="text-slate-500">সময় ও ঘণ্টা:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} ঘণ্টা)</span></p>
@@ -4519,12 +4616,12 @@ export default function Dashboard() {
                 <p className="font-semibold text-amber-400">💡 তথ্য সংশোধনের নিয়মাবলী:</p>
                 <p>সুপারভাইজার সরাসরি ছুটির অনুরোধ প্রত্যাখ্যান (Reject) করতে পারবেন না। কোনো সংশোধন প্রয়োজন হলে <strong>'রিভিশন পাঠান (Needs Review)'</strong> বাটনে ক্লিক করে ইউজারের কাছে সংশোধনের জন্য পাঠানো যাবে। ইউজার তথ্য সংশোধন করে পুনরায় সাবমিট করলে তা পুনরায় আপনার কাছে অনুমোদনের জন্য আসবে।</p>
               </div>
-              {pendingSupervisorRequests.length === 0 ? (
+              {groupedSupervisorRequests.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 text-sm">
                   ভেরিফিকেশনের জন্য কোনো পেন্ডিং ছুটি নেই।
                 </div>
               ) : (
-                pendingSupervisorRequests.map(r => {
+                groupedSupervisorRequests.map(r => {
                   const user = profilesList.find(p => p.id === r.user_id);
                   return (
                     <div key={r.id} className="bg-slate-950/60 border border-slate-850 rounded-xl p-4 flex flex-col md:flex-row justify-between gap-4">
@@ -4533,7 +4630,7 @@ export default function Dashboard() {
                           <span className="font-bold text-white text-sm">{user?.full_name || 'নাম নেই'}</span>
                           <span className="text-[10px] px-1.5 py-0.2 bg-slate-900 border border-slate-800 rounded text-slate-400 font-mono">@{(user?.username || '').toUpperCase()}</span>
                         </div>
-                        <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{formatDate(r.date)}</span></p>
+                        <p><span className="text-slate-500">তারিখ:</span> <span className="font-semibold text-slate-200">{r.is_bulk ? r.formatted_bulk_dates : formatDate(r.date)}</span></p>
                         <p><span className="text-slate-500">ছুটির ধরন:</span> <span className="font-bold text-blue-400">{r.leave_type}</span></p>
                         {r.leave_type !== 'Reserve' && r.leave_type !== 'Full Leave' && (
                           <p><span className="text-slate-500">সময় ও ঘণ্টা:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} ঘণ্টা)</span></p>

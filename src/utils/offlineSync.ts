@@ -21,6 +21,7 @@ export interface ChutiRecord {
   adjust_short_leave?: boolean;
   comment: string | null;
   synced: boolean;
+  bulk_id?: string | null;
   action?: 'insert' | 'update' | 'delete';
   data?: Partial<Omit<ChutiRecord, 'localId' | 'synced'>>;
 }
@@ -199,6 +200,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             status: record.status || 'pending_supervisor',
             adjust_short_leave: record.adjust_short_leave || false,
             reserve_adjustment_status: record.reserve_adjustment_status || 'none',
+            bulk_id: record.bulk_id || null,
           });
 
           if (insertError) {

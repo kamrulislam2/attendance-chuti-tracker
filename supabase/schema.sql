@@ -72,6 +72,7 @@ CREATE TABLE public.chuti (
   adjust_short_leave BOOLEAN NOT NULL DEFAULT FALSE,
   comment TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  bulk_id UUID, -- Group identifier for bulk leave submissions
   
   -- Prevent same user from submitting duplicate dates
   CONSTRAINT unique_user_date UNIQUE (user_id, date)

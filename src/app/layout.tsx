@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ছুটি",
   description: "Secure chuti and leave tracking system for office staff",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

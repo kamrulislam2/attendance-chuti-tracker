@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+import { UserStats } from '@/components/UserStats';
+import { UserRecordsTable } from '@/components/UserRecordsTable';
+import { StaffMasterTable } from '@/components/StaffMasterTable';
+import { AdminRecordsTable } from '@/components/AdminRecordsTable';
 import { 
   subscribeUserToPush, 
   unsubscribeUserFromPush, 
@@ -27,7 +31,6 @@ import {
   AlertTriangle, 
   Wifi, 
   WifiOff, 
-  Download, 
   Plus, 
   Trash2, 
   RefreshCw,
@@ -40,8 +43,7 @@ import {
   Bell,
   Lock,
   Sun,
-  Moon,
-  Search
+  Moon
 } from 'lucide-react';
 
 // Helper function to clean supervisor/admin approval prefix from comment for table display
@@ -821,9 +823,11 @@ export default function Dashboard() {
     };
   }, [sessionUser, fetchRecords, router]);
 
-  // Set default form date to today
+  // Set default form date to today (respecting local timezone)
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const offset = new Date().getTimezoneOffset();
+    const localDate = new Date(new Date().getTime() - (offset * 60 * 1000));
+    const today = localDate.toISOString().split('T')[0];
     setDate(today);
   }, []);
 
@@ -2798,358 +2802,48 @@ export default function Dashboard() {
 
 
               
-              {/* Summary Cards */}
-              <div className="flex flex-wrap justify-center gap-4 w-full">
+              <UserStats 
+                stats={userStats}
+                allowReserve={profile?.allow_reserve}
+                allowOvertime={profile?.allow_overtime}
+              />
 
-                <div className="flex-1 min-w-[250px] max-w-[350px] bg-slate-900/40 border border-slate-900 rounded-2xl p-5 flex items-center gap-4">
-                  <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
-                    <Clock className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <span className="block text-xs text-slate-400">মোট শর্ট লিভ (Unadjusted)</span>
-                    <span className="block text-2xl font-bold text-white font-mono mt-0.5">{userStats.shortHours} ঘণ্টা</span>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-[250px] max-w-[350px] bg-slate-900/40 border border-slate-900 rounded-2xl p-5 flex items-center gap-4">
-                  <div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl border border-violet-500/20">
-                    <Calendar className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <span className="block text-xs text-slate-400">মোট ফুল লিভ (Unadjusted)</span>
-                    <span className="block text-2xl font-bold text-white mt-0.5">{userStats.fullLeaves} দিন</span>
-                  </div>
-                </div>
-
-                {profile?.allow_reserve && (
-                  <div className="flex-1 min-w-[250px] max-w-[350px] bg-slate-900/40 border border-slate-900 rounded-2xl p-5 flex items-center gap-4">
-                    <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-                      <Calendar className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <span className="block text-xs text-slate-400">রিজার্ভ ছুটি (Unadjusted)</span>
-                      <span className="block text-2xl font-bold text-white mt-0.5">{userStats.reserveLeaves} দিন</span>
-                    </div>
-                  </div>
-                )}
-
-                {profile?.allow_overtime && (
-                  <div className="flex-1 min-w-[250px] max-w-[350px] bg-slate-900/40 border border-slate-900 rounded-2xl p-5 flex items-center gap-4">
-                    <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-                      <Clock className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <span className="block text-xs text-slate-400">ওভারটাইম (Unadjusted)</span>
-                      <span className="block text-2xl font-bold text-white font-mono mt-0.5">{userStats.overtimeHours} ঘণ্টা</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Filtering Panel for User */}
-              <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
-                  <SlidersHorizontal className="h-4 w-4 text-blue-500" /> আমার ছুটির ফিল্টারিং প্যানেল
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Filter Leave Type */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ছুটির ধরন</label>
-                    <select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="all">সকল ক্যাটাগরি (All)</option>
-                      <option value="Short Leave">Short Leave</option>
-                      <option value="Full Leave">Full Leave</option>
-                      {profile?.allow_overtime && <option value="Overtime">Overtime</option>}
-                      {profile?.allow_reserve && <option value="Reserve">Reserve</option>}
-                    </select>
-                  </div>
-
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
-                    <input
-                      type="date"
-                      min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-                      max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-                      value={filterStartDate}
-                      onChange={(e) => setFilterStartDate(e.target.value)}
-                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
-                    <input
-                      type="date"
-                      min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-                      max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-                      value={filterEndDate}
-                      onChange={(e) => setFilterEndDate(e.target.value)}
-                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                      className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-end gap-2">
-                    <button
-                      onClick={() => handleExportIndividualCSV(sessionUser?.id || '')}
-                      className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-                      title="CSV Export"
-                    >
-                      <Download className="h-4 w-4" /> CSV
-                    </button>
-                    <button
-                      onClick={() => handleExportIndividualExcel(sessionUser?.id || '')}
-                      className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
-                    >
-                      <Download className="h-4 w-4" /> Excel
-                    </button>
-                    <button
-                      onClick={() => {
-                        setFilterType('all');
-                        setFilterStartDate('');
-                        setFilterEndDate('');
-                      }}
-                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs cursor-pointer transition-all"
-                      title="Filters Reset"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chuti Records Table */}
-              <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="flex flex-col">
-                    <h3 className="text-base font-bold text-white">আমার বাৎসরিক ছুটির রেকর্ডসমূহ</h3>
-                    <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {getFilteredUserRecords().length}টি এন্ট্রি</span>
-                  </div>
-                  
-                  {/* Export buttons for User/Supervisor */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setComment('');
-                        setReserveHoliday('');
-                        setAdjustShortLeave(false);
-                        const today = new Date();
-                        const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-                        setDate(localDate);
-                        setShowAddLeaveModal(true);
-                      }}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add Leave
-                    </button>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedYear(val);
-                        sessionStorage.setItem('selectedYear', val);
-                      }}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-md"
-                    >
-                      <option value="all" className="bg-slate-900 text-white">All</option>
-                      {availableYears.map(y => (
-                        <option key={y} value={y} className="bg-slate-900 text-white">
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  {getFilteredUserRecords().length === 0 ? (
-                    <div className="py-12 text-center text-slate-500 text-sm">
-                      কোনো ছুটির রেকর্ড পাওয়া যায়নি। নতুন এন্ট্রি সাবমিট করুন।
-                    </div>
-                  ) : (
-                    <table className="min-w-full divide-y divide-slate-800">
-                      <thead className="bg-slate-950/60">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">তারিখ</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ধরন</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Adjustment</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন ইন/আউট</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">লিভ আওয়ার</th>
-                          {profile?.allow_overtime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম</th>}
-                          {profile?.allow_reserve && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রিজার্ভ ছুটি</th>}
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">মন্তব্য</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">একশন</th>
-                          <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-                        {getFilteredUserRecords()
-                          .map((r) => {
-                          const isTemp = typeof r.id === 'string' && r.id.startsWith('temp-');
-                          return (
-                            <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white flex items-center gap-2">
-                                {formatDate(r.date)}
-                                {isTemp && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-800 text-amber-400 animate-pulse">
-                                    Pending
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
-                                  r.leave_type === 'Full Leave' 
-                                    ? 'bg-red-950/50 border border-red-800 text-red-300' 
-                                    : r.leave_type === 'Reserve'
-                                    ? 'bg-amber-950/50 border border-amber-800 text-amber-300'
-                                    : r.leave_type === 'Overtime'
-                                    ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-300'
-                                    : 'bg-blue-950/50 border border-blue-800 text-blue-300'
-                                }`}>
-                                  {r.leave_type}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                                {r.leave_type === 'Reserve' ? (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleAdjustmentClick(r)}
-                                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                        (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                          ? 'bg-blue-600' 
-                                          : 'bg-slate-800'
-                                      }`}
-                                    >
-                                      <span
-                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                          (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                            ? 'translate-x-4' 
-                                            : 'translate-x-0'
-                                        }`}
-                                      />
-                                    </button>
-                                    <span className="text-xs font-semibold">
-                                      {(r.reserve_adjustment_status === 'approved' || r.adjustment) ? (
-                                        <span className="text-emerald-400">হ্যাঁ</span>
-                                      ) : r.reserve_adjustment_status === 'pending' ? (
-                                        <span className="text-amber-400 animate-pulse">হ্যাঁ</span>
-                                      ) : r.reserve_adjustment_status === 'rejected' ? (
-                                        <span className="text-slate-500">না (Rejected)</span>
-                                      ) : (
-                                        <span className="text-slate-500">না</span>
-                                      )}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleAdjustmentClick(r)}
-                                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                        (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-blue-600' : 'bg-slate-800'
-                                      }`}
-                                    >
-                                      <span
-                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                          (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'translate-x-4' : 'translate-x-0'
-                                        }`}
-                                      />
-                                    </button>
-                                    <span className="text-xs font-semibold">
-                                      {r.reserve_adjustment_status === 'pending' ? (
-                                        <span className="text-amber-400 animate-pulse font-semibold">পেন্ডিং</span>
-                                      ) : r.adjustment ? (
-                                        <span className="text-blue-400">হ্যাঁ</span>
-                                      ) : r.adjusted_hour ? (
-                                        <span className="text-cyan-400 font-mono">আংশিক ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
-                                      ) : r.reserve_adjustment_status === 'rejected' ? (
-                                        <span className="text-slate-500">না (Rejected)</span>
-                                      ) : (
-                                        <span className="text-slate-500">না</span>
-                                      )}
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
-                                {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
-                                {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-')}
-                              </td>
-                              {profile?.allow_overtime && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
-                                  {r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}
-                                </td>
-                              )}
-                              {profile?.allow_reserve && (
-                                <td className="px-6 py-4 text-sm text-slate-350 max-w-[150px] truncate">
-                                  {r.reserve_holiday || '-'}
-                                </td>
-                              )}
-                              <td className="px-6 py-4 text-sm text-slate-400 max-w-[200px] truncate" title={getCleanComment(r.comment)}>
-                                {getCleanComment(r.comment) || '-'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-                                <div className="flex gap-1.5">
-                                  {r.status === 'needs_review' && (
-                                    <button
-                                      onClick={() => {
-                                        setRevisionRecord(r);
-                                        setRevisionDate(r.date);
-                                        setRevisionLeaveType(r.leave_type);
-                                        setRevisionAdjustment(r.adjustment);
-                                        setRevisionAdjustShortLeave(r.adjust_short_leave === true);
-                                        setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
-                                        setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
-                                        setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-                                        setRevisionReserveHoliday(r.reserve_holiday || '');
-                                        setRevisionComment('');
-                                        setShowUserRevisionModal(true);
-                                      }}
-                                      className="text-amber-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-amber-500/10 cursor-pointer transition-all animate-pulse"
-                                      title="সংশোধন করুন (Revision)"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => triggerDeleteRecord(r)}
-                                    className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 cursor-pointer transition-all"
-                                    title="Delete Entry"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                <div className="flex flex-col gap-1 items-end">
-                                  {renderStatusBadge(r)}
-                                  {r.is_edited && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-950/40 border border-blue-800 text-blue-400">
-                                      (Edited)
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
+              <UserRecordsTable 
+                records={getFilteredUserRecords()}
+                allowOvertime={profile?.allow_overtime}
+                allowReserve={profile?.allow_reserve}
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
+                availableYears={availableYears}
+                onAddLeaveClick={() => {
+                  setComment('');
+                  setReserveHoliday('');
+                  setAdjustShortLeave(false);
+                  const today = new Date();
+                  const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+                  setDate(localDate);
+                  setShowAddLeaveModal(true);
+                }}
+                onToggleAdjustment={handleToggleAdjustmentClick}
+                onDeleteClick={triggerDeleteRecord}
+                onRevisionClick={(r) => {
+                  setRevisionRecord(r);
+                  setRevisionDate(r.date);
+                  setRevisionLeaveType(r.leave_type);
+                  setRevisionAdjustment(r.adjustment);
+                  setRevisionAdjustShortLeave(r.adjust_short_leave === true);
+                  setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
+                  setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
+                  setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
+                  setRevisionReserveHoliday(r.reserve_holiday || '');
+                  setRevisionComment('');
+                  setShowUserRevisionModal(true);
+                }}
+                formatDate={formatDate}
+                formatTimeToAMPM={formatTimeToAMPM}
+                getCleanComment={getCleanComment}
+                renderStatusBadge={renderStatusBadge}
+              />
 
           </div>
         )}
@@ -3284,394 +2978,63 @@ export default function Dashboard() {
                     </div>
 
                     {/* Filtering Panel for viewed staff */}
-                    <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
-                      <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
-                        <SlidersHorizontal className="h-4 w-4 text-blue-500" /> স্টাফ ছুটির ফিল্টারিং প্যানেল
-                      </h3>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Filter Leave Type */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ছুটির ধরন</label>
-                          <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="all">সকল ক্যাটাগরি (All)</option>
-                            <option value="Short Leave">Short Leave</option>
-                            <option value="Full Leave">Full Leave</option>
-                            {staffProfile?.allow_overtime && <option value="Overtime">Overtime</option>}
-                            {staffProfile?.allow_reserve && <option value="Reserve">Reserve</option>}
-                          </select>
-                        </div>
-
-                        {/* Start Date */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
-                          <input
-                            type="date"
-                            min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-                            max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-                            value={filterStartDate}
-                            onChange={(e) => setFilterStartDate(e.target.value)}
-                            onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                            className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </div>
-
-                        {/* End Date */}
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
-                          <input
-                            type="date"
-                            min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-                            max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-                            value={filterEndDate}
-                            onChange={(e) => setFilterEndDate(e.target.value)}
-                            onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                            className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-end gap-2">
-                          <button
-                            onClick={() => handleExportIndividualCSV(viewingStaffId)}
-                            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-                            title="CSV Export"
-                          >
-                            <Download className="h-4 w-4" /> CSV
-                          </button>
-                          <button
-                            onClick={() => handleExportIndividualExcel(viewingStaffId)}
-                            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
-                          >
-                            <Download className="h-4 w-4" /> Excel
-                          </button>
-                          <button
-                            onClick={() => {
-                              setFilterType('all');
-                              setFilterStartDate('');
-                              setFilterEndDate('');
-                            }}
-                            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs cursor-pointer transition-all"
-                            title="Filters Reset"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Records Table for Viewed Staff */}
-                    <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-                      <div className="px-6 py-4 border-b border-slate-800/80 flex justify-between items-center">
-                        <h3 className="text-base font-bold text-white flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-blue-500" /> ছুটির বিবরণী রেকর্ডসমূহ
-                        </h3>
-                        <span className="text-xs text-slate-400">রেকর্ড সংখ্যা: {individualRecords.length}টি</span>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        {individualRecords.length === 0 ? (
-                          <div className="py-12 text-center text-slate-500 text-sm">
-                            এই স্টাফের জন্য কোনো ছুটির রেকর্ড পাওয়া যায়নি।
-                          </div>
-                        ) : (
-                          <table className="min-w-full divide-y divide-slate-800">
-                            <thead className="bg-slate-950/60">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">তারিখ</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ধরন</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Adjustment</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন ইন/আউট</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">লিভ আওয়ার</th>
-                                {staffProfile?.allow_overtime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম</th>}
-                                {staffProfile?.allow_reserve && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রিজার্ভ ছুটি</th>}
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">মন্তব্য</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">একশন</th>
-                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-                              {individualRecords.map((r) => (
-                                <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">
-                                    {formatDate(r.date)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
-                                      r.leave_type === 'Full Leave' 
-                                        ? 'bg-red-950/50 border border-red-800 text-red-300' 
-                                        : r.leave_type === 'Reserve'
-                                        ? 'bg-amber-950/50 border border-amber-800 text-amber-300'
-                                        : r.leave_type === 'Overtime'
-                                        ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-300'
-                                        : 'bg-blue-950/50 border border-blue-800 text-blue-300'
-                                    }`}>
-                                      {r.leave_type}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                                    {r.leave_type === 'Reserve' ? (
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleToggleAdjustmentClick(r)}
-                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                            (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                              ? 'bg-blue-600' 
-                                              : 'bg-slate-800'
-                                          }`}
-                                        >
-                                          <span
-                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                              (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                                ? 'translate-x-4' 
-                                                : 'translate-x-0'
-                                            }`}
-                                          />
-                                        </button>
-                                        <span className="text-xs font-semibold">
-                                          {(r.reserve_adjustment_status === 'approved' || r.adjustment) ? (
-                                            <span className="text-emerald-400">হ্যাঁ</span>
-                                          ) : r.reserve_adjustment_status === 'pending' ? (
-                                            <span className="text-amber-400 animate-pulse">হ্যাঁ</span>
-                                          ) : r.reserve_adjustment_status === 'rejected' ? (
-                                            <span className="text-slate-500">না (Rejected)</span>
-                                          ) : (
-                                            <span className="text-slate-500">না</span>
-                                          )}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleToggleAdjustmentClick(r)}
-                                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                            (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-blue-600' : 'bg-slate-800'
-                                          }`}
-                                        >
-                                          <span
-                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                              (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'translate-x-4' : 'translate-x-0'
-                                            }`}
-                                          />
-                                        </button>
-                                        <span className="text-xs font-semibold">
-                                          {r.reserve_adjustment_status === 'pending' ? (
-                                            <span className="text-amber-400 animate-pulse font-semibold">পেন্ডিং</span>
-                                          ) : r.adjustment ? (
-                                            <span className="text-blue-400">হ্যাঁ</span>
-                                          ) : r.adjusted_hour ? (
-                                            <span className="text-cyan-400 font-mono">আংশিক ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
-                                          ) : r.reserve_adjustment_status === 'rejected' ? (
-                                            <span className="text-slate-500">না (Rejected)</span>
-                                          ) : (
-                                            <span className="text-slate-500">না</span>
-                                          )}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
-                                    {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
-                                    {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-')}
-                                  </td>
-                                  {staffProfile?.allow_overtime && (
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
-                                      {r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}
-                                    </td>
-                                  )}
-                                  {staffProfile?.allow_reserve && (
-                                    <td className="px-6 py-4 text-sm text-slate-350 max-w-[120px] truncate">
-                                      {r.reserve_holiday || '-'}
-                                    </td>
-                                  )}
-                                  <td className="px-6 py-4 text-sm text-slate-400 max-w-[150px] truncate" title={getCleanComment(r.comment)}>
-                                    {getCleanComment(r.comment) || '-'}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-                                    <div className="flex gap-1.5">
-                                      <button
-                                        onClick={() => {
-                                          setAdminEditRecord(r);
-                                          setAdminEditDate(r.date);
-                                          setAdminEditLeaveType(r.leave_type);
-                                          setAdminEditAdjustment(r.adjustment);
-                                          setAdminEditAdjustShortLeave(r.adjust_short_leave === true);
-                                          setAdminEditSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
-                                          setAdminEditSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
-                                          setAdminEditLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-                                          setAdminEditReserveHoliday(r.reserve_holiday || '');
-                                          setAdminEditComment(r.comment || '');
-                                          setShowAdminEditModal(true);
-                                        }}
-                                        className="text-blue-400 hover:text-blue-300 p-1.5 rounded-lg hover:bg-blue-500/10 cursor-pointer transition-all"
-                                        title="এডিট করুন (Admin Edit)"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => triggerDeleteRecord(r)}
-                                        className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 cursor-pointer transition-all"
-                                        title="Delete Record"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                    <div className="flex flex-col gap-1 items-end">
-                                      {renderStatusBadge(r)}
-                                      {r.is_edited && (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-950/40 border border-blue-800 text-blue-400">
-                                          (Edited)
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
-                    </div>
+                    <AdminRecordsTable 
+                      records={individualRecords}
+                      allowOvertime={staffProfile?.allow_overtime}
+                      allowReserve={staffProfile?.allow_reserve}
+                      filterType={filterType}
+                      setFilterType={setFilterType}
+                      filterStartDate={filterStartDate}
+                      setFilterStartDate={setFilterStartDate}
+                      filterEndDate={filterEndDate}
+                      setFilterEndDate={setFilterEndDate}
+                      onResetFilters={() => {
+                        setFilterType('all');
+                        setFilterStartDate('');
+                        setFilterEndDate('');
+                      }}
+                      onExportCSV={() => handleExportIndividualCSV(viewingStaffId)}
+                      onExportExcel={() => handleExportIndividualExcel(viewingStaffId)}
+                      onToggleAdjustment={handleToggleAdjustmentClick}
+                      onEditClick={(r) => {
+                        setAdminEditRecord(r);
+                        setAdminEditDate(r.date);
+                        setAdminEditLeaveType(r.leave_type);
+                        setAdminEditAdjustment(r.adjustment);
+                        setAdminEditAdjustShortLeave(r.adjust_short_leave === true);
+                        setAdminEditSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
+                        setAdminEditSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
+                        setAdminEditLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
+                        setAdminEditReserveHoliday(r.reserve_holiday || '');
+                        setAdminEditComment(r.comment || '');
+                        setShowAdminEditModal(true);
+                      }}
+                      onDeleteClick={triggerDeleteRecord}
+                      formatDate={formatDate}
+                      formatTimeToAMPM={formatTimeToAMPM}
+                      getCleanComment={getCleanComment}
+                      renderStatusBadge={renderStatusBadge}
+                      selectedYear={selectedYear}
+                    />
                   </div>
                 ) : (
               /* ================= STAFF MASTER DATABASE SUMMARY TABLE ================= */
-              <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <User className="h-5 w-5 text-purple-500" /> স্টাফ উপস্থিতি ও ছুটির মাস্টার ডাটাবেজ
-                  </h3>
-                  
-                  {/* Search Input */}
-                  <div className="relative w-full sm:max-w-xs">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                      <Search className="h-4 w-4" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="নাম বা কোডনেম দিয়ে খুঁজুন..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-1.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs transition-all"
-                    />
-                  </div>
-                  
-                  {/* Master Export Summary buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowCreateUserModal(true)}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md mr-2"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add Staff
-                    </button>
-                    <button
-                      onClick={handleExportSummaryCSV}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-                    >
-                      <Download className="h-3.5 w-3.5" /> CSV
-                    </button>
-                    <button
-                      onClick={handleExportSummaryExcel}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Excel
-                    </button>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedYear(val);
-                        sessionStorage.setItem('selectedYear', val);
-                      }}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-md"
-                    >
-                      <option value="all" className="bg-slate-900 text-white">All</option>
-                      {availableYears.map(y => (
-                        <option key={y} value={y} className="bg-slate-900 text-white">
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  {profilesList.length === 0 ? (
-                    <div className="py-12 text-center text-slate-500 text-sm">
-                      কোনো স্টাফ প্রোফাইল পাওয়া যায়নি।
-                    </div>
-                  ) : (
-                    <table className="min-w-full divide-y divide-slate-800">
-                      <thead className="bg-slate-950/60">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">স্টাফ নাম</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">কোডনেম</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রোল</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ফুল লিভ (Unadjusted)</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">শর্ট লিভ (Unadjusted)</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম (Unadjusted)</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রিজার্ভ হলিডে (Unadjusted)</th>
-                          <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">স্টাফ বিস্তারিত</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-                        {profilesList
-                        .filter(p => 
-                          (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
-                        )
-                        .map((p) => {
-                            const stats = getUserSummaryStats(p.id);
-                            return (
-                              <tr key={p.id} className="hover:bg-slate-900/30 transition-all">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">
-                                  {p.full_name || '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
-                                  {p.username ? p.username.toUpperCase() : ''}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-900 border-slate-800 text-slate-300">
-                                    {p.job_role || (p.role === 'admin' ? 'Admin' : (p.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                                  {stats.full} দিন
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                                  {stats.short} ঘণ্টা
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                                  {p.allow_overtime ? `${stats.overtime} ঘণ্টা` : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                                  {p.allow_reserve ? `${stats.reserve} দিন` : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <button
-                                    onClick={() => setViewingStaffId(p.id)}
-                                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold cursor-pointer border border-purple-700 transition-all"
-                                  >
-                                    View Details
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
+              <StaffMasterTable 
+                profilesList={profilesList}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                getUserSummaryStats={getUserSummaryStats}
+                selectedYear={selectedYear}
+                setSelectedYear={(val) => {
+                  setSelectedYear(val);
+                  sessionStorage.setItem('selectedYear', val);
+                }}
+                availableYears={availableYears}
+                onAddStaffClick={() => setShowCreateUserModal(true)}
+                onExportCSV={handleExportSummaryCSV}
+                onExportExcel={handleExportSummaryExcel}
+                onViewDetails={setViewingStaffId}
+              />
             )}
 
           </div>

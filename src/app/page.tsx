@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { 
@@ -14,7 +15,8 @@ import {
   getOfflineRecords, 
   syncOfflineData, 
   deleteOfflineRecord,
-  saveOfflineUpdate
+  saveOfflineUpdate,
+  ChutiRecord
 } from '@/utils/offlineSync';
 import { 
   LogOut, 
@@ -38,7 +40,8 @@ import {
   Bell,
   Lock,
   Sun,
-  Moon
+  Moon,
+  Search
 } from 'lucide-react';
 
 // Helper function to clean supervisor/admin approval prefix from comment for table display
@@ -88,7 +91,7 @@ const getPasswordMatchIndicator = (password: string, confirm: string) => {
   );
 };
 
-const escapeHtml = (unsafeStr: any): string => {
+const escapeHtml = (unsafeStr: unknown): string => {
   if (unsafeStr === null || unsafeStr === undefined) return '';
   return unsafeStr
     .toString()
@@ -130,7 +133,7 @@ const parseIntervalToMinutes = (intervalStr: string | null | undefined) => {
   return 0;
 };
 
-const calculateStats = (records: any[]) => {
+const calculateStats = (records: ChutiRecord[]) => {
   let totalShortMinutes = 0;
   let totalOvertimeMinutes = 0;
   let totalFullLeaves = 0;
@@ -230,10 +233,52 @@ const calculateLeaveOrOvertime = (
   return '00:00';
 };
 
+export interface Profile {
+  id: string;
+  username: string;
+  role: 'admin' | 'supervisor' | 'user';
+  username_changes?: number;
+  username_request_status?: 'none' | 'pending' | 'approved';
+  full_name?: string | null;
+  working_hours?: number;
+  break_time?: number;
+  is_setup_completed?: boolean;
+  job_role?: string | null;
+  requested_full_name?: string | null;
+  requested_working_hours?: number | null;
+  requested_break_time?: number | null;
+  requested_job_role?: string | null;
+  profile_change_status?: 'none' | 'pending' | 'approved' | 'rejected';
+  default_sign_in?: string | null;
+  default_sign_out?: string | null;
+  requested_default_sign_in?: string | null;
+  requested_default_sign_out?: string | null;
+  needs_supervisor_approval?: boolean;
+  allow_reserve?: boolean;
+  allow_overtime?: boolean;
+  has_edited_profile?: boolean;
+  has_changed_password?: boolean;
+}
+
+export interface ChutiRecordWithProfile extends ChutiRecord {
+  id: string;
+  profiles?: {
+    username: string;
+  } | null;
+}
+
+export interface BulkRepresentative extends ChutiRecordWithProfile {
+  is_bulk?: boolean;
+  all_bulk_dates?: string[];
+  all_bulk_ids?: string[];
+  all_bulk_records?: ChutiRecordWithProfile[];
+  formatted_bulk_dates?: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
-  const [sessionUser, setSessionUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [sessionUser, setSessionUser] = useState<SupabaseUser | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isPushSubscribed, setIsPushSubscribed] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -254,7 +299,7 @@ export default function Dashboard() {
 
   // Admin editing states
   const [showAdminEditModal, setShowAdminEditModal] = useState(false);
-  const [adminEditRecord, setAdminEditRecord] = useState<any>(null);
+  const [adminEditRecord, setAdminEditRecord] = useState<ChutiRecord | null>(null);
   const [adminEditDate, setAdminEditDate] = useState('');
   const [adminEditLeaveType, setAdminEditLeaveType] = useState('Short Leave');
   const [adminEditAdjustment, setAdminEditAdjustment] = useState(false);
@@ -267,7 +312,7 @@ export default function Dashboard() {
 
   // User revision states
   const [showUserRevisionModal, setShowUserRevisionModal] = useState(false);
-  const [revisionRecord, setRevisionRecord] = useState<any>(null);
+  const [revisionRecord, setRevisionRecord] = useState<ChutiRecord | null>(null);
   const [revisionDate, setRevisionDate] = useState('');
   const [revisionLeaveType, setRevisionLeaveType] = useState('Short Leave');
   const [revisionAdjustment, setRevisionAdjustment] = useState(false);
@@ -303,16 +348,16 @@ export default function Dashboard() {
 
   // Custom Confirmation Modals States
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [recordToDelete, setRecordToDelete] = useState<any>(null);
+  const [recordToDelete, setRecordToDelete] = useState<ChutiRecord | null>(null);
 
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
-  const [adjustmentRecord, setAdjustmentRecord] = useState<any>(null);
+  const [adjustmentRecord, setAdjustmentRecord] = useState<ChutiRecord | null>(null);
   const [adjustmentType, setAdjustmentType] = useState<'full' | 'partial'>('full');
   const [partialAdjustmentTime, setPartialAdjustmentTime] = useState('02:00');
   const [adjustShortLeaveOption, setAdjustShortLeaveOption] = useState(false);
   
   const [showCancelAdjustmentModal, setShowCancelAdjustmentModal] = useState(false);
-  const [cancelAdjustmentRecord, setCancelAdjustmentRecord] = useState<any>(null);
+  const [cancelAdjustmentRecord, setCancelAdjustmentRecord] = useState<ChutiRecord | null>(null);
   const [isEditRequestMode, setIsEditRequestMode] = useState(false);
   const [editFullName, setEditFullName] = useState('');
   const [editWorkingHours, setEditWorkingHours] = useState('9.5');
@@ -323,6 +368,7 @@ export default function Dashboard() {
 
   // Admin Tabs & User Management
   const [adminActiveTab, setAdminActiveTab] = useState<'user' | 'admin'>('admin');
+  const [searchQuery, setSearchQuery] = useState('');
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
   const [reviewingIds, setReviewingIds] = useState<Set<string>>(new Set());
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
@@ -364,7 +410,7 @@ export default function Dashboard() {
   
   // Delete User Modal states
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
-  const [deleteTargetUser, setDeleteTargetUser] = useState<any>(null);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<Profile | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(false);
   const [submittingRevision, setSubmittingRevision] = useState(false);
@@ -493,9 +539,9 @@ export default function Dashboard() {
   }, [showFirstTimePasswordModal, sessionUser, router]);
 
   // Lists states
-  const [userRecords, setUserRecords] = useState<any[]>([]);
-  const [adminRecords, setAdminRecords] = useState<any[]>([]);
-  const [profilesList, setProfilesList] = useState<any[]>([]);
+  const [userRecords, setUserRecords] = useState<ChutiRecord[]>([]);
+  const [adminRecords, setAdminRecords] = useState<ChutiRecordWithProfile[]>([]);
+  const [profilesList, setProfilesList] = useState<Profile[]>([]);
 
   // Admin filter states
   const [filterType, setFilterType] = useState('all');
@@ -578,7 +624,7 @@ export default function Dashboard() {
       // Fetch user profile
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('username, role, full_name, working_hours, break_time, is_setup_completed, has_changed_password, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
+        .select('id, username, role, full_name, working_hours, break_time, is_setup_completed, has_changed_password, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -595,7 +641,7 @@ export default function Dashboard() {
         return;
       }
 
-      const currentProfile: any = userProfile;
+      const currentProfile = userProfile as Profile | null;
       setProfile(userProfile);
       setSetupUsername((userProfile.username || '').toUpperCase());
       setSetupFullName(userProfile.full_name || '');
@@ -744,7 +790,7 @@ export default function Dashboard() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'profiles' },
-        (payload: any) => {
+        (payload) => {
           console.log('Realtime profile change received:', payload);
           if (payload.eventType === 'DELETE' && payload.old && payload.old.id === sessionUser.id) {
             console.log('Your profile has been deleted by admin. Logging out...');
@@ -762,7 +808,7 @@ export default function Dashboard() {
             return;
           }
           if (payload.eventType === 'UPDATE' && payload.new && payload.new.id === sessionUser.id) {
-            setProfile(payload.new);
+            setProfile(payload.new as Profile);
           }
           fetchRecords();
         }
@@ -885,7 +931,7 @@ export default function Dashboard() {
     if (!isOnline) {
       // Save locally to IndexedDB if offline
       try {
-        const addedTempRecords: any[] = [];
+        const addedTempRecords: ChutiRecord[] = [];
         for (const targetDate of allDates) {
           const rec = getRecordForDate(targetDate);
           await saveOfflineRecord(rec);
@@ -930,7 +976,7 @@ export default function Dashboard() {
       if (checkError) throw checkError;
 
       if (existing && existing.length > 0) {
-        const dupStrings = existing.map((e: any) => formatDate(e.date)).join(', ');
+        const dupStrings = existing.map((e) => formatDate(e.date)).join(', ');
         setMessage({ type: 'error', text: `এই তারিখগুলোতে অলরেডি ডাটা সাবমিট করা হয়েছে: ${dupStrings}` });
         setSubmitting(false);
         return;
@@ -962,21 +1008,21 @@ export default function Dashboard() {
       setAdjustShortLeave(false);
       setBulkDates([]);
       setShowAddLeaveModal(false);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'ডাটা সাবমিট করার সময় ত্রুটি ঘটেছে।' });
+    } catch (err) {
+      setMessage({ type: 'error', text: (err as Error).message || 'ডাটা সাবমিট করার সময় ত্রুটি ঘটেছে।' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const triggerDeleteRecord = (record: any) => {
+  const triggerDeleteRecord = (record: ChutiRecord) => {
     setRecordToDelete(record);
     setShowDeleteModal(true);
   };
 
   // Delete Record Handler (Supports offline delete or cloud delete)
   const handleConfirmDelete = async () => {
-    if (!recordToDelete) return;
+    if (!recordToDelete || !sessionUser) return;
     const record = recordToDelete;
     setDeletingRecord(true);
     
@@ -995,7 +1041,7 @@ export default function Dashboard() {
       }
 
       // Online delete from Supabase
-      const { data, error } = await supabase.from('chuti').delete().eq('id', record.id).select();
+      const { data, error } = await supabase.from('chuti').delete().eq('id', record.id || '').select();
       if (error) throw error;
       
       // If data is empty, it means RLS blocked the delete or the row wasn't found
@@ -1009,8 +1055,8 @@ export default function Dashboard() {
       
       setMessage({ type: 'success', text: 'রেকর্ডটি সফলভাবে ডিলিট করা হয়েছে।' });
       fetchRecords();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'রেকর্ডটি ডিলিট করতে সমস্যা হয়েছে।' });
+    } catch (err) {
+      setMessage({ type: 'error', text: (err as Error).message || 'রেকর্ডটি ডিলিট করতে সমস্যা হয়েছে।' });
     } finally {
       setDeletingRecord(false);
       setShowDeleteModal(false);
@@ -1077,7 +1123,7 @@ export default function Dashboard() {
   };
 
   // Toggle Adjustment Status click trigger
-  const handleToggleAdjustmentClick = (record: any) => {
+  const handleToggleAdjustmentClick = (record: ChutiRecord) => {
     if (record.adjustment || record.adjusted_hour || record.reserve_adjustment_status === 'pending' || record.reserve_adjustment_status === 'approved') {
       // Current status is Yes/Partial/Pending/Approved, clicking toggle will turn it OFF
       setCancelAdjustmentRecord(record);
@@ -1111,19 +1157,19 @@ export default function Dashboard() {
       setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
 
       if (!isOnline) {
-        await saveOfflineUpdate(record.id, updates);
+        await saveOfflineUpdate(record.id || '', updates);
       } else {
         const { error } = await supabase
           .from('chuti')
           .update(updates)
-          .eq('id', record.id);
+          .eq('id', record.id || '');
 
         if (error) throw error;
       }
       fetchRecords();
       setMessage({ type: 'success', text: 'ছুটি সমন্বয় সফলভাবে বাতিল করা হয়েছে।' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'সমন্বয় বাতিল করতে সমস্যা হয়েছে।' });
+    } catch (err) {
+      setMessage({ type: 'error', text: (err as Error).message || 'সমন্বয় বাতিল করতে সমস্যা হয়েছে।' });
     } finally {
       setShowCancelAdjustmentModal(false);
       setCancelAdjustmentRecord(null);
@@ -1138,7 +1184,7 @@ export default function Dashboard() {
     try {
       const isShortLeave = record.leave_type === 'Short Leave';
       const isAdmin = profile?.role === 'admin' && adminActiveTab === 'admin';
-      let requestedUpdates: any = {};
+      let requestedUpdates: Record<string, unknown> = {};
 
       if (isShortLeave) {
         if (adjustmentType === 'full') {
@@ -1163,7 +1209,7 @@ export default function Dashboard() {
         requestedUpdates = { adjustment: true, adjusted_hour: null, adjust_short_leave: false };
       }
 
-      let updates: any = {};
+      let updates: Record<string, unknown> = {};
       if (isAdmin) {
         // Admin applies changes immediately
         updates = {
@@ -1183,12 +1229,12 @@ export default function Dashboard() {
       setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
 
       if (!isOnline) {
-        await saveOfflineUpdate(record.id, updates);
+        await saveOfflineUpdate(record.id || '', updates);
       } else {
         const { error } = await supabase
           .from('chuti')
           .update(updates)
-          .eq('id', record.id);
+          .eq('id', record.id || '');
 
         if (error) throw error;
       }
@@ -1218,8 +1264,8 @@ export default function Dashboard() {
           ? (isAdmin ? 'ছুটি সমন্বয় সফলভাবে সম্পন্ন করা হয়েছে।' : 'রিজার্ভ সমন্বয় অনুরোধ সফলভাবে পাঠানো হয়েছে।')
           : 'সমন্বয় অনুরোধ সফলভাবে পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় রয়েছে।'
       });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'সমন্বয় করতে সমস্যা হয়েছে।' });
+    } catch (err) {
+      setMessage({ type: 'error', text: (err as Error).message || 'সমন্বয় করতে সমস্যা হয়েছে।' });
     } finally {
       setShowAdjustmentModal(false);
       setAdjustmentRecord(null);
@@ -1228,10 +1274,10 @@ export default function Dashboard() {
   };
 
   // Approve/Reject Reserve Holiday Adjustment Requests
-  const handleApproveReserveAdjustment = async (record: any, approve: boolean) => {
+  const handleApproveReserveAdjustment = async (record: ChutiRecordWithProfile, approve: boolean) => {
     setApprovingIds(prev => new Set(prev).add(record.id));
     try {
-      const updates: any = { 
+      const updates: Record<string, unknown> = { 
         reserve_adjustment_status: approve ? 'approved' : 'rejected',
       };
 
@@ -1259,7 +1305,7 @@ export default function Dashboard() {
       const { error } = await supabase
         .from('chuti')
         .update(updates)
-        .eq('id', record.id);
+        .eq('id', record.id || '');
       
       if (error) throw error;
 
@@ -1282,9 +1328,9 @@ export default function Dashboard() {
 
       fetchRecords();
       setMessage({ type: 'success', text: approve ? 'সমন্বয় অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
-    } catch (err: any) {
+    } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + err.message);
+      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     }
   };
 
@@ -1411,9 +1457,9 @@ export default function Dashboard() {
           setShowProfileSettingsModal(false);
         }
       }
-    } catch (err: any) {
-      let errorMsg = err.message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে।';
-      if (err.code === '23505' || errorMsg.toLowerCase().includes('duplicate') || errorMsg.toLowerCase().includes('unique')) {
+    } catch (err) {
+      let errorMsg = (err as Error).message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে।';
+      if ((err as { code?: string }).code === '23505' || errorMsg.toLowerCase().includes('duplicate') || errorMsg.toLowerCase().includes('unique')) {
         errorMsg = 'এই কোডনেমটি ইতিমধ্যে ব্যবহার করা হচ্ছে! অন্য একটি কোডনেম ব্যবহার করুন।';
       }
       setMessage({ type: 'error', text: errorMsg });
@@ -1430,7 +1476,7 @@ export default function Dashboard() {
     setSetupError('');
 
     try {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         full_name: setupFullName,
         working_hours: parseFloat(setupWorkingHours) || 9.5,
         break_time: parseInt(setupBreakTime) || 0,
@@ -1456,8 +1502,8 @@ export default function Dashboard() {
       setEditJobRole(updatedProfile.job_role || '');
 
       setMessage({ type: 'success', text: 'আপনার প্রোফাইল সেটআপ সফলভাবে সম্পন্ন হয়েছে!' });
-    } catch (err: any) {
-      setSetupError(err.message || 'সেটআপ আপডেট করতে সমস্যা হয়েছে।');
+    } catch (err) {
+      setSetupError((err as Error).message || 'সেটআপ আপডেট করতে সমস্যা হয়েছে।');
     } finally {
       setSetupSubmitting(false);
     }
@@ -1487,7 +1533,7 @@ export default function Dashboard() {
       if (authError) throw authError;
 
       // 2. Prepare profile update updates
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         has_changed_password: true,
       };
 
@@ -1527,8 +1573,8 @@ export default function Dashboard() {
         setShowWelcomePopup(false);
       }, 10000);
       setMessage({ type: 'success', text: 'পাসওয়ার্ড পরিবর্তন সফল হয়েছে!' });
-    } catch (err: any) {
-      setFirstTimePasswordError(err.message || 'পাসওয়ার্ড আপডেট করতে সমস্যা হয়েছে।');
+    } catch (err) {
+      setFirstTimePasswordError((err as Error).message || 'পাসওয়ার্ড আপডেট করতে সমস্যা হয়েছে।');
     } finally {
       setFirstTimePasswordSubmitting(false);
     }
@@ -1538,7 +1584,7 @@ export default function Dashboard() {
   const handleApproveProfileChangeRequest = async (profileId: string, approve: boolean) => {
     setApprovingIds(prev => new Set(prev).add(profileId));
     try {
-      let updates: any = {};
+      let updates: Record<string, unknown> = {};
       if (approve) {
         // Get the requested values for this profile
         const targetProfile = profilesList.find(p => p.id === profileId);
@@ -1619,30 +1665,33 @@ export default function Dashboard() {
 
       // Also if the current session user is the one being updated, update the local profile state
       if (sessionUser && sessionUser.id === profileId) {
-        setProfile((prev: any) => ({
-          ...prev,
-          ...(approve ? {
-            full_name: prev.requested_full_name || prev.full_name,
-            working_hours: prev.requested_working_hours || prev.working_hours,
-            break_time: prev.requested_break_time || prev.break_time,
-            job_role: prev.requested_job_role || prev.job_role,
-            default_sign_in: prev.requested_default_sign_in || prev.default_sign_in,
-            default_sign_out: prev.requested_default_sign_out || prev.default_sign_out,
-          } : {}),
-          requested_full_name: null,
-          requested_working_hours: null,
-          requested_break_time: null,
-          requested_job_role: null,
-          requested_default_sign_in: null,
-          requested_default_sign_out: null,
-          profile_change_status: 'none'
-        }));
+        setProfile((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            ...(approve ? {
+              full_name: prev.requested_full_name || prev.full_name,
+              working_hours: prev.requested_working_hours || prev.working_hours,
+              break_time: prev.requested_break_time || prev.break_time,
+              job_role: prev.requested_job_role || prev.job_role,
+              default_sign_in: prev.requested_default_sign_in || prev.default_sign_in,
+              default_sign_out: prev.requested_default_sign_out || prev.default_sign_out,
+            } : {}),
+            requested_full_name: null,
+            requested_working_hours: null,
+            requested_break_time: null,
+            requested_job_role: null,
+            requested_default_sign_in: null,
+            requested_default_sign_out: null,
+            profile_change_status: 'none'
+          };
+        });
       }
       
       fetchRecords();
       setMessage({ type: 'success', text: approve ? 'প্রোফাইল পরিবর্তন অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
-    } catch (err: any) {
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + err.message);
+    } catch (err) {
+      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     }
   };
 
@@ -1661,11 +1710,11 @@ export default function Dashboard() {
       const isBulk = chutiId.startsWith('bulk-');
       const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
 
-      let targets: any[] = [];
+      let targets: ChutiRecordWithProfile[] = [];
       if (isBulk) {
         targets = adminRecords.filter(r => r.bulk_id === bulkId && r.status === 'pending_supervisor');
       } else {
-        const target = adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId);
+        const target = ((adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId)) as ChutiRecordWithProfile | undefined) as ChutiRecordWithProfile | undefined;
         if (target) targets = [target];
       }
 
@@ -1721,9 +1770,9 @@ export default function Dashboard() {
         type: 'success', 
         text: 'ছুটি অনুমোদন করে অ্যাডমিনের কাছে পাঠানো হয়েছে।' 
       });
-    } catch (err: any) {
+    } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + err.message);
+      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     }
   };
 
@@ -1742,7 +1791,7 @@ export default function Dashboard() {
       const isBulk = chutiId.startsWith('bulk-');
       const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
 
-      let targets: any[] = [];
+      let targets: ChutiRecordWithProfile[] = [];
       if (isBulk) {
         targets = adminRecords.filter(r => r.bulk_id === bulkId && r.status === 'approved_by_supervisor');
       } else {
@@ -1796,9 +1845,9 @@ export default function Dashboard() {
         type: 'success', 
         text: 'ছুটির তথ্য সফলভাবে অনুমোদন করা হয়েছে।' 
       });
-    } catch (err: any) {
+    } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + err.message);
+      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     }
   };
 
@@ -1820,11 +1869,11 @@ export default function Dashboard() {
       const isBulk = chutiId.startsWith('bulk-');
       const bulkId = isBulk ? chutiId.replace('bulk-', '') : null;
 
-      let targets: any[] = [];
+      let targets: ChutiRecordWithProfile[] = [];
       if (isBulk) {
         targets = adminRecords.filter(r => r.bulk_id === bulkId);
       } else {
-        const target = adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId);
+        const target = (adminRecords.find(r => r.id === chutiId) || userRecords.find(r => r.id === chutiId)) as ChutiRecordWithProfile | undefined;
         if (target) targets = [target];
       }
 
@@ -1906,8 +1955,8 @@ export default function Dashboard() {
       setRevisionPromptChutiId(null);
       setRevisionPromptText('');
       fetchRecords();
-    } catch (err: any) {
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + err.message);
+    } catch (err) {
+      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     } finally {
       setSubmittingRevision(false);
       setReviewingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
@@ -1961,8 +2010,8 @@ export default function Dashboard() {
         type: 'success', 
         text: 'ছুটির তথ্য সফলভাবে আপডেট করা হয়েছে।' 
       });
-    } catch (err: any) {
-      alert('এডিট করতে সমস্যা হয়েছে: ' + err.message);
+    } catch (err) {
+      alert('এডিট করতে সমস্যা হয়েছে: ' + (err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -2000,8 +2049,8 @@ export default function Dashboard() {
       setNewStaffAllowReserve(false);
       setNewStaffAllowOvertime(false);
       fetchRecords();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: 'ইউজার তৈরি করতে ব্যর্থ: ' + err.message });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'ইউজার তৈরি করতে ব্যর্থ: ' + (err as Error).message });
     } finally {
       setCreatingUser(false);
     }
@@ -2037,8 +2086,8 @@ export default function Dashboard() {
       setCredNewPassword('');
       setCredConfirmPassword('');
       fetchRecords();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: 'ক্রিডেনশিয়াল আপডেট করতে ব্যর্থ: ' + err.message });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'ক্রিডেনশিয়াল আপডেট করতে ব্যর্থ: ' + (err as Error).message });
     } finally {
       setUpdatingCredentials(false);
     }
@@ -2062,8 +2111,8 @@ export default function Dashboard() {
       setDeleteTargetUser(null);
       setViewingStaffId(null);
       fetchRecords();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: 'ইউজার মুছে ফেলতে ব্যর্থ: ' + err.message });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'ইউজার মুছে ফেলতে ব্যর্থ: ' + (err as Error).message });
     } finally {
       setDeletingUser(false);
     }
@@ -2126,8 +2175,8 @@ export default function Dashboard() {
           ? 'সংশোধিত তথ্য অ্যাডমিনের কাছে পুনরায় পাঠানো হয়েছে।' 
           : 'সংশোধিত তথ্য সুপারভাইজারের কাছে পুনরায় পাঠানো হয়েছে।' 
       });
-    } catch (err: any) {
-      alert('রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + err.message);
+    } catch (err) {
+      alert('রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + (err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -2214,7 +2263,7 @@ export default function Dashboard() {
 
       row.push(
         `"${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
-        record.status
+        record.status || ''
       );
 
       return row;
@@ -2470,9 +2519,9 @@ export default function Dashboard() {
 
   const userStats = calculateUserStats();
 
-  const groupPendingRequests = (requests: any[]) => {
-    const grouped: any[] = [];
-    const bulkMap = new Map<string, any[]>();
+  const groupPendingRequests = (requests: ChutiRecordWithProfile[]) => {
+    const grouped: BulkRepresentative[] = [];
+    const bulkMap = new Map<string, ChutiRecordWithProfile[]>();
 
     for (const req of requests) {
       if (req.bulk_id) {
@@ -2536,7 +2585,7 @@ export default function Dashboard() {
   const staffReserve = staffStats.reserveLeaves;
   const staffOvertimeHours = staffStats.overtimeHours;
 
-  const renderStatusBadge = (r: any) => {
+  const renderStatusBadge = (r: ChutiRecord) => {
     if (r.leave_type === 'Reserve' && r.reserve_adjustment_status === 'pending') {
       return (
         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-900 border border-slate-800 text-slate-400" title="Adjustment Pending">
@@ -2851,14 +2900,14 @@ export default function Dashboard() {
                   {/* Actions */}
                   <div className="flex items-end gap-2">
                     <button
-                      onClick={() => handleExportIndividualCSV(sessionUser?.id)}
+                      onClick={() => handleExportIndividualCSV(sessionUser?.id || '')}
                       className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
                       title="CSV Export"
                     >
                       <Download className="h-4 w-4" /> CSV
                     </button>
                     <button
-                      onClick={() => handleExportIndividualExcel(sessionUser?.id)}
+                      onClick={() => handleExportIndividualExcel(sessionUser?.id || '')}
                       className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
                     >
                       <Download className="h-4 w-4" /> Excel
@@ -3187,7 +3236,7 @@ export default function Dashboard() {
                         {staffProfile?.role !== 'admin' && (
                           <button
                             onClick={() => {
-                              setDeleteTargetUser(staffProfile);
+                              setDeleteTargetUser(staffProfile || null);
                               setShowDeleteUserModal(true);
                             }}
                             className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
@@ -3502,6 +3551,20 @@ export default function Dashboard() {
                     <User className="h-5 w-5 text-purple-500" /> স্টাফ উপস্থিতি ও ছুটির মাস্টার ডাটাবেজ
                   </h3>
                   
+                  {/* Search Input */}
+                  <div className="relative w-full sm:max-w-xs">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      <Search className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="নাম বা কোডনেম দিয়ে খুঁজুন..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs transition-all"
+                    />
+                  </div>
+                  
                   {/* Master Export Summary buttons */}
                   <div className="flex gap-2">
                     <button
@@ -3562,7 +3625,11 @@ export default function Dashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-850 bg-slate-900/20">
                         {profilesList
-                          .map((p) => {
+                        .filter(p => 
+                          (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .map((p) => {
                             const stats = getUserSummaryStats(p.id);
                             return (
                               <tr key={p.id} className="hover:bg-slate-900/30 transition-all">
@@ -4531,8 +4598,8 @@ export default function Dashboard() {
                               <p><span className="text-slate-500">জব রোল:</span> {p.job_role || '-'}</p>
                               <p><span className="text-slate-500">কর্মঘণ্টা:</span> {p.working_hours} ঘণ্টা</p>
                               <p><span className="text-slate-500">ব্রেক টাইম:</span> {p.break_time} মিনিট</p>
-                              <p><span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.default_sign_in) || '-'}</p>
-                              <p><span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.default_sign_out) || '-'}</p>
+                              <p><span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.default_sign_in || null) || '-'}</p>
+                              <p><span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.default_sign_out || null) || '-'}</p>
                             </div>
                           </div>
 
@@ -4552,10 +4619,10 @@ export default function Dashboard() {
                                 <span className="text-slate-500">ব্রেক টাইম:</span> {p.requested_break_time || p.break_time} মিনিট
                               </p>
                               <p className={p.requested_default_sign_in && p.requested_default_sign_in !== p.default_sign_in ? 'text-indigo-300 font-bold' : ''}>
-                                <span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_in || p.default_sign_in) || '-'}
+                                <span className="text-slate-500">সাইন-ইন টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_in || p.default_sign_in || null) || '-'}
                               </p>
                               <p className={p.requested_default_sign_out && p.requested_default_sign_out !== p.default_sign_out ? 'text-indigo-300 font-bold' : ''}>
-                                <span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_out || p.default_sign_out) || '-'}
+                                <span className="text-slate-500">সাইন-আউট টাইম:</span> {formatTimeToAMPM(p.requested_default_sign_out || p.default_sign_out || null) || '-'}
                               </p>
                             </div>
                           </div>

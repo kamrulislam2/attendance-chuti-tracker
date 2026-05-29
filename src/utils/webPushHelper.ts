@@ -45,7 +45,7 @@ export async function subscribeUserToPush(userId: string): Promise<boolean> {
     // Subscribe to push service
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: applicationServerKey as any,
+      applicationServerKey: applicationServerKey as BufferSource,
     });
 
     // Extract details

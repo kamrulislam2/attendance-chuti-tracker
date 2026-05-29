@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+export interface AdminEditRequest {
+  adjusted_hour?: string | null;
+  adjust_short_leave?: boolean;
+  adjustment?: boolean;
+}
+
 export interface ChutiRecord {
   id?: string;
   localId?: string; // local temporary ID
@@ -13,9 +19,10 @@ export interface ChutiRecord {
   sign_out_time: string | null;
   leave_hour: string | null;
   reserve_holiday: string | null;
+  created_at?: string;
   reserve_adjustment_status?: string;
   status?: string;
-  admin_edit_request?: any;
+  admin_edit_request?: AdminEditRequest | null;
   admin_edit_status?: string;
   is_edited?: boolean;
   adjust_short_leave?: boolean;
@@ -231,8 +238,9 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
     }
 
     return { success: true, syncedCount };
-  } catch (err: any) {
+  } catch (err) {
     console.error('Offline sync failed:', err);
-    return { success: false, syncedCount: 0, error: err.message || 'Sync error' };
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, syncedCount: 0, error: message };
   }
 };

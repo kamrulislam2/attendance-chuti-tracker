@@ -29,6 +29,14 @@ if (!vapidPublicKey || !vapidPrivateKey) {
 const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_WINDOW_MS = 5000; // 5 seconds cooldown
 
+interface PushSubscriptionRow {
+  sub_id: string;
+  sub_user_id: string;
+  sub_endpoint: string;
+  sub_p256dh: string;
+  sub_auth: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate the requester using their Supabase JWT
@@ -147,7 +155,9 @@ export async function POST(request: NextRequest) {
       tag: tag || 'chuti-alert',
     });
 
-    const sendPromises = subscriptions.map(async (sub: any) => {
+    const typedSubscriptions = (subscriptions || []) as PushSubscriptionRow[];
+
+    const sendPromises = typedSubscriptions.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.sub_endpoint,
         keys: {
@@ -161,16 +171,17 @@ export async function POST(request: NextRequest) {
         await webpush.sendNotification(pushSubscription, payload);
         console.log(`[SendPush] Sent successfully to sub ${sub.sub_id}`);
         return { id: sub.sub_id, success: true };
-      } catch (err: any) {
-        console.warn(`[SendPush] Failed to send push notification to sub ${sub.sub_id}:`, err.message || err);
+      } catch (err) {
+        const errorObject = err as { message?: string; statusCode?: number } | null | undefined;
+        console.warn(`[SendPush] Failed to send push notification to sub ${sub.sub_id}:`, errorObject?.message || String(err));
         
         // Purge subscription if it's expired or gone (404 / 410)
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        if (errorObject?.statusCode === 410 || errorObject?.statusCode === 404) {
           console.log(`[SendPush] Purging inactive subscription ${sub.sub_id}`);
           await supabaseServer.rpc('delete_push_subscription', { p_sub_id: sub.sub_id });
         }
         
-        return { id: sub.sub_id, success: false, statusCode: err.statusCode };
+        return { id: sub.sub_id, success: false, statusCode: errorObject?.statusCode };
       }
     });
 
@@ -185,7 +196,7 @@ export async function POST(request: NextRequest) {
       totalCount: subscriptions.length,
     });
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('[SendPush] Unexpected error in send-push API route:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

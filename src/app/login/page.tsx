@@ -26,26 +26,36 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const userId = session.user.id;
-        const now = Date.now();
-        const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-        const sessionStart = localStorage.getItem(`session_start_time_${userId}`);
-        const lastAccess = localStorage.getItem(`last_access_time_${userId}`);
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
-        if (sessionStart || lastAccess) {
-          const startAge = sessionStart ? now - parseInt(sessionStart, 10) : 0;
-          const accessAge = lastAccess ? now - parseInt(lastAccess, 10) : 0;
+        if (session) {
+          const userId = session.user.id;
+          const now = Date.now();
+          const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+          const sessionStart = localStorage.getItem(`session_start_time_${userId}`);
+          const lastAccess = localStorage.getItem(`last_access_time_${userId}`);
 
-          if (startAge > oneWeekMs || accessAge > oneWeekMs) {
-            localStorage.removeItem(`session_start_time_${userId}`);
-            localStorage.removeItem(`last_access_time_${userId}`);
-            await supabase.auth.signOut();
-            return;
+          if (sessionStart || lastAccess) {
+            const startAge = sessionStart ? now - parseInt(sessionStart, 10) : 0;
+            const accessAge = lastAccess ? now - parseInt(lastAccess, 10) : 0;
+
+            if (startAge > oneWeekMs || accessAge > oneWeekMs) {
+              localStorage.removeItem(`session_start_time_${userId}`);
+              localStorage.removeItem(`last_access_time_${userId}`);
+              try {
+                await supabase.auth.signOut();
+              } catch (e) {
+                console.error('Error signing out expired session:', e);
+              }
+              return;
+            }
           }
+          router.push('/');
         }
-        router.push('/');
+      } catch (err) {
+        console.error('Error during checkUser session check:', err);
       }
     };
     checkUser();

@@ -1,1 +1,0 @@
-I will view lines 3061 to 3115 in `src/app/page.tsx` to read the rest of the inputs and the submit/request buttons in the Settings modal.

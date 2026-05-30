@@ -8,6 +8,8 @@ import { UserStats } from '@/components/UserStats';
 import { UserRecordsTable } from '@/components/UserRecordsTable';
 import { StaffMasterTable } from '@/components/StaffMasterTable';
 import { AdminRecordsTable } from '@/components/AdminRecordsTable';
+import { DateInput } from '@/components/DateInput';
+import { exportHelper } from '@/utils/exportHelper';
 import { 
   subscribeUserToPush, 
   unsubscribeUserFromPush, 
@@ -2208,263 +2210,102 @@ export default function Dashboard() {
 
 
   // Excel/CSV Export helper for individual staff
-  const handleExportIndividualCSV = (userId: string) => {
+  const handleExportIndividualCSV = (userId: string, recordsToExport?: ChutiRecord[], searchTerm?: string) => {
     const staffProfile = profilesList.find(p => p.id === userId) || (userId === sessionUser?.id ? profile : null);
-    const recordsToExport = getFilteredRecordsForUser(userId);
-    if (recordsToExport.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
-
-    const showOvertime = staffProfile?.allow_overtime === true;
-    const showReserve = staffProfile?.allow_reserve === true;
-
-    const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour'];
-    if (showOvertime) headers.push('Overtime');
-    if (showReserve) headers.push('Reserve Holiday');
-    headers.push('Comment', 'Status');
-
-    const rows = recordsToExport.map(record => {
-      let adjustmentVal = 'No';
-      if (record.leave_type === 'Reserve') {
-        if (record.reserve_adjustment_status === 'approved' || record.adjustment) {
-          adjustmentVal = 'Yes';
-        } else if (record.reserve_adjustment_status === 'pending') {
-          adjustmentVal = 'Pending';
-        } else if (record.reserve_adjustment_status === 'rejected') {
-          adjustmentVal = 'Rejected';
-        }
-      } else {
-        if (record.adjustment) {
-          adjustmentVal = 'Yes';
-        } else if (record.adjusted_hour) {
-          const adjHourStr = record.adjusted_hour.toString().split('.')[0].substring(0, 5);
-          adjustmentVal = `Partial (${adjHourStr})`;
-        }
+    const finalRecords = recordsToExport || getFilteredRecordsForUser(userId);
+    
+    exportHelper.exportIndividualCSV(
+      userId,
+      finalRecords,
+      staffProfile,
+      sessionUser,
+      profile,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchTerm: searchTerm || '',
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
       }
-
-      const signInStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_in_time);
-      const signOutStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_out_time);
-      const leaveHourStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' || record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
-
-      const row = [
-        `="${formatDate(record.date)}"`, // force Excel to treat date as text
-        record.leave_type,
-        adjustmentVal,
-        signInStr,
-        signOutStr,
-        leaveHourStr
-      ];
-
-      if (showOvertime) {
-        const overtimeStr = record.leave_type === 'Overtime' ? (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
-        row.push(overtimeStr);
-      }
-
-      if (showReserve) {
-        row.push(record.reserve_holiday || '-');
-      }
-
-      row.push(
-        `"${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
-        record.status || ''
-      );
-
-      return row;
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `leave_report_${(staffProfile?.username || 'user').toUpperCase()}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    );
   };
 
-  const handleExportIndividualExcel = (userId: string) => {
+  const handleExportIndividualExcel = (userId: string, recordsToExport?: ChutiRecord[], searchTerm?: string) => {
     const staffProfile = profilesList.find(p => p.id === userId) || (userId === sessionUser?.id ? profile : null);
-    const recordsToExport = getFilteredRecordsForUser(userId);
-    if (recordsToExport.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
-
-    const showOvertime = staffProfile?.allow_overtime === true;
-    const showReserve = staffProfile?.allow_reserve === true;
-
-    let headersHtml = `
-      <th>তারিখ</th>
-      <th>ধরন</th>
-      <th>Adjustment</th>
-      <th>সাইন ইন/আউট</th>
-      <th>লিভ আওয়ার</th>
-    `;
-    if (showOvertime) headersHtml += `<th>ওভারটাইম</th>`;
-    if (showReserve) headersHtml += `<th>রিজার্ভ ছুটি</th>`;
-    headersHtml += `
-      <th>মন্তব্য</th>
-      <th>অবস্থা</th>
-    `;
-
-    let rowsHtml = '';
-    recordsToExport.forEach(r => {
-      let adjustmentVal = 'না';
-      if (r.leave_type === 'Reserve') {
-        if (r.reserve_adjustment_status === 'approved' || r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.reserve_adjustment_status === 'pending') {
-          adjustmentVal = 'হ্যাঁ (Pending)';
-        } else if (r.reserve_adjustment_status === 'rejected') {
-          adjustmentVal = 'না (Rejected)';
-        }
-      } else {
-        if (r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.adjusted_hour) {
-          const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
-          adjustmentVal = `আংশিক (${adjHourStr})`;
-        }
+    const finalRecords = recordsToExport || getFilteredRecordsForUser(userId);
+    
+    exportHelper.exportIndividualExcel(
+      userId,
+      finalRecords,
+      staffProfile,
+      sessionUser,
+      profile,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchTerm: searchTerm || '',
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
       }
-
-      const signInStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
-      const signOutStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
-      const leaveHourStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
-
-      rowsHtml += `
-        <tr>
-          <td style="mso-number-format:'\\@';">${escapeHtml(formatDate(r.date))}</td>
-          <td>${escapeHtml(r.leave_type)}</td>
-          <td>${escapeHtml(adjustmentVal)}</td>
-          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : escapeHtml(`${signInStr} / ${signOutStr}`)}</td>
-          <td>${escapeHtml(leaveHourStr)}</td>
-      `;
-
-      if (showOvertime) {
-        const overtimeStr = r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
-        rowsHtml += `<td>${escapeHtml(overtimeStr)}</td>`;
-      }
-
-      if (showReserve) {
-        rowsHtml += `<td>${escapeHtml(r.reserve_holiday) || '-'}</td>`;
-      }
-
-      rowsHtml += `
-          <td>${escapeHtml(getCleanComment(r.comment)) || '-'}</td>
-          <td>${escapeHtml(r.status)}</td>
-        </tr>
-      `;
-    });
-
-    const html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
-      <body>
-        <h3>ছুটির বিস্তারিত রিপোর্ট: ${escapeHtml(staffProfile?.full_name)} (${escapeHtml((staffProfile?.username || '').toUpperCase())})</h3>
-        <table border="1">
-          <thead>
-            <tr style="background-color: #4F81BD; color: white;">
-              ${headersHtml}
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `leave_report_${(staffProfile?.username || 'user').toUpperCase()}_${new Date().toISOString().split('T')[0]}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    );
   };
 
   const handleExportSummaryCSV = () => {
-    const staffProfiles = profilesList;
-    if (staffProfiles.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
+    const staffProfiles = searchQuery.trim() 
+      ? profilesList.filter(p => 
+          (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : profilesList;
 
-    const headers = ['Full Name', 'Codename', 'Total Full Leave', 'Total Short Leave', 'Total Overtime', 'Total Reserve Holiday'];
-    const rows = staffProfiles.map(p => {
-      const stats = getUserSummaryStats(p.id);
-      return [
-        `"${(p.full_name || '').replace(/"/g, '""')}"`,
-        p.username ? p.username.toUpperCase() : '',
-        stats.full,
-        stats.short,
-        p.allow_overtime ? stats.overtime : '-',
-        p.allow_reserve ? stats.reserve : '-'
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `staff_leaves_summary_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportHelper.exportSummaryCSV(
+      staffProfiles,
+      getUserSummaryStats,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchQuery,
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
+      }
+    );
   };
 
   const handleExportSummaryExcel = () => {
-    const staffProfiles = profilesList;
-    if (staffProfiles.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
+    const staffProfiles = searchQuery.trim() 
+      ? profilesList.filter(p => 
+          (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : profilesList;
 
-    let html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
-      <body>
-        <h3>স্টাফ উপস্থিতি ও ছুটির মাস্টার ডাটাবেজ সামারি</h3>
-        <table border="1">
-          <thead>
-            <tr style="background-color: #4F81BD; color: white;">
-              <th>স্টাফ নাম</th>
-              <th>কোডনেম</th>
-              <th>ফুল লিভ</th>
-              <th>শর্ট লিভ</th>
-              <th>ওভারটাইম</th>
-              <th>রিজার্ভ হলিডে</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-    staffProfiles.forEach(p => {
-      const stats = getUserSummaryStats(p.id);
-      html += `
-        <tr>
-          <td>${p.full_name || ''}</td>
-          <td>${(p.username || '').toUpperCase()}</td>
-          <td>${stats.full}</td>
-          <td>${stats.short}</td>
-          <td>${p.allow_overtime ? stats.overtime : '-'}</td>
-          <td>${p.allow_reserve ? stats.reserve : '-'}</td>
-        </tr>
-      `;
-    });
-    html += `
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `staff_leaves_summary_${new Date().toISOString().split('T')[0]}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportHelper.exportSummaryExcel(
+      staffProfiles,
+      getUserSummaryStats,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchQuery,
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
+      }
+    );
   };
 
 
@@ -2815,6 +2656,19 @@ export default function Dashboard() {
                 selectedYear={selectedYear}
                 setSelectedYear={setSelectedYear}
                 availableYears={availableYears}
+                filterType={filterType}
+                setFilterType={setFilterType}
+                filterStartDate={filterStartDate}
+                setFilterStartDate={setFilterStartDate}
+                filterEndDate={filterEndDate}
+                setFilterEndDate={setFilterEndDate}
+                onResetFilters={() => {
+                  setFilterType('all');
+                  setFilterStartDate('');
+                  setFilterEndDate('');
+                }}
+                onExportCSV={(filtered, term) => handleExportIndividualCSV(sessionUser?.id || '', filtered, term)}
+                onExportExcel={(filtered, term) => handleExportIndividualExcel(sessionUser?.id || '', filtered, term)}
                 onAddLeaveClick={() => {
                   setComment('');
                   setReserveHoliday('');
@@ -2993,8 +2847,8 @@ export default function Dashboard() {
                         setFilterStartDate('');
                         setFilterEndDate('');
                       }}
-                      onExportCSV={() => handleExportIndividualCSV(viewingStaffId)}
-                      onExportExcel={() => handleExportIndividualExcel(viewingStaffId)}
+                      onExportCSV={(filtered, term) => handleExportIndividualCSV(viewingStaffId, filtered, term)}
+                      onExportExcel={(filtered, term) => handleExportIndividualExcel(viewingStaffId, filtered, term)}
                       onToggleAdjustment={handleToggleAdjustmentClick}
                       onEditClick={(r) => {
                         setAdminEditRecord(r);
@@ -4140,13 +3994,14 @@ export default function Dashboard() {
             <form onSubmit={handleAdminSaveEdit} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">তারিখ</label>
-                <input
-                  type="date"
-                  required
-                  value={adminEditDate}
-                  onChange={(e) => setAdminEditDate(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="mt-1">
+                  <DateInput
+                    required
+                    value={adminEditDate}
+                    onChange={setAdminEditDate}
+                    className="bg-slate-955 text-sm"
+                  />
+                </div>
               </div>
 
               <div>
@@ -4489,13 +4344,14 @@ export default function Dashboard() {
             <form onSubmit={handleUserSubmitRevision} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">তারিখ</label>
-                <input
-                  type="date"
-                  required
-                  value={revisionDate}
-                  onChange={(e) => setRevisionDate(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="mt-1">
+                  <DateInput
+                    required
+                    value={revisionDate}
+                    onChange={setRevisionDate}
+                    className="bg-slate-955 text-sm"
+                  />
+                </div>
               </div>
 
               <div>
@@ -5298,20 +5154,17 @@ export default function Dashboard() {
                 <div>
                   <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider font-semibold">তারিখ (Date)</label>
                   <div className="flex gap-2 items-center mt-1">
-                    <input
-                      type="date"
+                    <DateInput
                       required
                       value={date}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      onChange={(val) => {
                         if (bulkDates.includes(val)) {
                           alert('এই তারিখটি অলরেডি অতিরিক্ত তারিখ হিসেবে সিলেক্ট করা হয়েছে!');
                           return;
                         }
                         setDate(val);
                       }}
-                      onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                      className="block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      className="bg-slate-955"
                     />
                     {leaveType === 'Full Leave' && (
                       <button
@@ -5349,14 +5202,14 @@ export default function Dashboard() {
                     {bulkDates.map((bulkDate, index) => (
                       <div key={index} className="flex gap-2 items-center">
                         <span className="text-[10px] text-slate-500 font-mono w-4">{index + 2}.</span>
-                        <input
-                          type="date"
-                          required
-                          value={bulkDate}
-                          onChange={(e) => handleUpdateBulkDate(index, e.target.value)}
-                          onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                          className="block w-full px-3 py-1.5 bg-slate-955 border border-slate-850 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
+                        <div className="flex-1">
+                          <DateInput
+                            required
+                            value={bulkDate}
+                            onChange={(val) => handleUpdateBulkDate(index, val)}
+                            className="bg-slate-955 py-1.5"
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveBulkDate(index)}

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, SlidersHorizontal, Download, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { Calendar, SlidersHorizontal, Download, RefreshCw, Edit, Trash2, Search } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
+import { DateInput } from './DateInput';
 
 interface AdminRecordsTableProps {
   records: ChutiRecord[];
@@ -13,8 +14,8 @@ interface AdminRecordsTableProps {
   filterEndDate: string;
   setFilterEndDate: (val: string) => void;
   onResetFilters: () => void;
-  onExportCSV: () => void;
-  onExportExcel: () => void;
+  onExportCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
+  onExportExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
   onEditClick: (r: ChutiRecord) => void;
   onDeleteClick: (r: ChutiRecord) => void;
@@ -47,6 +48,24 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
   renderStatusBadge,
   selectedYear,
 }) => {
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  const filteredRecords = React.useMemo(() => {
+    return records.filter((r) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const commentMatch = (r.comment || '').toLowerCase().includes(term);
+      const typeMatch = (r.leave_type || '').toLowerCase().includes(term);
+      const reserveMatch = (r.reserve_holiday || '').toLowerCase().includes(term);
+      return commentMatch || typeMatch || reserveMatch;
+    });
+  }, [records, searchTerm]);
+
+  const handleReset = () => {
+    setSearchTerm('');
+    onResetFilters();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Filtering Panel for viewed staff */}
@@ -75,48 +94,48 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
           {/* Start Date */}
           <div>
             <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
-            <input
-              type="date"
-              min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-              max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-              className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            />
+            <div className="mt-1">
+              <DateInput
+                min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                value={filterStartDate}
+                onChange={setFilterStartDate}
+                className="bg-slate-955"
+              />
+            </div>
           </div>
 
           {/* End Date */}
           <div>
             <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
-            <input
-              type="date"
-              min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
-              max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-              className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-            />
+            <div className="mt-1">
+              <DateInput
+                min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                value={filterEndDate}
+                onChange={setFilterEndDate}
+                className="bg-slate-955"
+              />
+            </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-end gap-2">
             <button
-              onClick={onExportCSV}
+              onClick={() => onExportCSV(filteredRecords, searchTerm)}
               className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
               title="CSV Export"
             >
               <Download className="h-4 w-4" /> CSV
             </button>
             <button
-              onClick={onExportExcel}
+              onClick={() => onExportExcel(filteredRecords, searchTerm)}
               className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
             >
               <Download className="h-4 w-4" /> Excel
             </button>
             <button
-              onClick={onResetFilters}
+              onClick={handleReset}
               className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs cursor-pointer transition-all"
               title="Filters Reset"
             >
@@ -128,15 +147,30 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
 
       {/* Records Table for Viewed Staff */}
       <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-800/80 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-500" /> ছুটির বিবরণী রেকর্ডসমূহ
           </h3>
-          <span className="text-xs text-slate-400">রেকর্ড সংখ্যা: {records.length}টি</span>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            {/* Quick Search */}
+            <div className="relative w-full sm:w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                <Search className="h-4 w-4" />
+              </div>
+              <input
+                type="text"
+                placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs transition-all"
+              />
+            </div>
+            <span className="text-xs text-slate-400 shrink-0">রেকর্ড সংখ্যা: {filteredRecords.length}টি</span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          {records.length === 0 ? (
+          {filteredRecords.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-sm">
               এই স্টাফের জন্য কোনো ছুটির রেকর্ড পাওয়া যায়নি।
             </div>
@@ -157,7 +191,7 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-                {records.map((r) => (
+                {filteredRecords.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">
                       {formatDate(r.date)}
@@ -165,12 +199,12 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                         r.leave_type === 'Full Leave' 
-                          ? 'bg-red-950/50 border border-red-800 text-red-300' 
+                          ? 'bg-red-955/50 border border-red-800 text-red-300' 
                           : r.leave_type === 'Reserve'
-                          ? 'bg-amber-950/50 border border-amber-800 text-amber-300'
+                          ? 'bg-amber-955/50 border border-amber-800 text-amber-300'
                           : r.leave_type === 'Overtime'
-                          ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-300'
-                          : 'bg-blue-950/50 border border-blue-800 text-blue-300'
+                          ? 'bg-emerald-955/50 border border-emerald-800 text-emerald-300'
+                          : 'bg-blue-955/50 border border-blue-800 text-blue-300'
                       }`}>
                         {r.leave_type}
                       </span>
@@ -250,7 +284,7 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
                       </td>
                     )}
                     {allowReserve && (
-                      <td className="px-6 py-4 text-sm text-slate-350 max-w-[120px] truncate">
+                      <td className="px-6 py-4 text-sm text-slate-355 max-w-[120px] truncate">
                         {r.reserve_holiday || '-'}
                       </td>
                     )}
@@ -279,7 +313,7 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
                       <div className="flex flex-col gap-1 items-end">
                         {renderStatusBadge(r)}
                         {r.is_edited && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-950/40 border border-blue-800 text-blue-400">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-955/40 border border-blue-800 text-blue-400">
                             (Edited)
                           </span>
                         )}

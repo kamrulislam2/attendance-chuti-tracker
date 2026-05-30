@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, SlidersHorizontal, Download, RefreshCw } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
+import { DateInput } from './DateInput';
 
 interface UserRecordsTableProps {
   records: ChutiRecord[];
@@ -9,6 +10,15 @@ interface UserRecordsTableProps {
   selectedYear: string;
   setSelectedYear: (year: string) => void;
   availableYears: string[];
+  filterType: string;
+  setFilterType: (val: string) => void;
+  filterStartDate: string;
+  setFilterStartDate: (val: string) => void;
+  filterEndDate: string;
+  setFilterEndDate: (val: string) => void;
+  onResetFilters: () => void;
+  onExportCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
+  onExportExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
   onAddLeaveClick: () => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
   onDeleteClick: (r: ChutiRecord) => void;
@@ -26,6 +36,15 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
   selectedYear,
   setSelectedYear,
   availableYears,
+  filterType,
+  setFilterType,
+  filterStartDate,
+  setFilterStartDate,
+  filterEndDate,
+  setFilterEndDate,
+  onResetFilters,
+  onExportCSV,
+  onExportExcel,
   onAddLeaveClick,
   onToggleAdjustment,
   onDeleteClick,
@@ -35,16 +54,127 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
   getCleanComment,
   renderStatusBadge,
 }) => {
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  const filteredRecords = React.useMemo(() => {
+    return records.filter((r) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const commentMatch = (r.comment || '').toLowerCase().includes(term);
+      const typeMatch = (r.leave_type || '').toLowerCase().includes(term);
+      const reserveMatch = (r.reserve_holiday || '').toLowerCase().includes(term);
+      return commentMatch || typeMatch || reserveMatch;
+    });
+  }, [records, searchTerm]);
+
+  const handleReset = () => {
+    setSearchTerm('');
+    onResetFilters();
+  };
+
   return (
-    <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-      <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div className="flex flex-col gap-6 w-full">
+      {/* Filtering Panel for User */}
+      <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
+        <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
+          <SlidersHorizontal className="h-4 w-4 text-blue-500" /> স্টাফ ছুটির ফিল্টারিং প্যানেল
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Filter Leave Type */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ছুটির ধরন</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">সকল ক্যাটাগরি (All)</option>
+              <option value="Short Leave">Short Leave</option>
+              <option value="Full Leave">Full Leave</option>
+              {allowOvertime && <option value="Overtime">Overtime</option>}
+              {allowReserve && <option value="Reserve">Reserve</option>}
+            </select>
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
+            <div className="mt-1">
+              <DateInput
+                min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                value={filterStartDate}
+                onChange={setFilterStartDate}
+                className="bg-slate-955"
+              />
+            </div>
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
+            <div className="mt-1">
+              <DateInput
+                min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
+                max={selectedYear === 'all' ? undefined : `${selectedYear}-12-31`}
+                value={filterEndDate}
+                onChange={setFilterEndDate}
+                className="bg-slate-955"
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-end gap-2">
+            <button
+              onClick={() => onExportCSV(filteredRecords, searchTerm)}
+              className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
+              title="CSV Export"
+            >
+              <Download className="h-4 w-4" /> CSV
+            </button>
+            <button
+              onClick={() => onExportExcel(filteredRecords, searchTerm)}
+              className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+            >
+              <Download className="h-4 w-4" /> Excel
+            </button>
+            <button
+              onClick={handleReset}
+              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs cursor-pointer transition-all"
+              title="Filters Reset"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Records Table */}
+      <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
+      <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col lg:flex-row justify-between items-center gap-4">
         <div className="flex flex-col">
           <h3 className="text-base font-bold text-white">আমার বাৎসরিক ছুটির রেকর্ডসমূহ</h3>
-          <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {records.length}টি এন্ট্রি</span>
+          <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {filteredRecords.length}টি এন্ট্রি</span>
+        </div>
+        
+        {/* Quick Search */}
+        <div className="relative w-full lg:max-w-xs">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <Search className="h-4 w-4" />
+          </div>
+          <input
+            type="text"
+            placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-1.5 bg-slate-955/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs transition-all"
+          />
         </div>
         
         {/* Export buttons for User/Supervisor */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button
             onClick={onAddLeaveClick}
             className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
@@ -67,7 +197,7 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
       </div>
       
       <div className="overflow-x-auto">
-        {records.length === 0 ? (
+        {filteredRecords.length === 0 ? (
           <div className="py-12 text-center text-slate-500 text-sm">
             কোনো ছুটির রেকর্ড পাওয়া যায়নি। নতুন এন্ট্রি সাবমিট করুন।
           </div>
@@ -88,7 +218,7 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-850 bg-slate-900/20">
-              {records.map((r) => {
+              {filteredRecords.map((r) => {
                 const isTemp = typeof r.id === 'string' && r.id.startsWith('temp-');
                 return (
                   <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
@@ -103,12 +233,12 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                         r.leave_type === 'Full Leave' 
-                          ? 'bg-red-950/50 border border-red-800 text-red-300' 
+                          ? 'bg-red-955/50 border border-red-800 text-red-300' 
                           : r.leave_type === 'Reserve'
-                          ? 'bg-amber-950/50 border border-amber-800 text-amber-300'
+                          ? 'bg-amber-955/50 border border-amber-800 text-amber-300'
                           : r.leave_type === 'Overtime'
-                          ? 'bg-emerald-950/50 border border-emerald-800 text-emerald-300'
-                          : 'bg-blue-950/50 border border-blue-800 text-blue-300'
+                          ? 'bg-emerald-955/50 border border-emerald-800 text-emerald-300'
+                          : 'bg-blue-955/50 border border-blue-800 text-blue-300'
                       }`}>
                         {r.leave_type}
                       </span>
@@ -219,7 +349,7 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
                       <div className="flex flex-col gap-1 items-end">
                         {renderStatusBadge(r)}
                         {r.is_edited && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-950/40 border border-blue-800 text-blue-400">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-955/40 border border-blue-800 text-blue-400">
                             (Edited)
                           </span>
                         )}
@@ -233,5 +363,6 @@ export const UserRecordsTable: React.FC<UserRecordsTableProps> = ({
         )}
       </div>
     </div>
-  );
+  </div>
+);
 };

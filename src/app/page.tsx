@@ -300,6 +300,7 @@ export default function Dashboard() {
   const [showLeaveApprovalModal, setShowLeaveApprovalModal] = useState(false);
   const [showSupervisorApprovalModal, setShowSupervisorApprovalModal] = useState(false);
   const [showUserNotificationsModal, setShowUserNotificationsModal] = useState(false);
+  const [lastViewedTime, setLastViewedTime] = useState<string>('');
 
   // Admin editing states
   const [showAdminEditModal, setShowAdminEditModal] = useState(false);
@@ -737,6 +738,15 @@ export default function Dashboard() {
     }
   }, [loading, sessionUser, profile, fetchRecords]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('last_viewed_notifications_time');
+      if (stored) {
+        setLastViewedTime(stored);
+      }
+    }
+  }, []);
+
   // Auto Sync Handler
   const triggerAutoSync = useCallback(async () => {
     if (!navigator.onLine) return;
@@ -1128,9 +1138,75 @@ export default function Dashboard() {
     return `${h} ঘণ্টা`;
   };
 
+  const getDetailedLeaveLabel = (rec: { leave_type: string; reserve_holiday?: string | null }) => {
+    if (rec.leave_type === 'Reserve' && rec.reserve_holiday) {
+      return `Reserve (${rec.reserve_holiday})`;
+    }
+    return rec.leave_type;
+  };
+
+  const getUserNotifications = useCallback(() => {
+    if (!sessionUser || !profile) return [];
+    
+    interface NotificationItem {
+      id: string;
+      chutiId?: string;
+      record?: ChutiRecord;
+      type: 'revision' | 'approved' | 'rejected' | 'adjusted' | 'cancelled' | 'supervisor_approved' | 'edited';
+      timestamp: string;
+      title: string;
+      body: string;
+      text?: string;
+    }
+
+    const list: NotificationItem[] = [];
+
+    userRecords.forEach(r => {
+      // 1. Check if there are saved notifications in admin_edit_request.notifications
+      const hasRequest = r.admin_edit_request && typeof r.admin_edit_request === 'object';
+      const savedNotifications = hasRequest && Array.isArray((r.admin_edit_request as any).notifications)
+        ? ((r.admin_edit_request as any).notifications as NotificationItem[])
+        : [];
+
+      savedNotifications.forEach(n => {
+        list.push({
+          ...n,
+          chutiId: r.id,
+          record: r
+        });
+      });
+
+      // 2. Synthesize Revision Notification if status is 'needs_review' and not already in savedNotifications
+      if (r.status === 'needs_review') {
+        const hasRevisionSaved = savedNotifications.some(n => n.type === 'revision');
+        if (!hasRevisionSaved) {
+          list.push({
+            id: `synth-rev-${r.id}`,
+            chutiId: r.id,
+            record: r,
+            type: 'revision',
+            timestamp: r.created_at || new Date().toISOString(),
+            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
+            body: `আপনার ${r.leave_type} আবেদনটি সংশোধনের জন্য পাঠানো হয়েছে।`
+          });
+        }
+      }
+    });
+
+    // Sort by timestamp descending
+    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [userRecords, sessionUser, profile]);
+
+  const handleOpenNotifications = () => {
+    setShowUserNotificationsModal(true);
+    const now = new Date().toISOString();
+    localStorage.setItem('last_viewed_notifications_time', now);
+    setLastViewedTime(now);
+  };
+
   // Toggle Adjustment Status click trigger
   const handleToggleAdjustmentClick = (record: ChutiRecord) => {
-    if (record.adjustment || record.adjusted_hour || record.reserve_adjustment_status === 'pending' || record.reserve_adjustment_status === 'approved') {
+    if (record.adjustment || record.adjusted_hour || record.reserve_adjustment_status === 'pending') {
       // Current status is Yes/Partial/Pending/Approved, clicking toggle will turn it OFF
       setCancelAdjustmentRecord(record);
       setShowCancelAdjustmentModal(true);
@@ -1151,13 +1227,48 @@ export default function Dashboard() {
     setSubmitting(true);
     const record = cancelAdjustmentRecord;
     try {
-      const updates = { 
-        adjustment: false, 
-        adjusted_hour: null, 
-        adjust_short_leave: false,
-        reserve_adjustment_status: 'none',
-        admin_edit_request: null
-      };
+      const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
+      const dateTimeStr = isShortOrOvertime
+        ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
+        : formatDate(record.date);
+      const leaveLabel = getDetailedLeaveLabel(record);
+
+      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
+        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
+        : [];
+      const isAdmin = profile?.role === 'admin' && adminActiveTab === 'admin';
+
+      let updates: Record<string, unknown> = {};
+
+      if (isAdmin) {
+        const newNotification = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+          type: 'cancelled',
+          timestamp: new Date().toISOString(),
+          title: `${record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়'} বাতিল ⚠️`,
+          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`
+        };
+
+        updates = { 
+          adjustment: false, 
+          adjusted_hour: null, 
+          adjust_short_leave: false,
+          reserve_adjustment_status: 'none',
+          admin_edit_request: {
+            notifications: [...existingNotifications, newNotification]
+          }
+        };
+      } else {
+        updates = {
+          reserve_adjustment_status: 'pending',
+          admin_edit_request: {
+            adjustment: false,
+            adjusted_hour: null,
+            adjust_short_leave: false,
+            notifications: existingNotifications
+          }
+        };
+      }
 
       setUserRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
       setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
@@ -1171,9 +1282,34 @@ export default function Dashboard() {
           .eq('id', record.id || '');
 
         if (error) throw error;
+
+        // Trigger Web Push Notification
+        if (isAdmin) {
+          if (record?.user_id) {
+            const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+            sendPushNotification({
+              userIds: [record.user_id],
+              title: `${actionLabel} বাতিল ⚠️`,
+              body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`,
+              url: '/'
+            }).catch(err => console.error('Error sending cancel push:', err));
+          }
+        } else {
+          sendPushNotification({
+            userIds: ['admins'],
+            title: 'ছুটি সমন্বয় বাতিল অনুরোধ 🔄',
+            body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি (${record.leave_type}) ছুটির সমন্বয় বাতিল অনুরোধ করেছেন (${formatDate(record.date)})।`,
+            url: '/'
+          }).catch(err => console.error('Error triggering cancel adjustment request push:', err));
+        }
       }
       fetchRecords();
-      setMessage({ type: 'success', text: 'ছুটি সমন্বয় সফলভাবে বাতিল করা হয়েছে।' });
+      setMessage({ 
+        type: 'success', 
+        text: isAdmin 
+          ? 'ছুটি সমন্বয় সফলভাবে বাতিল করা হয়েছে।' 
+          : 'সমন্বয় বাতিলের অনুরোধ সফলভাবে পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় রয়েছে।' 
+      });
     } catch (err) {
       setMessage({ type: 'error', text: (err as Error).message || 'সমন্বয় বাতিল করতে সমস্যা হয়েছে।' });
     } finally {
@@ -1216,18 +1352,42 @@ export default function Dashboard() {
       }
 
       let updates: Record<string, unknown> = {};
+      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
+        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
+        : [];
+
       if (isAdmin) {
         // Admin applies changes immediately
+        const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        const leaveLabel = getDetailedLeaveLabel(record);
+        const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
+        const dateTimeStr = isShortOrOvertime
+          ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
+          : formatDate(record.date);
+
+        const newNotification = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+          type: 'adjusted',
+          timestamp: new Date().toISOString(),
+          title: `${actionLabel} সম্পন্ন ✅`,
+          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`
+        };
+
         updates = {
           ...requestedUpdates,
           reserve_adjustment_status: record.leave_type === 'Reserve' ? 'approved' : 'none',
-          admin_edit_request: null
+          admin_edit_request: {
+            notifications: [...existingNotifications, newNotification]
+          }
         };
       } else {
         // User/Supervisor: creates a pending request
         updates = {
           reserve_adjustment_status: 'pending',
-          admin_edit_request: requestedUpdates
+          admin_edit_request: {
+            ...requestedUpdates,
+            notifications: existingNotifications
+          }
         };
       }
 
@@ -1256,10 +1416,16 @@ export default function Dashboard() {
         }).catch(err => console.error('Error triggering push notification for adjustment:', err));
       } else if (record?.user_id) {
         const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        const leaveLabel = getDetailedLeaveLabel(record);
+        const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
+        const dateTimeStr = isShortOrOvertime
+          ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
+          : formatDate(record.date);
+
         sendPushNotification({
           userIds: [record.user_id],
-          title: `${actionLabel} অনুমোদিত ✅`,
-          body: `অ্যাডমিন আপনার (${formatDate(record.date)}) তারিখের ${record.leave_type} সমন্বয় আবেদনটি অনুমোদন করেছেন।`,
+          title: `${actionLabel} সম্পন্ন ✅`,
+          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`,
           url: '/'
         }).catch(err => console.error('Error sending adjustment push to user:', err));
       }
@@ -1296,13 +1462,41 @@ export default function Dashboard() {
           updates.adjustment = true;
           updates.adjusted_hour = null;
         }
-      } else {
-        updates.adjustment = false;
-        updates.adjusted_hour = null;
-        updates.adjust_short_leave = false;
       }
 
-      updates.admin_edit_request = null;
+      const adminName = profile?.full_name ? `অ্যাডমিন ${profile.full_name}` : 'অ্যাডমিন';
+      const leaveLabel = getDetailedLeaveLabel(record);
+      const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
+      const dateTimeStr = isShortOrOvertime
+        ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
+        : formatDate(record.date);
+
+      const isCancelRequest = record.admin_edit_request && typeof record.admin_edit_request === 'object' && record.admin_edit_request.adjustment === false;
+      const requestTypeLabel = isCancelRequest ? 'সমন্বয় বাতিল' : 'সমন্বয়';
+
+      const bodyText = approve 
+        ? `${adminName} আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি অনুমোদন করেছেন।`
+        : `আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি প্রত্যাখ্যান করা হয়েছে।`;
+
+      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
+        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
+        : [];
+
+      const titleLabel = isCancelRequest 
+        ? `${record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়'} বাতিল` 
+        : (record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়');
+
+      const newNotification = {
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+        type: approve ? 'approved' : 'rejected',
+        timestamp: new Date().toISOString(),
+        title: `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+        body: bodyText
+      };
+
+      updates.admin_edit_request = {
+        notifications: [...existingNotifications, newNotification]
+      };
 
       if (record.status === 'approved_by_supervisor') {
         updates.status = approve ? 'approved' : 'needs_review';
@@ -1318,10 +1512,28 @@ export default function Dashboard() {
       // Trigger Web Push Notification to Staff member
       if (record?.user_id) {
         const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        const adminName = profile?.full_name ? `অ্যাডমিন ${profile.full_name}` : 'অ্যাডমিন';
+        const leaveLabel = getDetailedLeaveLabel(record);
+        const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
+        const dateTimeStr = isShortOrOvertime
+          ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
+          : formatDate(record.date);
+
+        const isCancelRequest = record.admin_edit_request && typeof record.admin_edit_request === 'object' && record.admin_edit_request.adjustment === false;
+        const requestTypeLabel = isCancelRequest ? 'সমন্বয় বাতিল' : 'সমন্বয়';
+
+        const bodyText = approve 
+          ? `${adminName} আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি অনুমোদন করেছেন।`
+          : `আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি প্রত্যাখ্যান করা হয়েছে।`;
+
+        const titleLabel = isCancelRequest 
+          ? `${actionLabel} বাতিল` 
+          : actionLabel;
+
         sendPushNotification({
           userIds: [record.user_id],
-          title: `${actionLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
-          body: `আপনার ${record.leave_type} সমন্বয় আবেদনটি (${formatDate(record.date)}) ${approve ? 'অনুমোদন' : 'প্রत्याখ্যান'} করা হয়েছে।`,
+          title: `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+          body: bodyText,
           url: '/'
         }).catch(err => console.error('Error sending push:', err));
       }
@@ -1738,11 +1950,26 @@ export default function Dashboard() {
             updatedComment = updatedComment ? `${prefix} | ${updatedComment}` : `${prefix}`;
           }
         }
+        const newNotification = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+          type: 'supervisor_approved',
+          timestamp: new Date().toISOString(),
+          title: 'ছুটি সুপারভাইজার দ্বারা অনুমোদিত ✅',
+          body: `আপনার ${t.leave_type} আবেদনটি সুপারভাইজার অনুমোদন করেছেন (তারিখ: ${formatDate(t.date)})। এটি এখন অ্যাডমিন অ্যাপ্রুভালের অপেক্ষায় রয়েছে।`
+        };
+        const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
+          ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
+          : [];
+
         const { error } = await supabase
           .from('chuti')
           .update({ 
             status: 'approved_by_supervisor',
-            comment: updatedComment || null
+            comment: updatedComment || null,
+            admin_edit_request: {
+              ...(t.admin_edit_request || {}),
+              notifications: [...existingNotifications, newNotification]
+            }
           })
           .eq('id', t.id);
 
@@ -1819,10 +2046,25 @@ export default function Dashboard() {
             updatedComment = updatedComment ? `${prefix} | ${updatedComment}` : `${prefix}`;
           }
         }
+        const newNotification = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+          type: 'approved',
+          timestamp: new Date().toISOString(),
+          title: 'ছুটি চূড়ান্তভাবে অনুমোদিত 🎉',
+          body: `আপনার ${t.leave_type} আবেদনটি চূড়ান্তভাবে অনুমোদন করা হয়েছে (তারিখ: ${formatDate(t.date)})।`
+        };
+        const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
+          ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
+          : [];
+
         const updates = {
           status: 'approved',
           reserve_adjustment_status: (t.leave_type === 'Reserve' && t.adjustment) ? 'approved' : 'none',
-          comment: updatedComment || null
+          comment: updatedComment || null,
+          admin_edit_request: {
+            ...(t.admin_edit_request || {}),
+            notifications: [...existingNotifications, newNotification]
+          }
         };
         const { error } = await supabase
           .from('chuti')
@@ -1896,11 +2138,26 @@ export default function Dashboard() {
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
+          const newNotification = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+            type: 'revision',
+            timestamp: new Date().toISOString(),
+            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
+            body: `আপনার ${t.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+          };
+          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
+            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
+            : [];
+
           const { error } = await supabase
             .from('chuti')
             .update({ 
               status: 'needs_review',
-              comment: updatedComment
+              comment: updatedComment,
+              admin_edit_request: {
+                ...(t.admin_edit_request || {}),
+                notifications: [...existingNotifications, newNotification]
+              }
             })
             .eq('id', t.id);
 
@@ -1928,10 +2185,25 @@ export default function Dashboard() {
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
+          const newNotification = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+            type: 'revision',
+            timestamp: new Date().toISOString(),
+            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
+            body: `আপনার ${t.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+          };
+          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
+            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
+            : [];
+
           const updates = {
             status: 'needs_review',
             reserve_adjustment_status: 'none',
-            comment: updatedComment
+            comment: updatedComment,
+            admin_edit_request: {
+              ...(t.admin_edit_request || {}),
+              notifications: [...existingNotifications, newNotification]
+            }
           };
 
           const { error } = await supabase
@@ -1979,6 +2251,17 @@ export default function Dashboard() {
       const isReserve = adminEditLeaveType === 'Reserve';
       const isFullLeave = adminEditLeaveType === 'Full Leave';
       
+      const newNotification = {
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+        type: 'edited',
+        timestamp: new Date().toISOString(),
+        title: 'ছুটির তথ্য সংশোধিত ✏️',
+        body: `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`
+      };
+      const existingNotifications = (adminEditRecord.admin_edit_request && typeof adminEditRecord.admin_edit_request === 'object' && 'notifications' in adminEditRecord.admin_edit_request)
+        ? (adminEditRecord.admin_edit_request as { notifications?: any[] }).notifications || []
+        : [];
+
       const { error } = await supabase
         .from('chuti')
         .update({
@@ -1993,7 +2276,9 @@ export default function Dashboard() {
           reserve_adjustment_status: isReserve ? (adminEditAdjustment ? 'pending' : 'none') : 'none',
           comment: adminEditComment || null,
           is_edited: true,
-          admin_edit_request: null,
+          admin_edit_request: {
+            notifications: [...existingNotifications, newNotification]
+          },
           admin_edit_status: 'none'
         })
         .eq('id', adminEditRecord.id);
@@ -2412,6 +2697,10 @@ export default function Dashboard() {
   const pendingSupervisorRequests = adminRecords.filter(r => r.status === 'pending_supervisor' && r.user_id !== sessionUser?.id);
   const groupedSupervisorRequests = groupPendingRequests(pendingSupervisorRequests);
   const userRevisionRequests = userRecords.filter(r => r.status === 'needs_review');
+  const userNotificationsList = getUserNotifications();
+  const unreadUserNotificationsCount = userNotificationsList.filter(
+    n => !lastViewedTime || new Date(n.timestamp).getTime() > new Date(lastViewedTime).getTime()
+  ).length;
 
   // Viewed staff member calculations (for individual view)
   const staffProfile = viewingStaffId ? profilesList.find(p => p.id === viewingStaffId) : null;
@@ -2502,13 +2791,13 @@ export default function Dashboard() {
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
                 স্বাগতম, {profile?.full_name || 'User'} ({profile?.username ? profile.username.toUpperCase() : ''})
                 <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-                  profile?.role === 'admin' && adminActiveTab === 'admin'
+                  profile?.role === 'admin'
                     ? 'bg-purple-950/60 border-purple-800 text-purple-300' 
                     : profile?.role === 'supervisor'
                     ? 'bg-amber-950/60 border-amber-800 text-amber-300'
                     : 'bg-blue-950/60 border-blue-800 text-blue-300'
                 }`}>
-                  {profile?.job_role || (profile?.role === 'admin' && adminActiveTab === 'admin' ? 'Admin' : (profile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
+                  {profile?.job_role || (profile?.role === 'admin' ? 'Admin' : (profile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                 </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">রোল-ভিত্তিক অফিস অ্যাটেনডেন্স অ্যান্ড লিভ ট্র্যাকার</p>
@@ -2573,34 +2862,40 @@ export default function Dashboard() {
             {profile && (
               <button
                 onClick={() => {
-                  const isAdminModeOn = profile.role === 'admin' && adminActiveTab === 'admin';
-                  if (userRevisionRequests.length > 0) {
-                    setShowUserNotificationsModal(true);
-                  } else if (isAdminModeOn) {
-                    setShowLeaveApprovalModal(true);
+                  const isAdmin = profile.role === 'admin';
+                  if (isAdmin) {
+                    if (adminActiveTab === 'admin') {
+                      setShowLeaveApprovalModal(true);
+                    } else {
+                      handleOpenNotifications();
+                    }
                   } else if (profile.role === 'supervisor') {
-                    setShowSupervisorApprovalModal(true);
+                    if (unreadUserNotificationsCount > 0) {
+                      handleOpenNotifications();
+                    } else {
+                      setShowSupervisorApprovalModal(true);
+                    }
                   } else {
-                    setShowUserNotificationsModal(true);
+                    handleOpenNotifications();
                   }
                 }}
                 className="relative p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all"
                 title="নোটিফিকেশন"
               >
                 <Bell className="h-4.5 w-4.5" />
-                {profile.role === 'supervisor' && (groupedSupervisorRequests.length + userRevisionRequests.length) > 0 && (
+                {profile.role === 'supervisor' && (groupedSupervisorRequests.length + unreadUserNotificationsCount) > 0 && (
                   <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                    {groupedSupervisorRequests.length + userRevisionRequests.length}
+                    {groupedSupervisorRequests.length + unreadUserNotificationsCount}
                   </span>
                 )}
-                {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length) > 0 && (
+                {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length) > 0 && (
                   <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                    {groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length + userRevisionRequests.length}
+                    {groupedChutiRequests.length + pendingReserveRequests.length + pendingProfileRequests.length}
                   </span>
                 )}
-                {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && userRevisionRequests.length > 0 && (
+                {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && unreadUserNotificationsCount > 0 && (
                   <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                    {userRevisionRequests.length}
+                    {unreadUserNotificationsCount}
                   </span>
                 )}
               </button>
@@ -2738,8 +3033,14 @@ export default function Dashboard() {
                         <div>
                           <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             {staffProfile?.full_name || 'Staff User'} ({staffProfile?.username ? staffProfile.username.toUpperCase() : ''})
-                            <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold border bg-blue-950/60 border-blue-800 text-blue-300">
-                              {staffProfile?.role === 'supervisor' ? 'Supervisor' : (staffProfile?.job_role || 'Staff')}
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                              staffProfile?.role === 'admin'
+                                ? 'bg-purple-950/60 border-purple-800 text-purple-300' 
+                                : staffProfile?.role === 'supervisor'
+                                ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+                                : 'bg-blue-950/60 border-blue-800 text-blue-300'
+                            }`}>
+                              {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                             </span>
                           </h2>
                           <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
@@ -3708,6 +4009,8 @@ export default function Dashboard() {
                                   <span className="font-bold text-white">অনুরোধকৃত সমন্বয়:</span>{' '}
                                   {r.admin_edit_request.adjusted_hour ? (
                                     <span className="font-semibold text-cyan-400">আংশিক সমন্বয় ({r.admin_edit_request.adjusted_hour.substring(0, 5)} ঘণ্টা)</span>
+                                  ) : r.admin_edit_request.adjustment === false ? (
+                                    <span className="font-semibold text-rose-400 font-bold">সমন্বয় বাতিল</span>
                                   ) : (
                                     <span className="font-semibold text-blue-400">পূর্ণ সমন্বয়</span>
                                   )}
@@ -4230,7 +4533,7 @@ export default function Dashboard() {
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Bell className="h-5 w-5 text-amber-500" /> ছুটির সংশোধন নোটিফিকেশনসমূহ
+                <Bell className="h-5 w-5 text-amber-500" /> ছুটির নোটিফিকেশনসমূহ
               </h3>
               <button 
                 onClick={() => setShowUserNotificationsModal(false)}
@@ -4241,56 +4544,61 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-              {userRevisionRequests.length === 0 ? (
+              {userNotificationsList.length === 0 ? (
                 <div className="py-8 text-center text-slate-500 text-sm">
-                  কোনো সংশোধন নির্দেশাবলী বা নতুন নোটিফিকেশন নেই।
+                  কোনো নোটিফিকেশন নেই।
                 </div>
               ) : (
-                userRevisionRequests.map((r) => (
-                  <div key={r.id} className="p-4 bg-slate-955/60 border border-slate-850 rounded-xl flex flex-col gap-3 shadow-md">
+                userNotificationsList.map((n) => (
+                  <div key={n.id} className="p-4 bg-slate-955/60 border border-slate-850 rounded-xl flex flex-col gap-3 shadow-md">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs text-slate-500 font-mono font-medium">{formatDate(r.date)}</span>
+                        <span className="text-xs text-slate-500 font-mono font-medium">
+                          {n.timestamp ? new Date(n.timestamp).toLocaleString('bn-BD', { hour12: true }) : ''}
+                        </span>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold w-fit ${
-                          r.leave_type === 'Full Leave' 
+                          n.record?.leave_type === 'Full Leave' 
                             ? 'bg-red-950/60 border border-red-900 text-red-400' 
-                            : r.leave_type === 'Reserve'
+                            : n.record?.leave_type === 'Reserve'
                             ? 'bg-purple-950/60 border border-purple-900 text-purple-400'
-                            : r.leave_type === 'Overtime'
+                            : n.record?.leave_type === 'Overtime'
                             ? 'bg-blue-950/60 border border-blue-900 text-blue-400'
-                            : 'bg-amber-950/60 border border-amber-900 text-amber-400'
+                            : n.record?.leave_type === 'Short Leave'
+                            ? 'bg-amber-950/60 border border-amber-900 text-amber-400'
+                            : 'bg-slate-950/60 border border-slate-900 text-slate-400'
                         }`}>
-                          {r.leave_type}
+                          {n.record?.leave_type || 'Notification'}
                         </span>
                       </div>
                       
-                      <button
-                        onClick={() => {
-                          setRevisionRecord(r);
-                          setRevisionDate(r.date);
-                          setRevisionLeaveType(r.leave_type);
-                          setRevisionAdjustment(r.adjustment);
-                          setRevisionAdjustShortLeave(r.adjust_short_leave === true);
-                          setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
-                          setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
-                          setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-                          setRevisionReserveHoliday(r.reserve_holiday || '');
-                          setRevisionComment('');
-                          setShowUserNotificationsModal(false);
-                          setShowUserRevisionModal(true);
-                        }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all border border-amber-700 shadow-md shrink-0"
-                      >
-                        <Edit className="h-3.5 w-3.5" /> সংশোধন করুন
-                      </button>
+                      {n.type === 'revision' && n.record && (
+                        <button
+                          onClick={() => {
+                            const r = n.record!;
+                            setRevisionRecord(r);
+                            setRevisionDate(r.date);
+                            setRevisionLeaveType(r.leave_type);
+                            setRevisionAdjustment(r.adjustment);
+                            setRevisionAdjustShortLeave(r.adjust_short_leave === true);
+                            setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
+                            setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
+                            setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
+                            setRevisionReserveHoliday(r.reserve_holiday || '');
+                            setRevisionComment('');
+                            setShowUserNotificationsModal(false);
+                            setShowUserRevisionModal(true);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all border border-amber-700 shadow-md shrink-0"
+                        >
+                          <Edit className="h-3.5 w-3.5" /> সংশোধন করুন
+                        </button>
+                      )}
                     </div>
 
-                    {r.comment && (
-                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-xs leading-relaxed">
-                        <span className="font-semibold block mb-1">রিভিশন কারণ/নির্দেশনা:</span>
-                        {getCleanComment(r.comment)}
-                      </div>
-                    )}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 text-slate-300 rounded-lg text-xs leading-relaxed">
+                      <span className="font-semibold text-slate-200 block mb-1">{n.title}</span>
+                      {n.body || n.text}
+                    </div>
                   </div>
                 ))
               )}
@@ -4773,8 +5081,14 @@ export default function Dashboard() {
               <div className="inline-flex p-3 bg-amber-600/10 border border-amber-500/20 text-amber-400 rounded-2xl mb-3">
                 <AlertTriangle className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">সমন্বয় বাতিল নিশ্চিতকরণ</h3>
-              <p className="text-xs text-slate-400 mt-1">আপনি কি নিশ্চিতভাবে এই রেকর্ডটির ছুটি সমন্বয় বাতিল করতে চান?</p>
+              <h3 className="text-lg font-bold text-white">
+                {profile?.role === 'admin' && adminActiveTab === 'admin' ? 'সমন্বয় বাতিল নিশ্চিতকরণ' : 'সমন্বয় বাতিলের অনুরোধ'}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {profile?.role === 'admin' && adminActiveTab === 'admin'
+                  ? 'আপনি কি নিশ্চিতভাবে এই রেকর্ডটির ছুটি সমন্বয় বাতিল করতে চান?'
+                  : 'আপনি কি নিশ্চিতভাবে এই রেকর্ডটির ছুটি সমন্বয় বাতিলের অনুরোধ পাঠাতে চান?'}
+              </p>
             </div>
             <div className="flex gap-3">
               <button
@@ -4790,9 +5104,9 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={handleConfirmCancelAdjustment}
-                className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 hover:scale-[1.01] active:scale-[0.99] text-white rounded-lg cursor-pointer transition-all duration-200"
+                className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
               >
-                হ্যাঁ, বাতিল করুন
+                {profile?.role === 'admin' && adminActiveTab === 'admin' ? 'হ্যাঁ, বাতিল করুন' : 'হ্যাঁ, অনুরোধ পাঠান'}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ export interface AdminEditRequest {
   adjusted_hour?: string | null;
   adjust_short_leave?: boolean;
   adjustment?: boolean;
+  notifications?: any[];
 }
 
 export interface ChutiRecord {

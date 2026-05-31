@@ -22,6 +22,7 @@ import {
   syncOfflineData, 
   deleteOfflineRecord,
   saveOfflineUpdate,
+  saveOfflineDelete,
   ChutiRecord
 } from '@/utils/offlineSync';
 import { 
@@ -1060,6 +1061,18 @@ export default function Dashboard() {
         setUserRecords(prev => prev.filter(r => r.id !== record.id));
         checkOfflineQueue();
         setMessage({ type: 'success', text: 'অফলাইন রেকর্ডটি সফলভাবে ডিলিট করা হয়েছে।' });
+        return;
+      }
+
+      if (!navigator.onLine) {
+        // Device is offline and trying to delete an already synced record -> queue it!
+        if (record.id) {
+          await saveOfflineDelete(record.id);
+          setUserRecords(prev => prev.filter(r => r.id !== record.id));
+          setAdminRecords(prev => prev.filter(r => r.id !== record.id));
+          checkOfflineQueue();
+          setMessage({ type: 'success', text: 'অফলাইনে রেকর্ডটি ডিলিট করার অনুরোধ জমা হয়েছে। অনলাইনে এলে সিঙ্ক হবে।' });
+        }
         return;
       }
 
@@ -2191,16 +2204,22 @@ export default function Dashboard() {
             ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
             : [];
 
+          const updates = { 
+            status: 'needs_review',
+            comment: updatedComment,
+            admin_edit_request: {
+              ...(t.admin_edit_request || {}),
+              notifications: [...existingNotifications, newNotification]
+            }
+          };
+
+          // Optimistic UI updates
+          setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+          setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+
           const { error } = await supabase
             .from('chuti')
-            .update({ 
-              status: 'needs_review',
-              comment: updatedComment,
-              admin_edit_request: {
-                ...(t.admin_edit_request || {}),
-                notifications: [...existingNotifications, newNotification]
-              }
-            })
+            .update(updates)
             .eq('id', t.id);
 
           if (error) throw error;
@@ -2247,6 +2266,10 @@ export default function Dashboard() {
               notifications: [...existingNotifications, newNotification]
             }
           };
+
+          // Optimistic UI updates
+          setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+          setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
 
           const { error } = await supabase
             .from('chuti')

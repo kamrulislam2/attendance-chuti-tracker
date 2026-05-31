@@ -123,6 +123,51 @@ export const saveOfflineUpdate = async (id: string, updates: Partial<Omit<ChutiR
   });
 };
 
+// Save a delete action to IndexedDB (and clean up any pending updates for this ID)
+export const saveOfflineDelete = async (id: string): Promise<string> => {
+  // First, clean up any pending offline updates for this record to prevent redundant sync attempts
+  try {
+    const allRecords = await getOfflineRecords();
+    const pendingUpdates = allRecords.filter(r => r.id === id && r.action === 'update');
+    for (const r of pendingUpdates) {
+      if (r.localId) {
+        await deleteOfflineRecord(r.localId);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to clean up pending updates before offline delete:', err);
+  }
+
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+    
+    const store = transaction.objectStore(STORE_NAME);
+    const localId = generateUUID();
+    const newRecord: ChutiRecord = {
+      localId,
+      id,
+      user_id: '', // Dummy values to satisfy required fields
+      date: '',
+      leave_type: '',
+      adjustment: false,
+      sign_in_time: null,
+      sign_out_time: null,
+      leave_hour: null,
+      reserve_holiday: null,
+      comment: null,
+      synced: false,
+      action: 'delete',
+    };
+
+    const request = store.add(newRecord);
+    request.onsuccess = () => resolve(localId);
+    request.onerror = () => reject(request.error);
+  });
+};
+
 // Retrieve all unsynced local records
 export const getOfflineRecords = async (): Promise<ChutiRecord[]> => {
   const db = await openDB();
@@ -171,7 +216,19 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
     for (const record of offlineRecords) {
       let isSyncedSuccessfully = false;
 
-      if (record.action === 'update' && record.id && record.data) {
+      if (record.action === 'delete' && record.id) {
+        // Sync offline delete
+        const { error: deleteError } = await supabase
+          .from('chuti')
+          .delete()
+          .eq('id', record.id);
+
+        if (deleteError) {
+          console.error('Error syncing offline delete:', deleteError);
+          continue; // Skip this one, try the next
+        }
+        isSyncedSuccessfully = true;
+      } else if (record.action === 'update' && record.id && record.data) {
         // Sync offline update
         const { error: updateError } = await supabase
           .from('chuti')

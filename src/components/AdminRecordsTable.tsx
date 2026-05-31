@@ -154,7 +154,7 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             {/* Quick Search */}
             <div className="relative w-full sm:w-64">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 dark:text-slate-500">
                 <Search className="h-4 w-4" />
               </div>
               <input
@@ -162,7 +162,7 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
                 placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs transition-all"
+                className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             <span className="text-xs text-slate-400 shrink-0">রেকর্ড সংখ্যা: {filteredRecords.length}টি</span>

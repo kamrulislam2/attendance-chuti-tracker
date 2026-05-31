@@ -1449,18 +1449,37 @@ export default function Dashboard() {
   const handleApproveReserveAdjustment = async (record: ChutiRecordWithProfile, approve: boolean) => {
     setApprovingIds(prev => new Set(prev).add(record.id));
     try {
-      const updates: Record<string, unknown> = { 
-        reserve_adjustment_status: approve ? 'approved' : 'rejected',
-      };
+      const isCancelRequest = record.admin_edit_request && typeof record.admin_edit_request === 'object' && record.admin_edit_request.adjustment === false;
+      const updates: Record<string, unknown> = {};
 
-      if (approve) {
-        if (record.admin_edit_request && typeof record.admin_edit_request === 'object') {
-          updates.adjustment = record.admin_edit_request.adjustment === true;
-          updates.adjusted_hour = record.admin_edit_request.adjusted_hour || null;
-          updates.adjust_short_leave = record.admin_edit_request.adjust_short_leave === true;
-        } else {
-          updates.adjustment = true;
+      if (isCancelRequest) {
+        if (approve) {
+          // Admin approves the cancellation -> turn adjustment OFF
+          updates.reserve_adjustment_status = 'none';
+          updates.adjustment = false;
           updates.adjusted_hour = null;
+          updates.adjust_short_leave = false;
+        } else {
+          // Admin rejects the cancellation -> keep adjustment ON
+          updates.reserve_adjustment_status = 'approved';
+        }
+      } else {
+        // This is an adjustment request (turning it ON/partial)
+        updates.reserve_adjustment_status = approve ? 'approved' : 'rejected';
+        if (approve) {
+          if (record.admin_edit_request && typeof record.admin_edit_request === 'object') {
+            updates.adjustment = record.admin_edit_request.adjustment === true;
+            updates.adjusted_hour = record.admin_edit_request.adjusted_hour || null;
+            updates.adjust_short_leave = record.admin_edit_request.adjust_short_leave === true;
+          } else {
+            updates.adjustment = true;
+            updates.adjusted_hour = null;
+          }
+        } else {
+          // Rejecting adjustment request -> set adjustment OFF
+          updates.adjustment = false;
+          updates.adjusted_hour = null;
+          updates.adjust_short_leave = false;
         }
       }
 
@@ -1471,7 +1490,6 @@ export default function Dashboard() {
         ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
         : formatDate(record.date);
 
-      const isCancelRequest = record.admin_edit_request && typeof record.admin_edit_request === 'object' && record.admin_edit_request.adjustment === false;
       const requestTypeLabel = isCancelRequest ? 'সমন্বয় বাতিল' : 'সমন্বয়';
 
       const bodyText = approve 
@@ -1501,6 +1519,9 @@ export default function Dashboard() {
       if (record.status === 'approved_by_supervisor') {
         updates.status = approve ? 'approved' : 'needs_review';
       }
+
+      setUserRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
+      setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
 
       const { error } = await supabase
         .from('chuti')
@@ -1545,7 +1566,12 @@ export default function Dashboard() {
       }
 
       fetchRecords();
-      setMessage({ type: 'success', text: approve ? 'সমন্বয় অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
+      setMessage({ 
+        type: 'success', 
+        text: approve 
+          ? (isCancelRequest ? 'সমন্বয় বাতিল অনুমোদন করা হয়েছে।' : 'সমন্বয় অনুমোদন করা হয়েছে।') 
+          : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' 
+      });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
       alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
@@ -1961,16 +1987,21 @@ export default function Dashboard() {
           ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
           : [];
 
+        const updates = { 
+          status: 'approved_by_supervisor',
+          comment: updatedComment || null,
+          admin_edit_request: {
+            ...(t.admin_edit_request || {}),
+            notifications: [...existingNotifications, newNotification]
+          }
+        };
+
+        setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+        setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+
         const { error } = await supabase
           .from('chuti')
-          .update({ 
-            status: 'approved_by_supervisor',
-            comment: updatedComment || null,
-            admin_edit_request: {
-              ...(t.admin_edit_request || {}),
-              notifications: [...existingNotifications, newNotification]
-            }
-          })
+          .update(updates)
           .eq('id', t.id);
 
         if (error) throw error;
@@ -2066,6 +2097,10 @@ export default function Dashboard() {
             notifications: [...existingNotifications, newNotification]
           }
         };
+
+        setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+        setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+
         const { error } = await supabase
           .from('chuti')
           .update(updates)
@@ -2262,25 +2297,30 @@ export default function Dashboard() {
         ? (adminEditRecord.admin_edit_request as { notifications?: any[] }).notifications || []
         : [];
 
+      const updates = {
+        date: adminEditDate,
+        leave_type: adminEditLeaveType,
+        adjustment: adminEditAdjustment,
+        adjust_short_leave: (adminEditLeaveType === 'Overtime' || adminEditLeaveType === 'Reserve') && adminEditAdjustment ? adminEditAdjustShortLeave : false,
+        sign_in_time: (isReserve || isFullLeave) ? null : adminEditSignInTime,
+        sign_out_time: (isReserve || isFullLeave) ? null : adminEditSignOutTime,
+        leave_hour: (isReserve || isFullLeave) ? null : `${adminEditLeaveHour}:00`,
+        reserve_holiday: isReserve ? adminEditReserveHoliday : null,
+        reserve_adjustment_status: isReserve ? (adminEditAdjustment ? 'approved' : 'none') : 'none',
+        comment: adminEditComment || null,
+        is_edited: true,
+        admin_edit_request: {
+          notifications: [...existingNotifications, newNotification]
+        },
+        admin_edit_status: 'none'
+      };
+
+      setUserRecords(prev => prev.map(r => r.id === adminEditRecord.id ? { ...r, ...updates } : r));
+      setAdminRecords(prev => prev.map(r => r.id === adminEditRecord.id ? { ...r, ...updates } : r));
+
       const { error } = await supabase
         .from('chuti')
-        .update({
-          date: adminEditDate,
-          leave_type: adminEditLeaveType,
-          adjustment: isReserve ? false : adminEditAdjustment,
-          adjust_short_leave: (adminEditLeaveType === 'Overtime' || adminEditLeaveType === 'Reserve') && adminEditAdjustment ? adminEditAdjustShortLeave : false,
-          sign_in_time: (isReserve || isFullLeave) ? null : adminEditSignInTime,
-          sign_out_time: (isReserve || isFullLeave) ? null : adminEditSignOutTime,
-          leave_hour: (isReserve || isFullLeave) ? null : `${adminEditLeaveHour}:00`,
-          reserve_holiday: isReserve ? adminEditReserveHoliday : null,
-          reserve_adjustment_status: isReserve ? (adminEditAdjustment ? 'pending' : 'none') : 'none',
-          comment: adminEditComment || null,
-          is_edited: true,
-          admin_edit_request: {
-            notifications: [...existingNotifications, newNotification]
-          },
-          admin_edit_status: 'none'
-        })
+        .update(updates)
         .eq('id', adminEditRecord.id);
 
       if (error) throw error;

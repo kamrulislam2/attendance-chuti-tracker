@@ -759,6 +759,13 @@ export default function Dashboard() {
     }
   }, [checkOfflineQueue, fetchRecords]);
 
+  // Auto Sync on Mount / Login
+  useEffect(() => {
+    if (isOnline && sessionUser) {
+      triggerAutoSync();
+    }
+  }, [isOnline, sessionUser, triggerAutoSync]);
+
   // Network Status Monitor
   useEffect(() => {
     if (typeof window !== 'undefined') {

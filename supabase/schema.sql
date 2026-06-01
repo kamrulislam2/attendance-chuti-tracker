@@ -241,7 +241,7 @@ BEGIN
       needs_supervisor_approval = p_needs_supervisor_approval,
       allow_reserve = p_allow_reserve,
       allow_overtime = p_allow_overtime,
-      is_setup_completed = true
+      is_setup_completed = false
   WHERE id = v_user_id;
 
   RETURN v_user_id;
@@ -285,6 +285,63 @@ BEGIN
         updated_at = NOW()
     WHERE id = p_user_id;
   END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RPC function to bulk insert approved chuti records for a user (admin only)
+CREATE OR REPLACE FUNCTION public.admin_insert_chuti_records_bulk(
+  p_user_id UUID,
+  p_dates DATE[],
+  p_leave_type TEXT,
+  p_adjustment BOOLEAN,
+  p_adjust_short_leave BOOLEAN,
+  p_sign_in_time TIME DEFAULT NULL,
+  p_sign_out_time TIME DEFAULT NULL,
+  p_leave_hour INTERVAL DEFAULT NULL,
+  p_reserve_holiday TEXT DEFAULT NULL,
+  p_comment TEXT DEFAULT NULL,
+  p_bulk_id UUID DEFAULT NULL
+)
+RETURNS VOID AS $$
+DECLARE
+  v_date DATE;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only admins can insert chuti records for other users';
+  END IF;
+
+  FOREACH v_date IN ARRAY p_dates LOOP
+    INSERT INTO public.chuti (
+      user_id,
+      date,
+      leave_type,
+      adjustment,
+      adjust_short_leave,
+      sign_in_time,
+      sign_out_time,
+      leave_hour,
+      reserve_holiday,
+      reserve_adjustment_status,
+      status,
+      comment,
+      bulk_id
+    )
+    VALUES (
+      p_user_id,
+      v_date,
+      p_leave_type,
+      p_adjustment,
+      p_adjust_short_leave,
+      p_sign_in_time,
+      p_sign_out_time,
+      p_leave_hour,
+      p_reserve_holiday,
+      CASE WHEN p_leave_type = 'Reserve' AND p_adjustment THEN 'approved'::TEXT ELSE 'none'::TEXT END,
+      'approved', -- Admin added records are auto-approved
+      p_comment,
+      p_bulk_id
+    );
+  END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -355,6 +412,10 @@ USING (public.is_admin_or_supervisor());
 CREATE POLICY "Allow users to insert their own chuti"
 ON public.chuti FOR INSERT
 WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow admins to insert chuti for all users"
+ON public.chuti FOR INSERT
+WITH CHECK (public.is_admin());
 
 CREATE POLICY "Allow users to update their own chuti"
 ON public.chuti FOR UPDATE

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, SlidersHorizontal, Download, RefreshCw, Edit, Trash2, Search } from 'lucide-react';
+import { SlidersHorizontal, Download, RefreshCw, Edit, Trash2, Search, Plus } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { DateInput } from './DateInput';
 
@@ -24,6 +24,9 @@ interface AdminRecordsTableProps {
   getCleanComment: (c: string | null | undefined) => string;
   renderStatusBadge: (r: ChutiRecord) => React.ReactNode;
   selectedYear: string;
+  setSelectedYear: (val: string) => void;
+  availableYears: string[];
+  onAddLeaveClick: () => void;
 }
 
 export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
@@ -47,6 +50,9 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
   getCleanComment,
   renderStatusBadge,
   selectedYear,
+  setSelectedYear,
+  availableYears,
+  onAddLeaveClick,
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -147,25 +153,46 @@ export const AdminRecordsTable: React.FC<AdminRecordsTableProps> = ({
 
       {/* Records Table for Viewed Staff */}
       <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-500" /> ছুটির বিবরণী রেকর্ডসমূহ
-          </h3>
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            {/* Quick Search */}
-            <div className="relative w-full sm:w-64">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 dark:text-slate-500">
-                <Search className="h-4 w-4" />
-              </div>
-              <input
-                type="text"
-                placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder:text-slate-500"
-              />
+        <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col lg:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col">
+            <h3 className="text-base font-bold text-white">ছুটির বিবরণী রেকর্ডসমূহ</h3>
+            <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {filteredRecords.length}টি এন্ট্রি</span>
+          </div>
+          
+          {/* Quick Search */}
+          <div className="relative w-full lg:max-w-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 dark:text-slate-500">
+              <Search className="h-4 w-4" />
             </div>
-            <span className="text-xs text-slate-400 shrink-0">রেকর্ড সংখ্যা: {filteredRecords.length}টি</span>
+            <input
+              type="text"
+              placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder:text-slate-500"
+            />
+          </div>
+
+          {/* Add Leave & Year Select */}
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={onAddLeaveClick}
+              className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Leave
+            </button>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-md"
+            >
+              <option value="all" className="bg-slate-900 text-white">All</option>
+              {availableYears.map(y => (
+                <option key={y} value={y} className="bg-slate-900 text-white">
+                  {y}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

@@ -159,7 +159,7 @@ export const errorHandler = {
     return {
       code: 'unknown',
       userMessage: 'কিছু ত্রুটি ঘটেছে। আবার চেষ্টা করুন।',
-      technicalMessage: message || JSON.stringify(error),
+      technicalMessage: message || (error instanceof Error ? error.message : String(error)),
       severity: 'error'
     };
   },

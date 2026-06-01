@@ -1,0 +1,170 @@
+import React from 'react';
+import { 
+  LogOut, 
+  User, 
+  Clock, 
+  Coffee, 
+  Wifi, 
+  WifiOff, 
+  RefreshCw, 
+  Sun, 
+  Moon, 
+  Bell 
+} from 'lucide-react';
+import { Profile } from '@/types';
+import { formatWorkingHours } from '@/utils/dashboardHelpers';
+
+interface NavbarProps {
+  profile: Profile | null;
+  isOnline: boolean;
+  offlineCount: number;
+  theme: 'dark' | 'light';
+  onThemeToggle: () => void;
+  onManualSync: () => void;
+  onLogout: () => void;
+  onProfileSettingsClick: () => void;
+  onNotificationClick: () => void;
+  unreadUserNotificationsCount: number;
+  groupedSupervisorRequestsCount: number;
+  groupedChutiRequestsCount: number;
+  pendingReserveRequestsCount: number;
+  pendingProfileRequestsCount: number;
+  adminActiveTab: 'user' | 'admin';
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  profile,
+  isOnline,
+  offlineCount,
+  theme,
+  onThemeToggle,
+  onManualSync,
+  onLogout,
+  onProfileSettingsClick,
+  onNotificationClick,
+  unreadUserNotificationsCount,
+  groupedSupervisorRequestsCount,
+  groupedChutiRequestsCount,
+  pendingReserveRequestsCount,
+  pendingProfileRequestsCount,
+  adminActiveTab,
+}) => {
+  return (
+    <header className="bg-slate-900/40 backdrop-blur-md border-b border-slate-900 px-4 py-4 sm:px-6 lg:px-8 z-10">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onProfileSettingsClick}
+            className="p-2.5 bg-blue-600/15 rounded-xl border border-blue-500/20 text-blue-400 hover:bg-blue-600/25 transition-all cursor-pointer"
+            title="প্রোফাইল সেটিংস"
+          >
+            <User className="h-6 w-6" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              স্বাগতম, {profile?.full_name || 'User'} ({profile?.username ? profile.username.toUpperCase() : ''})
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                profile?.role === 'admin'
+                  ? 'bg-purple-950/60 border-purple-800 text-purple-300' 
+                  : profile?.role === 'supervisor'
+                  ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+                  : 'bg-blue-950/60 border-blue-800 text-blue-300'
+              }`}>
+                {profile?.job_role || (profile?.role === 'admin' ? 'Admin' : (profile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
+              </span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">রোল-ভিত্তিক অফিস অ্যাটেনডেন্স অ্যান্ড লিভ ট্র্যাকার</p>
+            {profile && (profile.role !== 'admin' || adminActiveTab === 'user') && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <div className="bg-slate-900/60 border border-slate-800/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 flex items-center gap-1.5 shadow-sm">
+                  <Clock className="h-3.5 w-3.5 text-blue-400" />
+                  <span>কর্মঘণ্টা: <strong className="text-white">{formatWorkingHours(profile.working_hours || 9.5)}</strong></span>
+                </div>
+                <div className="bg-slate-900/60 border border-slate-800/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 flex items-center gap-1.5 shadow-sm">
+                  <Coffee className="h-3.5 w-3.5 text-amber-400" />
+                  <span>ব্রেক টাইম: <strong className="text-white">{profile.break_time || 0} মিনিট</strong></span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Online/Offline Badge */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${
+            isOnline 
+              ? 'bg-emerald-950/50 border-emerald-800/80 text-emerald-400' 
+              : 'bg-amber-950/50 border-amber-800/80 text-amber-400'
+          }`}>
+            {isOnline ? (
+              <>
+                <Wifi className="h-4 w-4" /> অনলাইন
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4" /> অফলাইন
+              </>
+            )}
+          </div>
+
+          {/* Offline Sync Area */}
+          {offlineCount > 0 && (
+            <button
+              onClick={onManualSync}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-500 text-xs font-semibold cursor-pointer shadow-lg shadow-amber-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all border border-amber-700"
+            >
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              সিঙ্ক করুন ({offlineCount})
+            </button>
+          )}
+
+          {/* Theme Toggle */}
+          <button
+            onClick={onThemeToggle}
+            className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center"
+            title={theme === 'dark' ? 'লাইট মোড অন করুন' : 'ডার্ক মোড অন করুন'}
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-4.5 w-4.5 text-amber-500" />
+            ) : (
+              <Moon className="h-4.5 w-4.5 text-indigo-400" />
+            )}
+          </button>
+
+          {/* Notification Bell */}
+          {profile && (
+            <button
+              onClick={onNotificationClick}
+              className="relative p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-350 hover:text-white rounded-lg cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all"
+              title="নোটিফিকেশন"
+            >
+              <Bell className="h-4.5 w-4.5" />
+              {profile.role === 'supervisor' && (groupedSupervisorRequestsCount + unreadUserNotificationsCount) > 0 && (
+                <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
+                  {groupedSupervisorRequestsCount + unreadUserNotificationsCount}
+                </span>
+              )}
+              {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount) > 0 && (
+                <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
+                  {groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount}
+                </span>
+              )}
+              {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && unreadUserNotificationsCount > 0 && (
+                <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
+                  {unreadUserNotificationsCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <LogOut className="h-4 w-4" /> লগআউট
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+};

@@ -25,6 +25,8 @@ export interface Profile {
   allow_overtime?: boolean;
   has_edited_profile?: boolean;
   has_changed_password?: boolean;
+  max_full_leaves?: number;
+  max_short_leaves?: number;
 }
 
 export interface ChutiRecordWithProfile extends ChutiRecord {

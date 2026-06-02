@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserStats } from './UserStats';
-import { UserRecordsTable } from './UserRecordsTable';
+import { LeavesRecordsTable } from './LeavesRecordsTable';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { Profile } from '@/types';
 import { formatDate, formatTimeToAMPM, getCleanComment } from '@/utils/dashboardHelpers';
@@ -27,6 +27,7 @@ interface UserDashboardViewProps {
   onResetFilters: () => void;
   onExportCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
+  onExportPDF: (filtered: ChutiRecord[], searchTerm: string) => void;
   onAddLeaveClick: () => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
   onDeleteClick: (r: ChutiRecord) => void;
@@ -50,6 +51,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   onResetFilters,
   onExportCSV,
   onExportExcel,
+  onExportPDF,
   onAddLeaveClick,
   onToggleAdjustment,
   onDeleteClick,
@@ -64,7 +66,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         allowOvertime={profile?.allow_overtime}
       />
 
-      <UserRecordsTable 
+      <LeavesRecordsTable 
         records={filteredUserRecords}
         allowOvertime={profile?.allow_overtime}
         allowReserve={profile?.allow_reserve}
@@ -80,6 +82,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         onResetFilters={onResetFilters}
         onExportCSV={onExportCSV}
         onExportExcel={onExportExcel}
+        onExportPDF={onExportPDF}
         onAddLeaveClick={onAddLeaveClick}
         onToggleAdjustment={onToggleAdjustment}
         onDeleteClick={onDeleteClick}
@@ -88,6 +91,9 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         formatTimeToAMPM={formatTimeToAMPM}
         getCleanComment={getCleanComment}
         renderStatusBadge={renderStatusBadge}
+        title="আমার বাৎসরিক ছুটির রেকর্ডসমূহ"
+        emptyMessage="কোনো ছুটির রেকর্ড পাওয়া যায়নি। নতুন এন্ট্রি সাবমিট করুন।"
+        showPendingBadge={true}
       />
     </div>
   );

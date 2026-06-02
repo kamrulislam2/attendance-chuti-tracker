@@ -22,6 +22,8 @@ interface useAdminStaffOperationsParams {
   setAdminActiveTab: React.Dispatch<React.SetStateAction<'user' | 'admin'>>;
   handleLogout: () => Promise<void>;
   router: any;
+  setApprovingIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setApprovedIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 export const useAdminStaffOperations = ({
@@ -41,6 +43,8 @@ export const useAdminStaffOperations = ({
   setAdminActiveTab,
   handleLogout,
   router,
+  setApprovingIds,
+  setApprovedIds,
 }: useAdminStaffOperationsParams) => {
   // --- Welcome Onboarding Popup ---
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
@@ -106,6 +110,8 @@ export const useAdminStaffOperations = ({
   const [editAllowOvertime, setEditAllowOvertime] = useState(false);
   const [isEditRequestMode, setIsEditRequestMode] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [editMaxFullLeaves, setEditMaxFullLeaves] = useState('15');
+  const [editMaxShortLeaves, setEditMaxShortLeaves] = useState('15');
 
   // Sync state values on profile change
   useEffect(() => {
@@ -124,6 +130,8 @@ export const useAdminStaffOperations = ({
       setEditJobRole(profile.requested_job_role || profile.job_role || '');
       setProfileSignInTime(profile.requested_default_sign_in || profile.default_sign_in || '13:00');
       setProfileSignOutTime(profile.requested_default_sign_out || profile.default_sign_out || '22:30');
+      setEditMaxFullLeaves(String(profile.max_full_leaves ?? 15));
+      setEditMaxShortLeaves(String(profile.max_short_leaves ?? 15));
       
       if (profile.has_changed_password === false) {
         setShowFirstTimePasswordModal(true);
@@ -204,6 +212,8 @@ export const useAdminStaffOperations = ({
           needs_supervisor_approval: editNeedsApproval,
           allow_reserve: editAllowReserve,
           allow_overtime: editAllowOvertime,
+          max_full_leaves: parseInt(editMaxFullLeaves) || 15,
+          max_short_leaves: parseInt(editMaxShortLeaves) || 15,
         };
 
         const { error } = await supabase
@@ -229,6 +239,8 @@ export const useAdminStaffOperations = ({
           needs_supervisor_approval: editNeedsApproval,
           allow_reserve: editAllowReserve,
           allow_overtime: editAllowOvertime,
+          max_full_leaves: parseInt(editMaxFullLeaves) || 15,
+          max_short_leaves: parseInt(editMaxShortLeaves) || 15,
         };
 
         const { data: updatedProfile, error } = await supabase
@@ -529,6 +541,9 @@ export const useAdminStaffOperations = ({
 
   // Approve Profile update changes
   const handleApproveProfileChangeRequest = async (profileId: string, approve: boolean) => {
+    if (setApprovingIds) {
+      setApprovingIds(prev => new Set(prev).add(profileId));
+    }
     try {
       let updates: Record<string, unknown> = {};
       if (approve) {
@@ -576,57 +591,80 @@ export const useAdminStaffOperations = ({
         url: '/'
       }).catch(err => console.error('Error sending profile change push:', err));
       
-      setProfilesList(prev => prev.map(p => {
-        if (p.id === profileId) {
-          return {
-            ...p,
-            ...(approve ? {
-              full_name: p.requested_full_name || p.full_name,
-              working_hours: p.requested_working_hours || p.working_hours,
-              break_time: p.requested_break_time || p.break_time,
-              job_role: p.requested_job_role || p.job_role,
-              default_sign_in: p.requested_default_sign_in || p.default_sign_in,
-              default_sign_out: p.requested_default_sign_out || p.default_sign_out,
-            } : {}),
-            requested_full_name: null,
-            requested_working_hours: null,
-            requested_break_time: null,
-            requested_job_role: null,
-            requested_default_sign_in: null,
-            requested_default_sign_out: null,
-            profile_change_status: 'none'
-          };
-        }
-        return p;
-      }));
+      const updateLocalState = () => {
+        setProfilesList(prev => prev.map(p => {
+          if (p.id === profileId) {
+            return {
+              ...p,
+              ...(approve ? {
+                full_name: p.requested_full_name || p.full_name,
+                working_hours: p.requested_working_hours || p.working_hours,
+                break_time: p.requested_break_time || p.break_time,
+                job_role: p.requested_job_role || p.job_role,
+                default_sign_in: p.requested_default_sign_in || p.default_sign_in,
+                default_sign_out: p.requested_default_sign_out || p.default_sign_out,
+              } : {}),
+              requested_full_name: null,
+              requested_working_hours: null,
+              requested_break_time: null,
+              requested_job_role: null,
+              requested_default_sign_in: null,
+              requested_default_sign_out: null,
+              profile_change_status: 'none'
+            };
+          }
+          return p;
+        }));
 
-      if (sessionUser && sessionUser.id === profileId) {
-        setProfile((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            ...(approve ? {
-              full_name: prev.requested_full_name || prev.full_name,
-              working_hours: prev.requested_working_hours || prev.working_hours,
-              break_time: prev.requested_break_time || prev.break_time,
-              job_role: prev.requested_job_role || prev.job_role,
-              default_sign_in: prev.requested_default_sign_in || prev.default_sign_in,
-              default_sign_out: prev.requested_default_sign_out || prev.default_sign_out,
-            } : {}),
-            requested_full_name: null,
-            requested_working_hours: null,
-            requested_break_time: null,
-            requested_job_role: null,
-            requested_default_sign_in: null,
-            requested_default_sign_out: null,
-            profile_change_status: 'none'
-          };
-        });
+        if (sessionUser && sessionUser.id === profileId) {
+          setProfile((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              ...(approve ? {
+                full_name: prev.requested_full_name || prev.full_name,
+                working_hours: prev.requested_working_hours || prev.working_hours,
+                break_time: prev.requested_break_time || prev.break_time,
+                job_role: prev.requested_job_role || prev.job_role,
+                default_sign_in: prev.requested_default_sign_in || prev.default_sign_in,
+                default_sign_out: prev.requested_default_sign_out || prev.default_sign_out,
+              } : {}),
+              requested_full_name: null,
+              requested_working_hours: null,
+              requested_break_time: null,
+              requested_job_role: null,
+              requested_default_sign_in: null,
+              requested_default_sign_out: null,
+              profile_change_status: 'none'
+            };
+          });
+        }
+        fetchRecords();
+      };
+
+      if (setApprovingIds) {
+        setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
       }
-      
-      fetchRecords();
+
+      if (approve) {
+        if (setApprovedIds) {
+          setApprovedIds(prev => new Set(prev).add(profileId));
+          setTimeout(() => {
+            setApprovedIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
+            updateLocalState();
+          }, 1500);
+        } else {
+          updateLocalState();
+        }
+      } else {
+        updateLocalState();
+      }
+
       setMessage({ type: 'success', text: approve ? 'প্রোফাইল পরিবর্তন অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
     } catch (err) {
+      if (setApprovingIds) {
+        setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
+      }
       alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
     }
   };
@@ -731,6 +769,10 @@ export const useAdminStaffOperations = ({
     isEditRequestMode,
     setIsEditRequestMode,
     profileSubmitting,
+    editMaxFullLeaves,
+    setEditMaxFullLeaves,
+    editMaxShortLeaves,
+    setEditMaxShortLeaves,
 
     // Handlers
     handleUpdateSettings,

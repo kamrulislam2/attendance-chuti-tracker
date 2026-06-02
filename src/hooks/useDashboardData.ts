@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile } from '@/types';
 import { ChutiRecord, getOfflineRecords, syncOfflineData } from '@/utils/offlineSync';
+import { checkSubscriptionStatus } from '@/utils/webPushHelper';
 
 export const useDashboardData = () => {
   const router = useRouter();
@@ -115,6 +116,17 @@ export const useDashboardData = () => {
 
       if (profiles) {
         setProfilesList(profiles);
+      }
+    } else {
+      // For normal users, fetch only the list of supervisors to allow routing requests
+      const { data: supervisors } = await supabase
+        .from('profiles')
+        .select('id, username, role, full_name')
+        .eq('role', 'supervisor')
+        .order('username', { ascending: true });
+
+      if (supervisors) {
+        setProfilesList(supervisors as any[]);
       }
     }
     
@@ -304,6 +316,21 @@ export const useDashboardData = () => {
       }
 
       setProfile(userProfile as Profile);
+
+      // Optimistically restore push preference from localStorage on reload
+      const savedPref = localStorage.getItem('push_subscribed_pref_' + userId);
+      setIsPushSubscribed(savedPref === 'true');
+
+      // Verify actual subscription status asynchronously
+      checkSubscriptionStatus(userId)
+        .then((status) => {
+          setIsPushSubscribed(status.isSubscribed);
+          localStorage.setItem('push_subscribed_pref_' + userId, status.isSubscribed ? 'true' : 'false');
+        })
+        .catch((err) => {
+          console.error('Error verifying push status:', err);
+        });
+
       setLoading(false);
     };
 

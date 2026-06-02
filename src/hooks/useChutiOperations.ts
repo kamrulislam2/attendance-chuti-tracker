@@ -69,6 +69,8 @@ export const useChutiOperations = ({
   const [reserveHoliday, setReserveHoliday] = useState('');
   const [comment, setComment] = useState('');
   const [bulkDates, setBulkDates] = useState<string[]>([]);
+  const [bulkAdjustments, setBulkAdjustments] = useState<boolean[]>([]);
+  const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>([]);
 
   // --- Form states for Revision ---
   const [showUserRevisionModal, setShowUserRevisionModal] = useState(false);
@@ -114,12 +116,14 @@ export const useChutiOperations = ({
   useEffect(() => {
     if (leaveType !== 'Full Leave') {
       setBulkDates([]);
+      setBulkAdjustments([]);
     }
   }, [leaveType]);
 
   useEffect(() => {
     if (!showAddLeaveModal) {
       setBulkDates([]);
+      setBulkAdjustments([]);
     }
   }, [showAddLeaveModal]);
 
@@ -171,6 +175,7 @@ export const useChutiOperations = ({
       return;
     }
     setBulkDates(prev => [...prev, '']);
+    setBulkAdjustments(prev => [...prev, false]);
   };
 
   const handleUpdateBulkDate = (index: number, val: string) => {
@@ -181,8 +186,13 @@ export const useChutiOperations = ({
     setBulkDates(prev => prev.map((d, idx) => idx === index ? val : d));
   };
 
+  const handleUpdateBulkAdjustment = (index: number, val: boolean) => {
+    setBulkAdjustments(prev => prev.map((adj, idx) => idx === index ? val : adj));
+  };
+
   const handleRemoveBulkDate = (index: number) => {
     setBulkDates(prev => prev.filter((_, idx) => idx !== index));
+    setBulkAdjustments(prev => prev.filter((_, idx) => idx !== index));
   };
 
   // Submit Leave Request
@@ -196,10 +206,15 @@ export const useChutiOperations = ({
     const isReserve = leaveType === 'Reserve';
     const isFullLeave = leaveType === 'Full Leave';
 
-    // Gather all selected dates
-    const allDates = isFullLeave 
-      ? [date, ...bulkDates].filter(d => d)
-      : [date];
+    // Gather all selected dates with their adjustments
+    const datesWithAdjustment = isFullLeave
+      ? [
+          { date, adjustment },
+          ...bulkDates.map((d, idx) => ({ date: d, adjustment: bulkAdjustments[idx] || false }))
+        ].filter(item => item.date)
+      : [{ date, adjustment }];
+
+    const allDates = datesWithAdjustment.map(item => item.date);
 
     if (allDates.length === 0) {
       setMessage({ type: 'error', text: 'অন্তত একটি তারিখ নির্বাচন করুন!' });
@@ -216,24 +231,25 @@ export const useChutiOperations = ({
     const bypassSupervisor = 
       profile?.needs_supervisor_approval === false ||
       profile?.role === 'admin' ||
-      profile?.role === 'supervisor' ||
-      profile?.job_role === 'IT Manager' ||
-      profile?.job_role === 'IT Officer';
+      profile?.role === 'supervisor';
 
-    const getRecordForDate = (targetDate: string) => ({
+    const getRecordForDate = (targetDate: string, targetAdjustment: boolean) => ({
       user_id: sessionUser.id,
       date: targetDate,
       leave_type: leaveType,
-      adjustment: isReserve ? false : adjustment,
-      adjust_short_leave: (leaveType === 'Overtime' || leaveType === 'Reserve') && adjustment ? adjustShortLeave : false,
+      adjustment: isReserve ? false : targetAdjustment,
+      adjust_short_leave: (leaveType === 'Overtime' || leaveType === 'Reserve') && targetAdjustment ? adjustShortLeave : false,
       sign_in_time: (isReserve || isFullLeave) ? null : signInTime,
       sign_out_time: (isReserve || isFullLeave) ? null : signOutTime,
       leave_hour: (isReserve || isFullLeave) ? null : `${leaveHour}:00`,
       reserve_holiday: isReserve ? reserveHoliday : null,
-      reserve_adjustment_status: isReserve ? (adjustment ? 'pending' : 'none') : 'none',
+      reserve_adjustment_status: isReserve ? (targetAdjustment ? 'pending' : 'none') : 'none',
       status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
       comment: comment || null,
       bulk_id: bulkId,
+      admin_edit_request: (!bypassSupervisor && selectedSupervisors.length > 0)
+        ? { supervisor_ids: selectedSupervisors }
+        : null
     });
 
     const offlineItems = await getOfflineRecords();
@@ -251,13 +267,13 @@ export const useChutiOperations = ({
     if (!isOnline) {
       try {
         const addedTempRecords: ChutiRecord[] = [];
-        for (const targetDate of allDates) {
-          const rec = getRecordForDate(targetDate);
+        for (const item of datesWithAdjustment) {
+          const rec = getRecordForDate(item.date, item.adjustment);
           await saveOfflineRecord(rec);
           addedTempRecords.push({
             ...rec,
-            id: `temp-${Date.now()}-${targetDate}`,
-            localId: `local-${Date.now()}-${targetDate}`,
+            id: `temp-${Date.now()}-${item.date}`,
+            localId: `local-${Date.now()}-${item.date}`,
             synced: false
           });
         }
@@ -272,6 +288,7 @@ export const useChutiOperations = ({
         setReserveHoliday('');
         setAdjustShortLeave(false);
         setBulkDates([]);
+        setBulkAdjustments([]);
         setShowAddLeaveModal(false);
       } catch {
         setMessage({ type: 'error', text: 'অফলাইনে ডাটা সেভ করার সময় সমস্যা হয়েছে।' });
@@ -296,11 +313,15 @@ export const useChutiOperations = ({
         return;
       }
 
-      const recordsToInsert = allDates.map(d => getRecordForDate(d));
+      const recordsToInsert = datesWithAdjustment.map(item => getRecordForDate(item.date, item.adjustment));
       const { error: insertError } = await supabase.from('chuti').insert(recordsToInsert);
       if (insertError) throw insertError;
 
-      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
+      const targetRoles = bypassSupervisor 
+        ? ['admins'] 
+        : (selectedSupervisors.length > 0 
+            ? [...selectedSupervisors, 'admins'] 
+            : ['supervisors', 'admins']);
       const formattedDates = allDates.map(d => formatDate(d)).join(', ');
 
       sendPushNotification({
@@ -317,6 +338,8 @@ export const useChutiOperations = ({
       setReserveHoliday('');
       setAdjustShortLeave(false);
       setBulkDates([]);
+      setBulkAdjustments([]);
+      setSelectedSupervisors([]);
       setShowAddLeaveModal(false);
     } catch (err) {
       setMessage({ type: 'error', text: (err as Error).message || 'ডাটা সাবমিট করার সময় ত্রুটি ঘটেছে।' });
@@ -389,9 +412,7 @@ export const useChutiOperations = ({
       const bypassSupervisor = 
         profile?.needs_supervisor_approval === false ||
         profile?.role === 'admin' ||
-        profile?.role === 'supervisor' ||
-        profile?.job_role === 'IT Manager' ||
-        profile?.job_role === 'IT Officer';
+        profile?.role === 'supervisor';
 
       const updates = {
         date: revisionDate,
@@ -513,6 +534,10 @@ export const useChutiOperations = ({
     const chutiId = revisionPromptChutiId;
     if (!chutiId) return;
     const reasonText = revisionPromptText.trim();
+    if (!reasonText) {
+      alert('সংশোধনের জন্য পাঠানোর পূর্বে কারণ/মন্তব্য লেখা আবশ্যক!');
+      return;
+    }
     
     setSubmittingRevision(true);
     setReviewingIds(prev => new Set(prev).add(chutiId));
@@ -693,9 +718,6 @@ export const useChutiOperations = ({
           comment: updatedComment 
         };
 
-        setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
-        setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
-
         const { error } = await supabase
           .from('chuti')
           .update(updates)
@@ -712,11 +734,30 @@ export const useChutiOperations = ({
         url: '/'
       }).catch(err => console.error('Error triggering push notification for supervisor approval:', err));
 
+      const updateLocalState = () => {
+        targets.forEach(t => {
+          const updatedCommentPrefix = `${supervisorUsername} Approved`;
+          let updatedComment = t.comment || '';
+          updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
+
+          const updates = { 
+            status: 'approved_by_supervisor',
+            comment: updatedComment 
+          };
+
+          setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+          setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+        });
+        fetchRecords();
+      };
+
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
       setApprovedIds(prev => new Set(prev).add(chutiId));
-      setTimeout(() => setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; }), 1500);
+      setTimeout(() => {
+        setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
+        updateLocalState();
+      }, 1500);
 
-      fetchRecords();
       setMessage({ type: 'success', text: 'ছুটির আবেদনটি সুপারভাইজার সফলভাবে অনুমোদন করেছেন।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
@@ -781,9 +822,6 @@ export const useChutiOperations = ({
           }
         };
 
-        setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
-        setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
-
         const { error } = await supabase
           .from('chuti')
           .update(updates)
@@ -801,11 +839,45 @@ export const useChutiOperations = ({
         }).catch(err => console.error('Error sending push to staff:', err));
       }
 
+      const updateLocalState = () => {
+        targets.forEach(t => {
+          const updatedCommentPrefix = `${adminUsername} Approved`;
+          let updatedComment = t.comment || '';
+          updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
+
+          const newNotification = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
+            type: 'approved',
+            timestamp: new Date().toISOString(),
+            title: 'ছুটির আবেদন অনুমোদিত ✅',
+            body: `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
+          };
+          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
+            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
+            : [];
+
+          const updates = { 
+            status: 'approved',
+            comment: updatedComment,
+            admin_edit_request: {
+              ...(t.admin_edit_request || {}),
+              notifications: [...existingNotifications, newNotification]
+            }
+          };
+
+          setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+          setAdminRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));
+        });
+        fetchRecords();
+      };
+
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
       setApprovedIds(prev => new Set(prev).add(chutiId));
-      setTimeout(() => setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; }), 1500);
+      setTimeout(() => {
+        setApprovedIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
+        updateLocalState();
+      }, 1500);
 
-      fetchRecords();
       setMessage({ type: 'success', text: 'ছুটির আবেদনটি অ্যাডমিন সফলভাবে অনুমোদন করেছেন।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
@@ -841,8 +913,12 @@ export const useChutiOperations = ({
     setReserveHoliday,
     comment,
     setComment,
+    selectedSupervisors,
+    setSelectedSupervisors,
     bulkDates,
     setBulkDates,
+    bulkAdjustments,
+    setBulkAdjustments,
 
     showUserRevisionModal,
     setShowUserRevisionModal,
@@ -913,6 +989,7 @@ export const useChutiOperations = ({
     // handlers
     handleAddBulkDate,
     handleUpdateBulkDate,
+    handleUpdateBulkAdjustment,
     handleRemoveBulkDate,
     handleSubmit,
     handleConfirmDelete,

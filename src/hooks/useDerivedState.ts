@@ -144,10 +144,22 @@ export function useDerivedState({
     [adminRecords]
   );
 
-  const pendingSupervisorRequests = useMemo(() => 
-    adminRecords.filter(r => r.status === 'pending_supervisor' && r.user_id !== sessionUser?.id), 
-    [adminRecords, sessionUser]
-  );
+  const pendingSupervisorRequests = useMemo(() => {
+    return adminRecords.filter(r => {
+      if (r.status !== 'pending_supervisor') return false;
+      if (r.user_id === sessionUser?.id) return false;
+
+      const meta = r.admin_edit_request && typeof r.admin_edit_request === 'object'
+        ? (r.admin_edit_request as { supervisor_ids?: string[] })
+        : null;
+
+      if (meta && Array.isArray(meta.supervisor_ids) && meta.supervisor_ids.length > 0) {
+        return meta.supervisor_ids.includes(sessionUser?.id || '');
+      }
+
+      return true;
+    });
+  }, [adminRecords, sessionUser]);
 
   const groupedSupervisorRequests = useMemo(() => 
     groupPendingRequests(pendingSupervisorRequests as ChutiRecordWithProfile[]), 

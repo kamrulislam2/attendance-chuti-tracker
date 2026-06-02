@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, CheckCircle, Search } from 'lucide-react';
 import { Profile, BulkRepresentative } from '@/types';
 
 interface SupervisorApprovalModalProps {
@@ -68,6 +68,30 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
   revisionPromptText,
   submitRevisionWithReason,
 }) => {
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [leaveTypeFilter, setLeaveTypeFilter] = React.useState('all');
+
+  React.useEffect(() => {
+    if (!showSupervisorApprovalModal) {
+      setSearchQuery('');
+      setLeaveTypeFilter('all');
+    }
+  }, [showSupervisorApprovalModal]);
+
+  const filteredSupervisorRequests = React.useMemo(() => {
+    return groupedSupervisorRequests.filter(r => {
+      const user = profilesList.find(p => p.id === r.user_id);
+      const name = (user?.full_name || '').toLowerCase();
+      const username = (user?.username || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      const matchesSearch = !query || name.includes(query) || username.includes(query);
+      const matchesType = leaveTypeFilter === 'all' || r.leave_type === leaveTypeFilter;
+
+      return matchesSearch && matchesType;
+    });
+  }, [groupedSupervisorRequests, profilesList, searchQuery, leaveTypeFilter]);
+
   return (
     <>
       {/* Supervisor Leave Approvals Modal */}
@@ -78,7 +102,7 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
             
             <div className="flex justify-between items-center border-b border-slate-800/80 p-6">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-indigo-400 animate-pulse" /> পেন্ডিং ভেরিফিকেশন প্যানেল (Supervisor)
+                <AlertTriangle className="h-5 w-5 text-indigo-400 animate-pulse" /> পেন্ডিং ভেরিফিকেশন প্যানেল (Supervisor) (পেন্ডিং: {filteredSupervisorRequests.length}টি)
               </h3>
               <button 
                 onClick={() => setShowSupervisorApprovalModal(false)}
@@ -93,12 +117,73 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
                 <p className="font-semibold text-amber-400">💡 তথ্য সংশোধনের নিয়মাবলী:</p>
                 <p>সুপারভাইজার সরাসরি ছুটির অনুরোধ প্রত্যাখ্যান (Reject) করতে পারবেন না। কোনো সংশোধন প্রয়োজন হলে <strong>'রিভিশন পাঠান (Needs Review)'</strong> বাটনে ক্লিক করে ইউজারের কাছে সংশোধনের জন্য পাঠানো যাবে। ইউজার তথ্য সংশোধন করে পুনরায় সাবমিট করলে তা পুনরায় আপনার কাছে অনুমোদনের জন্য আসবে।</p>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-955/20 border border-slate-800/60 relative font-sans">
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider font-bold">স্টাফ খুঁজুন (নাম বা কোডনেম)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      <Search className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="স্টাফের নাম বা কোডনেম (@username) দিয়ে খুঁজুন..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer text-sm font-semibold"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider font-bold">ছুটির ধরন ফিল্টার</label>
+                    <select
+                      value={leaveTypeFilter}
+                      onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="all">সকল ক্যাটাগরি (All)</option>
+                      <option value="Short Leave">Short Leave</option>
+                      <option value="Full Leave">Full Leave</option>
+                      <option value="Overtime">Overtime</option>
+                      <option value="Reserve">Reserve</option>
+                    </select>
+                  </div>
+                  {(searchQuery || leaveTypeFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setLeaveTypeFilter('all');
+                      }}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-800 rounded-lg cursor-pointer transition-all shrink-0 flex items-center justify-center h-[32px] w-[32px]"
+                      title="রিসেট ফিল্টার"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {groupedSupervisorRequests.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-sm font-medium">
+                <div className="text-center py-12 text-slate-500 text-sm font-medium font-sans">
                   ভেরিফিকেশনের জন্য কোনো পেন্ডিং ছুটি নেই।
                 </div>
+              ) : filteredSupervisorRequests.length === 0 ? (
+                <div className="text-center py-12 bg-slate-955/40 border border-slate-850 rounded-xl text-amber-500/80 text-xs font-medium font-sans flex items-center justify-center gap-1.5 bg-amber-955/10 border-amber-950/20">
+                  <AlertTriangle className="h-4 w-4 shrink-0" /> অনুসন্ধানের সাথে মিল পাওয়া যায়নি।
+                </div>
               ) : (
-                groupedSupervisorRequests.map(r => {
+                filteredSupervisorRequests.map(r => {
                   const user = profilesList.find(p => p.id === r.user_id);
                   return (
                     <div key={r.id} className="bg-slate-955/60 border border-slate-850 rounded-xl p-4 flex flex-col md:flex-row justify-between gap-4">
@@ -222,9 +307,9 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
                 </button>
                 <button
                   type="button"
-                  disabled={submittingRevision}
+                  disabled={submittingRevision || !revisionPromptText.trim()}
                   onClick={submitRevisionWithReason}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingRevision && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                   {submittingRevision ? 'দাখিল হচ্ছে...' : 'দাখিল করুন'}

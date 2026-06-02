@@ -78,8 +78,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'ছুটি নোটিফিকেশন';
     const options = {
       body: data.body || 'নতুন নোটিফিকেশন এসেছে',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: self.location.origin + '/icon-192.png',
+      badge: self.location.origin + '/icon-192.png',
       vibrate: [100, 50, 100],
       data: {
         url: data.url || '/'
@@ -101,8 +101,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('ছুটি নোটিফিকেশন', {
         body: text,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico'
+        icon: self.location.origin + '/icon-192.png',
+        badge: self.location.origin + '/icon-192.png'
       })
     );
   }

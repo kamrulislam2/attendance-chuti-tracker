@@ -44,6 +44,10 @@ interface AdminProfileSettingsModalProps {
   setIsEditRequestMode: (val: boolean) => void;
   setupSubmitting: boolean;
   handleUpdateSettings: (e: React.FormEvent) => void;
+  editMaxFullLeaves: string;
+  setEditMaxFullLeaves: (val: string) => void;
+  editMaxShortLeaves: string;
+  setEditMaxShortLeaves: (val: string) => void;
 }
 
 export function AdminProfileSettingsModal({
@@ -85,6 +89,10 @@ export function AdminProfileSettingsModal({
   setIsEditRequestMode,
   setupSubmitting,
   handleUpdateSettings,
+  editMaxFullLeaves,
+  setEditMaxFullLeaves,
+  editMaxShortLeaves,
+  setEditMaxShortLeaves,
 }: AdminProfileSettingsModalProps) {
   if (!showProfileSettingsModal) return null;
 
@@ -134,6 +142,7 @@ export function AdminProfileSettingsModal({
                     
                     // Optimistically update the UI toggle state immediately
                     setIsPushSubscribed(willSubscribe);
+                    localStorage.setItem('push_subscribed_pref_' + sessionUser.id, willSubscribe ? 'true' : 'false');
                     setIsPushLoading(true);
                     
                     try {
@@ -142,17 +151,20 @@ export function AdminProfileSettingsModal({
                         if (!success) {
                           // Revert state if failed
                           setIsPushSubscribed(true);
+                          localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'true');
                         }
                       } else {
                         const success = await subscribeUserToPush(sessionUser.id);
                         if (!success) {
                           // Revert state if failed
                           setIsPushSubscribed(false);
+                          localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'false');
                         }
                       }
                     } catch {
                       // Revert on error
                       setIsPushSubscribed(!willSubscribe);
+                      localStorage.setItem('push_subscribed_pref_' + sessionUser.id, (!willSubscribe) ? 'true' : 'false');
                     } finally {
                       setIsPushLoading(false);
                     }
@@ -374,6 +386,29 @@ export function AdminProfileSettingsModal({
                       }`}
                     />
                   </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider">ফুল লিভ লিমিট (বার্ষিক)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editMaxFullLeaves}
+                      onChange={(e) => setEditMaxFullLeaves(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider">শর্ট লিভ লিমিট (ঘণ্টা)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editMaxShortLeaves}
+                      onChange={(e) => setEditMaxShortLeaves(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}

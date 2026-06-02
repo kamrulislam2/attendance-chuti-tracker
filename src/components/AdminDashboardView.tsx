@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Profile, ChutiRecordWithProfile } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { AdminRecordsTable } from './AdminRecordsTable';
+import { LeavesRecordsTable } from './LeavesRecordsTable';
 import { StaffMasterTable } from './StaffMasterTable';
 import { formatDate, formatTimeToAMPM, getCleanComment, formatWorkingHours } from '@/utils/dashboardHelpers';
 
@@ -36,6 +36,7 @@ interface AdminDashboardViewProps {
   onResetFilters: () => void;
   onExportIndividualCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportIndividualExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
+  onExportIndividualPDF: (filtered: ChutiRecord[], searchTerm: string) => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
   onEditClick: (r: ChutiRecord) => void;
   onDeleteClick: (r: ChutiRecord) => void;
@@ -57,6 +58,7 @@ interface AdminDashboardViewProps {
   onAddStaffClick: () => void;
   onExportSummaryCSV: () => void;
   onExportSummaryExcel: () => void;
+  onExportSummaryPDF: () => void;
   onAddLeaveClick: () => void;
 }
 
@@ -76,6 +78,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onResetFilters,
   onExportIndividualCSV,
   onExportIndividualExcel,
+  onExportIndividualPDF,
   onToggleAdjustment,
   onEditClick,
   onDeleteClick,
@@ -92,6 +95,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onAddStaffClick,
   onExportSummaryCSV,
   onExportSummaryExcel,
+  onExportSummaryPDF,
   onAddLeaveClick,
 }) => {
   const staffHours = staffStats.shortHours;
@@ -211,7 +215,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
 
           {/* Filtering Panel for viewed staff */}
-          <AdminRecordsTable 
+          <LeavesRecordsTable 
             records={individualRecords}
             allowOvertime={staffProfile?.allow_overtime}
             allowReserve={staffProfile?.allow_reserve}
@@ -224,6 +228,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             onResetFilters={onResetFilters}
             onExportCSV={onExportIndividualCSV}
             onExportExcel={onExportIndividualExcel}
+            onExportPDF={onExportIndividualPDF}
             onToggleAdjustment={onToggleAdjustment}
             onEditClick={onEditClick}
             onDeleteClick={onDeleteClick}
@@ -235,6 +240,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             selectedYear={selectedYear}
             setSelectedYear={setSelectedYear}
             availableYears={availableYears}
+            title="ছুটির বিবরণী রেকর্ডসমূহ"
+            emptyMessage="এই স্টাফের জন্য কোনো ছুটির রেকর্ড পাওয়া যায়নি।"
           />
         </div>
       ) : (
@@ -250,6 +257,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           onAddStaffClick={onAddStaffClick}
           onExportCSV={onExportSummaryCSV}
           onExportExcel={onExportSummaryExcel}
+          onExportPDF={onExportSummaryPDF}
           onViewDetails={setViewingStaffId}
         />
       )}

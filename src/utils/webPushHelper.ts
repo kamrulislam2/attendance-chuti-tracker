@@ -23,15 +23,30 @@ export async function subscribeUserToPush(userId: string): Promise<boolean> {
   }
 
   try {
-    // Request permission
-    const permission = await Notification.requestPermission();
+    // Request permission with promise/callback compatibility
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      try {
+        permission = await Notification.requestPermission();
+      } catch {
+        permission = await new Promise<NotificationPermission>((resolve) => {
+          Notification.requestPermission((res) => resolve(res));
+        });
+      }
+    }
+
     if (permission !== 'granted') {
-      console.warn('Notification permission not granted');
+      console.warn('Notification permission not granted:', permission);
       return false;
     }
 
-    // Register/get Service Worker
-    const registration = await navigator.serviceWorker.ready;
+    // Ensure service worker is registered first to avoid hanging on ready
+    let registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('/sw.js');
+    }
+
+    const activeReg = await navigator.serviceWorker.ready;
 
     // Get VAPID Public Key
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -43,7 +58,7 @@ export async function subscribeUserToPush(userId: string): Promise<boolean> {
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
     // Subscribe to push service
-    const subscription = await registration.pushManager.subscribe({
+    const subscription = await activeReg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: applicationServerKey as BufferSource,
     });
@@ -141,8 +156,13 @@ export async function checkSubscriptionStatus(userId: string): Promise<{
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    // Ensure service worker is registered first to avoid hanging on ready
+    let registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('/sw.js');
+    }
+    const readyReg = await navigator.serviceWorker.ready;
+    const subscription = await readyReg.pushManager.getSubscription();
 
     if (!subscription) {
       return { permission, isSubscribed: false };

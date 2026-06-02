@@ -130,10 +130,53 @@ export function useExportOperations({
     );
   }, [profilesList, searchQuery, selectedYear, filterType, filterStartDate, filterEndDate, setMessage, getUserSummaryStats]);
 
+  const handleExportIndividualPDF = useCallback((userId: string, recordsToExport?: ChutiRecord[], searchTerm?: string) => {
+    const staffProfile = profilesList.find(p => p.id === userId) || (userId === sessionUser?.id ? profile : null);
+    const finalRecords = recordsToExport || getFilteredRecordsForUser(userId);
+    
+    exportHelper.exportIndividualPDF(
+      userId,
+      finalRecords,
+      staffProfile,
+      sessionUser,
+      profile,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchTerm: searchTerm || '',
+      }
+    );
+  }, [profilesList, sessionUser, profile, selectedYear, filterType, filterStartDate, filterEndDate, getFilteredRecordsForUser]);
+
+  const handleExportSummaryPDF = useCallback(() => {
+    const staffProfiles = searchQuery.trim() 
+      ? profilesList.filter(p => 
+          (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+          (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : profilesList;
+
+    exportHelper.exportSummaryPDF(
+      staffProfiles,
+      getUserSummaryStats,
+      {
+        selectedYear,
+        filterType,
+        filterStartDate,
+        filterEndDate,
+        searchQuery,
+      }
+    );
+  }, [profilesList, searchQuery, selectedYear, filterType, filterStartDate, filterEndDate, getUserSummaryStats]);
+
   return {
     handleExportIndividualCSV,
     handleExportIndividualExcel,
+    handleExportIndividualPDF,
     handleExportSummaryCSV,
     handleExportSummaryExcel,
+    handleExportSummaryPDF,
   };
 }

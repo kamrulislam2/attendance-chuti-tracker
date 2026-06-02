@@ -39,6 +39,7 @@ interface StaffMasterTableProps {
   onAddStaffClick: () => void;
   onExportCSV: () => void;
   onExportExcel: () => void;
+  onExportPDF: () => void;
   onViewDetails: (id: string) => void;
 }
 
@@ -53,6 +54,7 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
   onAddStaffClick,
   onExportCSV,
   onExportExcel,
+  onExportPDF,
   onViewDetails,
 }) => {
   return (
@@ -72,8 +74,17 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
             placeholder="নাম বা কোডনেম দিয়ে খুঁজুন..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs transition-all dark:bg-slate-950/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
+            className="w-full pl-9 pr-10 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs transition-all dark:bg-slate-950/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer text-sm font-semibold"
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
         </div>
         
         {/* Master Export Summary buttons */}
@@ -95,6 +106,12 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
             className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
           >
             <Download className="h-3.5 w-3.5" /> Excel
+          </button>
+          <button
+            onClick={onExportPDF}
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-red-700 shadow-md"
+          >
+            <Download className="h-3.5 w-3.5" /> PDF
           </button>
           <select
             value={selectedYear}

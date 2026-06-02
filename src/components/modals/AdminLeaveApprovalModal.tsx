@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bell, CheckCircle, RefreshCw } from 'lucide-react';
+import { Bell, CheckCircle, RefreshCw, Search } from 'lucide-react';
 import { Profile, ChutiRecordWithProfile, BulkRepresentative } from '@/types';
 import { formatDate, formatTimeToAMPM } from '@/utils/dashboardHelpers';
 
@@ -36,6 +36,56 @@ export function AdminLeaveApprovalModal({
   pendingProfileRequests,
   handleApproveProfileChangeRequest,
 }: AdminLeaveApprovalModalProps) {
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [leaveTypeFilter, setLeaveTypeFilter] = React.useState('all');
+
+  React.useEffect(() => {
+    if (!showLeaveApprovalModal) {
+      setSearchQuery('');
+      setLeaveTypeFilter('all');
+    }
+  }, [showLeaveApprovalModal]);
+
+  const filteredChutiRequests = React.useMemo(() => {
+    return groupedChutiRequests.filter(r => {
+      const user = profilesList.find(p => p.id === r.user_id);
+      const name = (user?.full_name || '').toLowerCase();
+      const username = (user?.username || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      const matchesSearch = !query || name.includes(query) || username.includes(query);
+      const matchesType = leaveTypeFilter === 'all' || r.leave_type === leaveTypeFilter;
+
+      return matchesSearch && matchesType;
+    });
+  }, [groupedChutiRequests, profilesList, searchQuery, leaveTypeFilter]);
+
+  const filteredReserveRequests = React.useMemo(() => {
+    return pendingReserveRequests.filter(r => {
+      const user = profilesList.find(p => p.id === r.user_id);
+      const name = (user?.full_name || '').toLowerCase();
+      const username = (user?.username || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      const matchesSearch = !query || name.includes(query) || username.includes(query);
+      const matchesType = leaveTypeFilter === 'all' || r.leave_type === leaveTypeFilter;
+
+      return matchesSearch && matchesType;
+    });
+  }, [pendingReserveRequests, profilesList, searchQuery, leaveTypeFilter]);
+
+  const filteredProfileRequests = React.useMemo(() => {
+    if (leaveTypeFilter !== 'all') return [];
+
+    return pendingProfileRequests.filter(p => {
+      const name = (p.full_name || '').toLowerCase();
+      const username = (p.username || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      return !query || name.includes(query) || username.includes(query);
+    });
+  }, [pendingProfileRequests, searchQuery, leaveTypeFilter]);
+
   if (!showLeaveApprovalModal || profile?.role !== 'admin') return null;
 
   return (
@@ -61,18 +111,77 @@ export function AdminLeaveApprovalModal({
             <p>সুপারভাইজার বা অ্যাডমিন সরাসরি ছুটির অনুরোধ প্রত্যাখ্যান (Reject) করতে পারবেন না। তথ্যে ভুল বা সংশোধন প্রয়োজন হলে <strong>'রিভিশন পাঠান (Needs Review)'</strong> বাটনে ক্লিক করে ইউজারের কাছে সংশোধনের জন্য পাঠানো যাবে। ইউজার তথ্য সংশোধন করে পুনরায় সাবমিট করলে তা পুনরায় সুপারভাইজারের অনুমোদন হয়ে অ্যাডমিনের কাছে আসবে।</p>
           </div>
 
-          {/* Section 1: Leave Approvals */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-955/20 border border-slate-800/60 relative">
+            <div className="relative">
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">স্টাফ খুঁজুন (নাম বা কোডনেম)</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Search className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="স্টাফের নাম বা কোডনেম (@username) দিয়ে খুঁজুন..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-10 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all font-sans"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer text-sm font-semibold"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">ছুটির ধরন ফিল্টার</label>
+                <select
+                  value={leaveTypeFilter}
+                  onChange={(e) => setLeaveTypeFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer font-sans"
+                >
+                  <option value="all">সকল ক্যাটাগরি (All)</option>
+                  <option value="Short Leave">Short Leave</option>
+                  <option value="Full Leave">Full Leave</option>
+                  <option value="Overtime">Overtime</option>
+                  <option value="Reserve">Reserve</option>
+                </select>
+              </div>
+              {(searchQuery || leaveTypeFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setLeaveTypeFilter('all');
+                  }}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-800 rounded-lg cursor-pointer transition-all shrink-0 flex items-center justify-center"
+                  title="রিসেট ফিল্টার"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div>
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> ছুটির অনুরোধসমূহ (Pending Admin Approval)
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> ছুটির অনুরোধসমূহ (পেন্ডিং: {filteredChutiRequests.length}টি)
             </h4>
             {groupedChutiRequests.length === 0 ? (
-              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium">
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
                 অনুমোদনের জন্য কোনো পেন্ডিং ছুটি নেই।
               </div>
+            ) : filteredChutiRequests.length === 0 ? (
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
+                অনুসন্ধানের সাথে মিল পাওয়া যায়নি।
+              </div>
             ) : (
-              <div className="space-y-3">
-                {groupedChutiRequests.map(r => {
+              <div className="space-y-3 font-sans">
+                {filteredChutiRequests.map(r => {
                   const user = profilesList.find(p => p.id === r.user_id);
                   return (
                     <div key={r.id} className="bg-slate-955/60 border border-slate-850 rounded-xl p-4 flex flex-col md:flex-row justify-between gap-4">
@@ -138,18 +247,21 @@ export function AdminLeaveApprovalModal({
             )}
           </div>
 
-          {/* Section 2: Reserve & Overtime Adjustments */}
           <div>
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> রিজার্ভ, ওভারটাইম ও সমন্বয় অনুরোধসমূহ (Pending Requests & Adjustments)
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> রিজার্ভ, ওভারটাইম ও সমন্বয় অনুরোধসমূহ (পেন্ডিং: {filteredReserveRequests.length}টি)
             </h4>
             {pendingReserveRequests.length === 0 ? (
-              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium">
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
                 কোনো পেন্ডিং রিজার্ভ, ওভারটাইম বা সমন্বয় অনুরোধ নেই।
               </div>
+            ) : filteredReserveRequests.length === 0 ? (
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
+                অনুসন্ধানের সাথে মিল পাওয়া যায়নি।
+              </div>
             ) : (
-              <div className="space-y-3">
-                {pendingReserveRequests.map(r => {
+              <div className="space-y-3 font-sans">
+                {filteredReserveRequests.map(r => {
                   const user = profilesList.find(p => p.id === r.user_id);
                   const isAdjustmentRequest = r.reserve_adjustment_status === 'pending';
                   return (
@@ -274,15 +386,19 @@ export function AdminLeaveApprovalModal({
           {/* Section 3: Profile Approvals */}
           <div className="border-t border-slate-800/60 pt-6">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> প্রোফাইল পরিবর্তন অনুরোধসমূহ (Pending Profile Updates)
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> প্রোফাইল পরিবর্তন অনুরোধসমূহ (পেন্ডিং: {filteredProfileRequests.length}টি)
             </h4>
             {pendingProfileRequests.length === 0 ? (
-              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium">
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
                 কোনো পেন্ডিং প্রোফাইল পরিবর্তনের অনুরোধ নেই।
+              </div>
+            ) : filteredProfileRequests.length === 0 ? (
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
+                অনুসন্ধানের সাথে মিল পাওয়া যায়নি।
               </div>
             ) : (
               <div className="space-y-4 font-sans">
-                {pendingProfileRequests.map(p => (
+                {filteredProfileRequests.map(p => (
                   <div key={p.id} className="bg-slate-955/60 border border-slate-850 rounded-xl p-4 flex flex-col gap-4">
                     <div className="flex justify-between items-start">
                       <div>

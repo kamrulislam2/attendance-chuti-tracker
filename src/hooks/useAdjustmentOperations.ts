@@ -354,9 +354,6 @@ export const useAdjustmentOperations = ({
         updates.status = approve ? 'approved' : 'needs_review';
       }
 
-      setUserRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
-      setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
-
       const { error } = await supabase
         .from('chuti')
         .update(updates)
@@ -373,13 +370,23 @@ export const useAdjustmentOperations = ({
         }).catch(err => console.error('Error sending adjustment response push:', err));
       }
       
+      const updateLocalState = () => {
+        setUserRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
+        setAdminRecords(prev => prev.map(r => r.id === record.id ? { ...r, ...updates } : r));
+        fetchRecords();
+      };
+
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
       if (approve) {
         setApprovedIds(prev => new Set(prev).add(record.id));
-        setTimeout(() => setApprovedIds(prev => { const s = new Set(prev); s.delete(record.id); return s; }), 1500);
+        setTimeout(() => {
+          setApprovedIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
+          updateLocalState();
+        }, 1500);
+      } else {
+        updateLocalState();
       }
 
-      fetchRecords();
       setMessage({ type: 'success', text: approve ? 'সমন্বয় অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });

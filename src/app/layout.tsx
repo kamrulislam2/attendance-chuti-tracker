@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "ছুটি",
   description: "Secure chuti and leave tracking system for office staff",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ছুটি",
+  },
 };
 
 export default function RootLayout({

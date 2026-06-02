@@ -44,7 +44,9 @@ CREATE TABLE public.profiles (
   allow_reserve BOOLEAN DEFAULT FALSE,
   allow_overtime BOOLEAN DEFAULT FALSE,
   has_edited_profile BOOLEAN NOT NULL DEFAULT FALSE,
-  has_changed_password BOOLEAN NOT NULL DEFAULT FALSE
+  has_changed_password BOOLEAN NOT NULL DEFAULT FALSE,
+  max_full_leaves INTEGER DEFAULT 15,
+  max_short_leaves INTEGER DEFAULT 15
 );
 
 -- Enable RLS on Profiles
@@ -293,7 +295,7 @@ CREATE OR REPLACE FUNCTION public.admin_insert_chuti_records_bulk(
   p_user_id UUID,
   p_dates DATE[],
   p_leave_type TEXT,
-  p_adjustment BOOLEAN,
+  p_adjustments BOOLEAN[],
   p_adjust_short_leave BOOLEAN,
   p_sign_in_time TIME DEFAULT NULL,
   p_sign_out_time TIME DEFAULT NULL,
@@ -305,12 +307,15 @@ CREATE OR REPLACE FUNCTION public.admin_insert_chuti_records_bulk(
 RETURNS VOID AS $$
 DECLARE
   v_date DATE;
+  v_idx INT := 1;
+  v_adjustment BOOLEAN;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Only admins can insert chuti records for other users';
   END IF;
 
   FOREACH v_date IN ARRAY p_dates LOOP
+    v_adjustment := p_adjustments[v_idx];
     INSERT INTO public.chuti (
       user_id,
       date,
@@ -330,17 +335,18 @@ BEGIN
       p_user_id,
       v_date,
       p_leave_type,
-      p_adjustment,
-      p_adjust_short_leave,
+      v_adjustment,
+      CASE WHEN (p_leave_type = 'Overtime' OR p_leave_type = 'Reserve') AND v_adjustment THEN p_adjust_short_leave ELSE false END,
       p_sign_in_time,
       p_sign_out_time,
       p_leave_hour,
       p_reserve_holiday,
-      CASE WHEN p_leave_type = 'Reserve' AND p_adjustment THEN 'approved'::TEXT ELSE 'none'::TEXT END,
+      CASE WHEN p_leave_type = 'Reserve' AND v_adjustment THEN 'approved'::TEXT ELSE 'none'::TEXT END,
       'approved', -- Admin added records are auto-approved
       p_comment,
       p_bulk_id
     );
+    v_idx := v_idx + 1;
   END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

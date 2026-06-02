@@ -48,6 +48,7 @@ export default function Dashboard() {
     setIsPushSubscribed,
     isPushLoading,
     setIsPushLoading,
+    loading,
 
     submitting,
     setSubmitting,
@@ -177,9 +178,13 @@ export default function Dashboard() {
     setReserveHoliday,
     comment,
     setComment,
+    selectedSupervisors,
+    setSelectedSupervisors,
     bulkDates,
+    bulkAdjustments,
     handleAddBulkDate,
     handleUpdateBulkDate,
+    handleUpdateBulkAdjustment,
     handleRemoveBulkDate,
     handleSubmit,
 
@@ -309,6 +314,8 @@ export default function Dashboard() {
     setAdminActiveTab,
     handleLogout,
     router,
+    setApprovingIds,
+    setApprovedIds,
   });
 
   const {
@@ -410,6 +417,10 @@ export default function Dashboard() {
     setEditAllowOvertime,
     isEditRequestMode,
     setIsEditRequestMode,
+    editMaxFullLeaves,
+    setEditMaxFullLeaves,
+    editMaxShortLeaves,
+    setEditMaxShortLeaves,
 
     handleUpdateSettings,
     handleApproveProfileChangeRequest,
@@ -433,8 +444,10 @@ export default function Dashboard() {
   const {
     handleExportIndividualCSV,
     handleExportIndividualExcel,
+    handleExportIndividualPDF,
     handleExportSummaryCSV,
     handleExportSummaryExcel,
+    handleExportSummaryPDF,
   } = exportOps;
 
   // Modal open/close handlers
@@ -468,6 +481,7 @@ export default function Dashboard() {
     setAdjustShortLeave,
     setDate,
     setShowAddLeaveModal,
+    setSelectedSupervisors,
     setEditingStaffProfileId,
     setEditUsername,
     setIsCodenameEditable,
@@ -482,6 +496,8 @@ export default function Dashboard() {
     setEditNeedsApproval,
     setEditAllowReserve,
     setEditAllowOvertime,
+    setEditMaxFullLeaves,
+    setEditMaxShortLeaves,
     setCredTargetUserId,
     setCredNewUsername,
     setCredNewPassword,
@@ -509,6 +525,19 @@ export default function Dashboard() {
 
   // StatusBadge render helper (wraps the component for prop compatibility)
   const renderStatusBadge = (r: import('@/utils/offlineSync').ChutiRecord) => <StatusBadge record={r} />;
+
+  if (loading) {
+    return (
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center relative overflow-hidden">
+        <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-blue-900/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-violet-900/10 blur-[120px] pointer-events-none" />
+        <div className="flex flex-col items-center gap-3 z-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+          <span className="text-slate-400 text-xs font-semibold tracking-wider">লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
@@ -557,7 +586,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full z-10 flex-1 flex flex-col gap-6">
         
         {/* ================= STAFF VIEW ================= */}
-        {(profile?.role !== 'admin' || adminActiveTab === 'user') && (
+        {profile?.has_changed_password !== false && (profile?.role === 'admin' || profile?.is_setup_completed !== false) && (profile?.role !== 'admin' || adminActiveTab === 'user') && (
           <UserDashboardView
             profile={profile}
             userStats={userStats}
@@ -577,6 +606,7 @@ export default function Dashboard() {
             onResetFilters={() => handleResetFilters(setFilterType, setFilterStartDate, setFilterEndDate)}
             onExportCSV={(filtered, term) => handleExportIndividualCSV(sessionUser?.id || '', filtered, term)}
             onExportExcel={(filtered, term) => handleExportIndividualExcel(sessionUser?.id || '', filtered, term)}
+            onExportPDF={(filtered, term) => handleExportIndividualPDF(sessionUser?.id || '', filtered, term)}
             onAddLeaveClick={handleOpenAddLeaveModal}
             onToggleAdjustment={handleToggleAdjustmentClick}
             onDeleteClick={triggerDeleteRecord}
@@ -586,7 +616,7 @@ export default function Dashboard() {
         )}
 
         {/* ================= ADMIN VIEW ================= */}
-        {profile?.role === 'admin' && adminActiveTab === 'admin' && (
+        {profile?.has_changed_password !== false && profile?.role === 'admin' && adminActiveTab === 'admin' && (
           <AdminDashboardView
             profilesList={profilesList}
             viewingStaffId={viewingStaffId}
@@ -603,6 +633,7 @@ export default function Dashboard() {
             onResetFilters={() => handleResetFilters(setFilterType, setFilterStartDate, setFilterEndDate)}
             onExportIndividualCSV={(filtered, term) => handleExportIndividualCSV(viewingStaffId || '', filtered, term)}
             onExportIndividualExcel={(filtered, term) => handleExportIndividualExcel(viewingStaffId || '', filtered, term)}
+            onExportIndividualPDF={(filtered, term) => handleExportIndividualPDF(viewingStaffId || '', filtered, term)}
             onToggleAdjustment={handleToggleAdjustmentClick}
             onEditClick={handleOpenAdminEditModal}
             onDeleteClick={triggerDeleteRecord}
@@ -622,6 +653,7 @@ export default function Dashboard() {
             onAddStaffClick={() => setShowCreateUserModal(true)}
             onExportSummaryCSV={handleExportSummaryCSV}
             onExportSummaryExcel={handleExportSummaryExcel}
+            onExportSummaryPDF={handleExportSummaryPDF}
             onAddLeaveClick={() => setShowAdminAddLeaveModal(true)}
           />
         )}
@@ -668,6 +700,7 @@ export default function Dashboard() {
         setShowModal={setShowAdminAddLeaveModal}
         staffProfile={staffProfile}
         onSuccess={fetchRecords}
+        records={individualRecords}
       />
 
       {/* User Leave & Personal Notifications Modals */}
@@ -693,12 +726,18 @@ export default function Dashboard() {
         comment={comment}
         setComment={setComment}
         bulkDates={bulkDates}
+        bulkAdjustments={bulkAdjustments}
         handleAddBulkDate={handleAddBulkDate}
         handleUpdateBulkDate={handleUpdateBulkDate}
+        handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
         handleRemoveBulkDate={handleRemoveBulkDate}
         profile={profile}
         submitting={submitting}
         handleSubmit={handleSubmit}
+        records={userRecords}
+        profilesList={profilesList}
+        selectedSupervisors={selectedSupervisors}
+        setSelectedSupervisors={setSelectedSupervisors}
       />
 
       <UserRevisionModal
@@ -832,6 +871,10 @@ export default function Dashboard() {
         setIsEditRequestMode={setIsEditRequestMode}
         setupSubmitting={setupSubmitting}
         handleUpdateSettings={handleUpdateSettings}
+        editMaxFullLeaves={editMaxFullLeaves}
+        setEditMaxFullLeaves={setEditMaxFullLeaves}
+        editMaxShortLeaves={editMaxShortLeaves}
+        setEditMaxShortLeaves={setEditMaxShortLeaves}
       />
 
       <AdminLeaveApprovalModal

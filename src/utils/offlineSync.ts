@@ -5,6 +5,7 @@ export interface AdminEditRequest {
   adjust_short_leave?: boolean;
   adjustment?: boolean;
   notifications?: any[];
+  supervisor_ids?: string[];
 }
 
 export interface ChutiRecord {
@@ -266,6 +267,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             adjust_short_leave: record.adjust_short_leave || false,
             reserve_adjustment_status: record.reserve_adjustment_status || 'none',
             bulk_id: record.bulk_id || null,
+            admin_edit_request: record.admin_edit_request || null,
           });
 
           if (insertError) {

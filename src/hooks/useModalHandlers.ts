@@ -38,6 +38,7 @@ interface UseModalHandlersParams {
   setAdjustShortLeave: (v: boolean) => void;
   setDate: (d: string) => void;
   setShowAddLeaveModal: (v: boolean) => void;
+  setSelectedSupervisors?: (ids: string[]) => void;
 
   // Profile settings setters (from useAdminStaffOperations)
   setEditingStaffProfileId: (id: string | null) => void;
@@ -54,6 +55,8 @@ interface UseModalHandlersParams {
   setEditNeedsApproval: (v: boolean) => void;
   setEditAllowReserve: (v: boolean) => void;
   setEditAllowOvertime: (v: boolean) => void;
+  setEditMaxFullLeaves: (v: string) => void;
+  setEditMaxShortLeaves: (v: string) => void;
 
   // Credentials modal setters
   setCredTargetUserId: (id: string) => void;
@@ -104,6 +107,7 @@ export function useModalHandlers({
   setAdjustShortLeave,
   setDate,
   setShowAddLeaveModal,
+  setSelectedSupervisors,
   setEditingStaffProfileId,
   setEditUsername,
   setIsCodenameEditable,
@@ -118,6 +122,8 @@ export function useModalHandlers({
   setEditNeedsApproval,
   setEditAllowReserve,
   setEditAllowOvertime,
+  setEditMaxFullLeaves,
+  setEditMaxShortLeaves,
   setCredTargetUserId,
   setCredNewUsername,
   setCredNewPassword,
@@ -136,11 +142,14 @@ export function useModalHandlers({
     setComment('');
     setReserveHoliday('');
     setAdjustShortLeave(false);
+    if (setSelectedSupervisors) {
+      setSelectedSupervisors([]);
+    }
     const today = new Date();
     const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     setDate(localDate);
     setShowAddLeaveModal(true);
-  }, [setComment, setReserveHoliday, setAdjustShortLeave, setDate, setShowAddLeaveModal]);
+  }, [setComment, setReserveHoliday, setAdjustShortLeave, setDate, setShowAddLeaveModal, setSelectedSupervisors]);
 
   // Open "User Revision" modal with record data
   const handleOpenRevisionModal = useCallback((r: ChutiRecord) => {
@@ -188,7 +197,9 @@ export function useModalHandlers({
     setEditNeedsApproval(profile?.needs_supervisor_approval !== false);
     setEditAllowReserve(profile?.allow_reserve === true);
     setEditAllowOvertime(profile?.allow_overtime === true);
-  }, [profile, setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setShowProfileSettingsModal, setIsEditRequestMode, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime]);
+    setEditMaxFullLeaves(String(profile?.max_full_leaves ?? 15));
+    setEditMaxShortLeaves(String(profile?.max_short_leaves ?? 15));
+  }, [profile, setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setShowProfileSettingsModal, setIsEditRequestMode, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditMaxShortLeaves]);
 
   // Open Profile Settings for a specific staff member (admin)
   const handleOpenProfileSettingsForStaff = useCallback((staff: Profile) => {
@@ -204,8 +215,10 @@ export function useModalHandlers({
     setEditNeedsApproval(staff.needs_supervisor_approval !== false);
     setEditAllowReserve(staff.allow_reserve === true);
     setEditAllowOvertime(staff.allow_overtime === true);
+    setEditMaxFullLeaves(String(staff.max_full_leaves ?? 15));
+    setEditMaxShortLeaves(String(staff.max_short_leaves ?? 15));
     setShowProfileSettingsModal(true);
-  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setShowProfileSettingsModal]);
+  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditMaxShortLeaves, setShowProfileSettingsModal]);
 
   // Open Credentials modal
   const handleOpenCredentialsModal = useCallback((userId: string, username: string) => {

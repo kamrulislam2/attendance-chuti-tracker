@@ -32,7 +32,7 @@ interface StaffMasterTableProps {
   profilesList: Profile[];
   searchQuery: string;
   setSearchQuery: (val: string) => void;
-  getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string; reserve: number };
+  getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string };
   selectedYear: string;
   setSelectedYear: (val: string) => void;
   availableYears: string[];
@@ -61,9 +61,9 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
     <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
       <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <User className="h-5 w-5 text-purple-500" /> স্টাফ উপস্থিতি ও ছুটির মাস্টার ডাটাবেজ
+          <User className="h-5 w-5 text-purple-500" /> স্টাফ ছুটির মাস্টার ডাটাবেজ
         </h3>
-        
+
         {/* Search Input */}
         <div className="relative w-full sm:max-w-xs">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 dark:text-slate-500">
@@ -86,12 +86,12 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
             </button>
           )}
         </div>
-        
+
         {/* Master Export Summary buttons */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <button
             onClick={onAddStaffClick}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md mr-2"
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md"
           >
             <Plus className="h-3.5 w-3.5" /> Add Staff
           </button>
@@ -143,14 +143,13 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ফুল লিভ (Unadjusted)</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">শর্ট লিভ (Unadjusted)</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম (Unadjusted)</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রিজার্ভ হলিডে (Unadjusted)</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">স্টাফ বিস্তারিত</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-850 bg-slate-900/20">
               {profilesList
-                .filter(p => 
-                  (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                .filter(p =>
+                  (p.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                   (p.username || '').toLowerCase().includes(searchQuery.toLowerCase())
                 )
                 .map((p) => {
@@ -176,9 +175,6 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
                         {p.allow_overtime ? `${stats.overtime} ঘণ্টা` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                        {p.allow_reserve ? `${stats.reserve} দিন` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button

@@ -5,13 +5,6 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ record: r }: StatusBadgeProps) {
-  if (r.leave_type === 'Reserve' && r.reserve_adjustment_status === 'pending') {
-    return (
-      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-900 border border-slate-800 text-slate-400" title="Adjustment Pending">
-        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block animate-pulse"></span>
-      </span>
-    );
-  }
   if (r.status === 'approved') {
     return (
       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-950/60 border border-emerald-950/80 text-emerald-400" title="Approved">

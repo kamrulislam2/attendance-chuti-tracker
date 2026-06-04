@@ -465,3 +465,13 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 500;
 }
 
+/* Prevent layout shift/theme transition flash on page load */
+.preload,
+.preload * {
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -ms-transition: none !important;
+  -o-transition: none !important;
+  transition: none !important;
+}
+

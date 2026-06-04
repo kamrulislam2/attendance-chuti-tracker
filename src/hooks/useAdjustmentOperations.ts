@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile } from '@/types';
 import { ChutiRecord, saveOfflineUpdate } from '@/utils/offlineSync';
-import { formatDate, formatTimeToAMPM, getDetailedLeaveLabel } from '@/utils/dashboardHelpers';
+import { formatDate, formatTimeToAMPM, getDetailedLeaveLabel, getExistingNotifications, createNotification } from '@/utils/dashboardHelpers';
 import { sendPushNotification } from '@/utils/webPushHelper';
 
 interface useAdjustmentOperationsParams {
@@ -75,21 +75,17 @@ export const useAdjustmentOperations = ({
         : formatDate(record.date);
       const leaveLabel = getDetailedLeaveLabel(record);
 
-      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
-        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
-        : [];
+      const existingNotifications = getExistingNotifications(record);
       const isAdmin = profile?.role === 'admin' && adminActiveTab === 'admin';
 
       let updates: Record<string, unknown> = {};
 
       if (isAdmin) {
-        const newNotification = {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-          type: 'cancelled',
-          timestamp: new Date().toISOString(),
-          title: `${record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়'} বাতিল ⚠️`,
-          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`
-        };
+        const newNotification = createNotification(
+          'cancelled',
+          'ছুটি সমন্বয় বাতিল ⚠️',
+          `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`
+        );
 
         updates = { 
           adjustment: false, 
@@ -127,7 +123,7 @@ export const useAdjustmentOperations = ({
 
         if (isAdmin) {
           if (record?.user_id) {
-            const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+            const actionLabel = 'ছুটি সমন্বয়';
             sendPushNotification({
               userIds: [record.user_id],
               title: `${actionLabel} বাতিল ⚠️`,
@@ -176,7 +172,7 @@ export const useAdjustmentOperations = ({
         } else {
           const timeRegex = /^([0-9]{1,2}):([0-5][0-9])$/;
           if (!timeRegex.test(partialAdjustmentTime)) {
-            alert('সঠিক সময় ফরম্যাট ব্যবহার করুন (যেমন: ০২:৩০)।');
+            setMessage({ type: 'error', text: 'সঠিক সময় ফরম্যাট ব্যবহার করুন (যেমন: ০২:৩০)।' });
             setSubmitting(false);
             return;
           }
@@ -185,37 +181,30 @@ export const useAdjustmentOperations = ({
       } else if (record.leave_type === 'Overtime') {
         const shouldAdjust = overrideAdjustShortLeave !== undefined ? overrideAdjustShortLeave : adjustShortLeaveOption;
         requestedUpdates = { adjustment: true, adjusted_hour: null, adjust_short_leave: shouldAdjust };
-      } else if (record.leave_type === 'Reserve') {
-        const shouldAdjust = overrideAdjustShortLeave !== undefined ? overrideAdjustShortLeave : adjustShortLeaveOption;
-        requestedUpdates = { reserve_adjustment_status: isAdmin ? 'approved' : 'pending', adjustment: isAdmin, adjust_short_leave: shouldAdjust };
       } else {
         requestedUpdates = { adjustment: true, adjusted_hour: null, adjust_short_leave: false };
       }
 
       let updates: Record<string, unknown> = {};
-      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
-        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
-        : [];
+      const existingNotifications = getExistingNotifications(record);
 
       if (isAdmin) {
-        const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        const actionLabel = 'ছুটি সমন্বয়';
         const leaveLabel = getDetailedLeaveLabel(record);
         const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
         const dateTimeStr = isShortOrOvertime
           ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
           : formatDate(record.date);
 
-        const newNotification = {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-          type: 'adjusted',
-          timestamp: new Date().toISOString(),
-          title: `${actionLabel} সম্পন্ন ✅`,
-          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`
-        };
+        const newNotification = createNotification(
+          'adjusted',
+          `${actionLabel} সম্পন্ন ✅`,
+          `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`
+        );
 
         updates = {
           ...requestedUpdates,
-          reserve_adjustment_status: record.leave_type === 'Reserve' ? 'approved' : 'none',
+          reserve_adjustment_status: 'none',
           admin_edit_request: {
             notifications: [...existingNotifications, newNotification]
           }
@@ -253,7 +242,7 @@ export const useAdjustmentOperations = ({
           url: '/'
         }).catch(err => console.error('Error triggering push notification for adjustment:', err));
       } else if (record?.user_id) {
-        const actionLabel = record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়';
+        const actionLabel = 'ছুটি সমন্বয়';
         const leaveLabel = getDetailedLeaveLabel(record);
         const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
         const dateTimeStr = isShortOrOvertime
@@ -270,8 +259,8 @@ export const useAdjustmentOperations = ({
 
       setMessage({ 
         type: 'success', 
-        text: (isAdmin || record.leave_type === 'Reserve')
-          ? (isAdmin ? 'ছুটি সমন্বয় সফলভাবে সম্পন্ন করা হয়েছে।' : 'রিজার্ভ সমন্বয় অনুরোধ সফলভাবে পাঠানো হয়েছে।')
+        text: isAdmin
+          ? 'ছুটি সমন্বয় সফলভাবে সম্পন্ন করা হয়েছে।'
           : 'সমন্বয় অনুরোধ সফলভাবে পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় রয়েছে।'
       });
     } catch (err) {
@@ -330,21 +319,17 @@ export const useAdjustmentOperations = ({
         ? `${adminName} আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি অনুমোদন করেছেন।`
         : `আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি প্রত্যাখ্যান করা হয়েছে।`;
 
-      const existingNotifications = (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request)
-        ? (record.admin_edit_request as { notifications?: any[] }).notifications || []
-        : [];
+      const existingNotifications = getExistingNotifications(record);
 
       const titleLabel = isCancelRequest 
-        ? `${record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়'} বাতিল` 
-        : (record.leave_type === 'Reserve' ? 'রিজার্ভ সমন্বয়' : 'ছুটি সমন্বয়');
+        ? 'ছুটি সমন্বয় বাতিল' 
+        : 'ছুটি সমন্বয়';
 
-      const newNotification = {
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-        type: approve ? 'approved' : 'rejected',
-        timestamp: new Date().toISOString(),
-        title: `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
-        body: bodyText
-      };
+      const newNotification = createNotification(
+        approve ? 'approved' : 'rejected',
+        `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+        bodyText
+      );
 
       updates.admin_edit_request = {
         notifications: [...existingNotifications, newNotification]
@@ -390,7 +375,7 @@ export const useAdjustmentOperations = ({
       setMessage({ type: 'success', text: approve ? 'সমন্বয় অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
     }
   };
 

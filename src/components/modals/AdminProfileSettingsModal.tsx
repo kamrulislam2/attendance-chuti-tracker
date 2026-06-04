@@ -4,6 +4,7 @@ import React from 'react';
 import { User, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Profile } from '@/types';
 import { subscribeUserToPush, unsubscribeUserFromPush } from '@/utils/webPushHelper';
+import { ProfileFields } from '../ProfileFields';
 
 interface AdminProfileSettingsModalProps {
   showProfileSettingsModal: boolean;
@@ -40,14 +41,16 @@ interface AdminProfileSettingsModalProps {
   setEditAllowReserve: (val: boolean) => void;
   editAllowOvertime: boolean;
   setEditAllowOvertime: (val: boolean) => void;
+  editEligibleOfficeLeave: boolean;
+  setEditEligibleOfficeLeave: (val: boolean) => void;
+  editEligibleGovtHoliday: boolean;
+  setEditEligibleGovtHoliday: (val: boolean) => void;
   isEditRequestMode: boolean;
   setIsEditRequestMode: (val: boolean) => void;
   setupSubmitting: boolean;
   handleUpdateSettings: (e: React.FormEvent) => void;
   editMaxFullLeaves: string;
   setEditMaxFullLeaves: (val: string) => void;
-  editMaxShortLeaves: string;
-  setEditMaxShortLeaves: (val: string) => void;
 }
 
 export function AdminProfileSettingsModal({
@@ -85,14 +88,16 @@ export function AdminProfileSettingsModal({
   setEditAllowReserve,
   editAllowOvertime,
   setEditAllowOvertime,
+  editEligibleOfficeLeave,
+  setEditEligibleOfficeLeave,
+  editEligibleGovtHoliday,
+  setEditEligibleGovtHoliday,
   isEditRequestMode,
   setIsEditRequestMode,
   setupSubmitting,
   handleUpdateSettings,
   editMaxFullLeaves,
   setEditMaxFullLeaves,
-  editMaxShortLeaves,
-  setEditMaxShortLeaves,
 }: AdminProfileSettingsModalProps) {
   if (!showProfileSettingsModal) return null;
 
@@ -101,12 +106,12 @@ export function AdminProfileSettingsModal({
       <div className="flex min-h-full items-center justify-center">
         <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden my-8">
           <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
-          
+
           <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <User className="h-5 w-5 text-blue-500" /> প্রোফাইল সেটিংস
             </h3>
-            <button 
+            <button
               onClick={() => {
                 setShowProfileSettingsModal(false);
                 setIsEditRequestMode(false);
@@ -137,14 +142,14 @@ export function AdminProfileSettingsModal({
                   disabled={isPushLoading}
                   onClick={async () => {
                     if (!sessionUser || isPushLoading) return;
-                    
+
                     const willSubscribe = !isPushSubscribed;
-                    
+
                     // Optimistically update the UI toggle state immediately
                     setIsPushSubscribed(willSubscribe);
                     localStorage.setItem('push_subscribed_pref_' + sessionUser.id, willSubscribe ? 'true' : 'false');
                     setIsPushLoading(true);
-                    
+
                     try {
                       if (!willSubscribe) {
                         const success = await unsubscribeUserFromPush(sessionUser.id);
@@ -169,19 +174,17 @@ export function AdminProfileSettingsModal({
                       setIsPushLoading(false);
                     }
                   }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isPushSubscribed ? 'bg-blue-600' : 'bg-slate-800'
-                  } ${isPushLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isPushSubscribed ? 'bg-blue-600' : 'bg-slate-800'
+                    } ${isPushLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isPushSubscribed ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isPushSubscribed ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
             )}
-            
+
             {profile?.role === 'admin' && !editingStaffProfileId && (
               <div className="admin-mode-banner flex items-center justify-between p-3 bg-purple-955/45 rounded-lg border border-purple-900/35 mb-4 shadow-inner">
                 <div>
@@ -198,19 +201,17 @@ export function AdminProfileSettingsModal({
                       localStorage.setItem('admin_mode_' + sessionUser.id, nextVal);
                     }
                   }}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    adminActiveTab === 'admin' ? 'bg-purple-600' : 'bg-slate-800'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${adminActiveTab === 'admin' ? 'bg-purple-600' : 'bg-slate-800'
+                    }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      adminActiveTab === 'admin' ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${adminActiveTab === 'admin' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
             )}
-            
+
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">কোডনেম (Codename)</label>
@@ -218,11 +219,10 @@ export function AdminProfileSettingsModal({
                   <button
                     type="button"
                     onClick={() => setIsCodenameEditable(!isCodenameEditable)}
-                    className={`text-[10px] flex items-center gap-1 transition-colors px-2 py-0.5 rounded cursor-pointer ${
-                      isCodenameEditable 
-                        ? 'text-amber-400 bg-amber-955/40 hover:bg-amber-955/60 border border-amber-800/30' 
+                    className={`text-[10px] flex items-center gap-1 transition-colors px-2 py-0.5 rounded cursor-pointer ${isCodenameEditable
+                        ? 'text-amber-400 bg-amber-955/40 hover:bg-amber-955/60 border border-amber-800/30'
                         : 'text-blue-400 hover:text-blue-300 bg-blue-955/20 hover:bg-blue-950/40 border border-blue-900/20'
-                    }`}
+                      }`}
                     title={isCodenameEditable ? "এডিট মোড বন্ধ করুন" : "কোডনেম পরিবর্তন করুন"}
                   >
                     <EditIcon className="h-3 w-3" />
@@ -235,181 +235,97 @@ export function AdminProfileSettingsModal({
                 disabled={!isCodenameEditable}
                 value={editUsername}
                 onChange={(e) => setEditUsername(e.target.value)}
-                className={`mt-1 block w-full px-3 py-2 bg-slate-955 border rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono ${
-                  isCodenameEditable
+                className={`mt-1 block w-full px-3 py-2 bg-slate-955 border rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono ${isCodenameEditable
                     ? 'border-blue-500/50 text-white cursor-text opacity-100 ring-1 ring-blue-500/30'
                     : 'border-slate-850 text-slate-500 cursor-not-allowed opacity-60'
-                }`}
+                  }`}
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">সম্পূর্ণ নাম (Full Name)</label>
-              <input
-                type="text"
-                required
-                value={editFullName}
-                onChange={(e) => setEditFullName(e.target.value)}
-                disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
+            <ProfileFields
+              fullName={editFullName}
+              setFullName={setEditFullName}
+              jobRole={editJobRole}
+              setJobRole={setEditJobRole}
+              workingHours={editWorkingHours}
+              setWorkingHours={setEditWorkingHours}
+              breakTime={editBreakTime}
+              setBreakTime={setEditBreakTime}
+              signInTime={profileSignInTime}
+              setSignInTime={setProfileSignInTime}
+              signOutTime={profileSignOutTime}
+              setSignOutTime={setProfileSignOutTime}
+              disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
+            />
 
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">জব রোল (Job Role)</label>
-              <input
-                type="text"
-                required
-                value={editJobRole}
-                onChange={(e) => setEditJobRole(e.target.value)}
-                disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">দৈনিক কর্মঘণ্টা</label>
-                <select
-                  value={editWorkingHours}
-                  onChange={(e) => setEditWorkingHours(e.target.value)}
-                  disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="" disabled hidden>নির্বাচন করুন</option>
-                  <option value="7.5">৭ ঘণ্টা ৩০ মিনিট</option>
-                  <option value="8.0">৮ ঘণ্টা</option>
-                  <option value="8.5">৮ ঘণ্টা ৩০ মিনিট</option>
-                  <option value="9.0">৯ ঘণ্টা</option>
-                  <option value="9.5">৯ ঘণ্টা ৩০ মিনিট</option>
-                  <option value="10.0">১০ ঘণ্টা</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ব্রেক (মিনিট)</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={editBreakTime}
-                  onChange={(e) => setEditBreakTime(e.target.value)}
-                  disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ডিফল্ট সাইন-ইন টাইম</label>
-                <input
-                  type="time"
-                  required
-                  value={profileSignInTime}
-                  onChange={(e) => setProfileSignInTime(e.target.value)}
-                  disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ডিফল্ট সাইন-আউট টাইম</label>
-                <input
-                  type="time"
-                  required
-                  value={profileSignOutTime}
-                  onChange={(e) => setProfileSignOutTime(e.target.value)}
-                  disabled={(profile?.role !== 'admin' || adminActiveTab === 'user') && profile?.has_edited_profile && (!isEditRequestMode || profile?.profile_change_status === 'pending')}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            {/* Needs Supervisor Approval Toggle (Admin only) */}
+            {/* Settings Toggles (Admin only) */}
             {profile?.role === 'admin' && adminActiveTab === 'admin' && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+              <div className="flex flex-col gap-3 font-sans">
+                <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editNeedsApproval}
+                    onChange={(e) => setEditNeedsApproval(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  />
                   <div>
-                    <span className="block text-sm font-medium text-white">Supervisor Approval?</span>
-                    <span className="block text-[11px] text-slate-400">Yes দিলে ছুটির জন্য সুপারভাইজার অ্যাপ্রুভাল লাগবে</span>
+                    <span className="block text-xs font-semibold text-white">Supervisor Approval?</span>
+                    <span className="block text-[10px] text-slate-400">Yes দিলে ছুটির জন্য সুপারভাইজার অ্যাপ্রুভাল লাগবে</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditNeedsApproval(!editNeedsApproval)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      editNeedsApproval ? 'bg-blue-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        editNeedsApproval ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
+                </label>
 
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editEligibleOfficeLeave}
+                    onChange={(e) => setEditEligibleOfficeLeave(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  />
                   <div>
-                    <span className="block text-sm font-medium text-white">Reserve Holiday?</span>
-                    <span className="block text-[11px] text-slate-400">Yes দিলে রিজার্ভ ছুটির ক্যাটাগরি চালু হবে</span>
+                    <span className="block text-xs font-semibold text-white">Office Leave Eligible?</span>
+                    <span className="block text-[10px] text-slate-400">অন থাকলে বাৎসরিক অফিস বরাদ্দকৃত ছুটি ও ঈদ ছুটির যোগ্য হবেন</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditAllowReserve(!editAllowReserve)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      editAllowReserve ? 'bg-blue-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        editAllowReserve ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
+                </label>
 
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editEligibleGovtHoliday}
+                    onChange={(e) => setEditEligibleGovtHoliday(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  />
                   <div>
-                    <span className="block text-sm font-medium text-white">Overtime?</span>
-                    <span className="block text-[11px] text-slate-400">Yes দিলে ওভারটাইমের ক্যাটাগরি চালু হবে</span>
+                    <span className="block text-xs font-semibold text-white">Govt Holiday Eligible?</span>
+                    <span className="block text-[10px] text-slate-400">অন থাকলে সরকারি সাধারণ ছুটির তালিকা অনুযায়ী ছুটি পাওয়ার যোগ্য হবেন</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditAllowOvertime(!editAllowOvertime)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      editAllowOvertime ? 'bg-blue-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        editAllowOvertime ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
+                </label>
 
-                <div className="grid grid-cols-2 gap-4 mt-3">
+                <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editAllowReserve}
+                    onChange={(e) => setEditAllowReserve(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  />
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider">ফুল লিভ লিমিট (বার্ষিক)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editMaxFullLeaves}
-                      onChange={(e) => setEditMaxFullLeaves(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <span className="block text-xs font-semibold text-white">Reserve Govt Holiday?</span>
+                    <span className="block text-[10px] text-slate-400">Yes দিলে সরকারি সাধারণ ছুটি রিজার্ভ করার সুযোগ পাবে</span>
                   </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editAllowOvertime}
+                    onChange={(e) => setEditAllowOvertime(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  />
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider">শর্ট লিভ লিমিট (ঘণ্টা)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editMaxShortLeaves}
-                      onChange={(e) => setEditMaxShortLeaves(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <span className="block text-xs font-semibold text-white">Overtime?</span>
+                    <span className="block text-[10px] text-slate-400">Yes দিলে ওভারটাইমের ক্যাটাগরি চালু হবে</span>
                   </div>
-                </div>
+                </label>
+
               </div>
             )}
 
@@ -460,16 +376,16 @@ export function AdminProfileSettingsModal({
 // Simple Edit icon replacement to avoid extra lucide imports
 function EditIcon({ className }: { className?: string }) {
   return (
-    <svg 
-      className={className} 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
       strokeLinejoin="round"
     >
       <path d="M12 20h9" />

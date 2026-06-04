@@ -10,6 +10,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Time Tracking**: Live tracking of daily working hours and break durations.
 *   **Sign-In / Sign-Out**: Single-click sign-in/out with customizable default timings.
 *   **Leave Requests**: Submit applications for 4 types of leaves (Full Leave, Short Leave, Overtime, and Reserve Holiday).
+*   **Government Holiday Response**: Select between taking a holiday payment ("Get Paid") or reserving it for future leaves ("Reserve") directly from interactive dashboard banners when admins publish new holidays.
 *   **Bulk Full Leave Entry & Single-Action Approval**: Dynamically submit up to 10 dates for Full Leave simultaneously using a "+" button in the interface. Prevents duplicate selection and inserts distinct database rows under a shared `bulk_id`. In the supervisor and admin dashboards, the request is grouped into a **single, unified action row** (displaying all dates as a comma-separated list), allowing the supervisor or admin to approve, reject, or request revision for the entire bulk package in one click.
 *   **Leave Adjustment**: Request adjustments (e.g., using accumulated overtime or reserve holidays to offset short leaves).
 *   **Personal Filtering Panel**: Filter personal records by category, year (with year-locked calendars), or custom date ranges.
@@ -23,6 +24,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 ### 🔑 Admin Dashboard
 *   **Comprehensive Staff List**: A master table displaying every staff member's unadjusted leave and overtime counts.
 *   **User Account Control**: Create, update, or delete staff credentials, passwords, and roles directly from the interface.
+*   **Holiday Response Report & Export**: A dedicated administrative panel to search, filter by date/name, and export employee holiday choices (Paid vs. Reserve) to Excel, CSV, and PDF for salary integrations.
 *   **Settings Overrides**: Customize individual rules per user, such as enabling/disabling overtime (`allow_overtime`), reserve holidays (`allow_reserve`), or supervisor approval bypass (`needs_supervisor_approval`).
 *   **Quick Adjustments**: Perform instant, direct leave adjustments for any user, bypassing normal multi-level approval workflows.
 *   **Master Data Export**: Export the entire company’s leave summary database to CSV/Excel in one click.
@@ -82,8 +84,7 @@ chuti/
 │       ├── supabase.ts     # Supabase Client configuration
 │       └── webPushHelper.ts# Push notification registration and helper routines
 ├── supabase/
-│   ├── schema.sql          # Primary database schemas, constraints, and triggers
-│   └── push_subscriptions.sql # Push subscriptions schema and security definer functions
+│   └── schema.sql          # Unified database schema setup (tables, triggers, policies, and RPC functions)
 ├── eslint.config.mjs       # ESLint configurations with global ignores
 ├── package.json
 │── tsconfig.json
@@ -114,9 +115,8 @@ The database is built on PostgreSQL with strict Row Level Security (RLS) policie
 *   A Supabase project setup
 
 ### 2. Database Initialization
-Run the SQL scripts in your Supabase SQL Editor in the following order:
-1.  Execute `supabase/schema.sql` (Creates profiles, chuti, triggers, and RPC functions).
-2.  Execute `supabase/push_subscriptions.sql` (Creates push notification tables and security definer functions).
+Run the unified database SQL script in your Supabase SQL Editor:
+1.  Execute the entire content of `supabase/schema.sql` (Creates all tables, columns, indexes, RLS policies, triggers, and RPC helper functions).
 
 ### 3. Environment Setup
 Create a `.env.local` file in the root directory:
@@ -164,6 +164,7 @@ npm run build
 *   **কাজের সময় ট্র্যাকিং**: দৈনিক মোট কাজের ঘণ্টা এবং ব্রেকের সময় সরাসরি ট্র্যাকিং।
 *   **সাইন-ইন / সাইন-আউট**: এক ক্লিকে সাইন-ইন/আউট করার সুবিধা এবং কাস্টম ডিফল্ট সময় সেট করা।
 *   **ছুটির আবেদন**: ৪ ধরণের ছুটির (ফুল লিভ, শর্ট লিভ, ওভারটাইম এবং রিজার্ভ হলিডে) আবেদন প্রক্রিয়া।
+*   **সরকারি ছুটির সিদ্ধান্ত (Get Paid vs Reserve)**: এডমিন নতুন সরকারি ছুটি যুক্ত করলে ড্যাশবোর্ডে সচল নোটিফিকেশন ব্যানারের মাধ্যমে অতিরিক্ত পেমেন্ট নিবেন ("Get Paid") নাকি ভবিষ্যতে ছুটি হিসেবে কাটানোর জন্য জমা রাখবেন ("Reserve") তা সরাসরি সিলেক্ট করার সুবিধা।
 *   **বাল্ক ফুল লিভ এন্ট্রি ও একক অনুমোদন**: "Full Leave" সিলেক্ট করলে প্লাস (+) আইকন বোতামের সাহায্যে এক ক্লিকে সর্বোচ্চ ১০টি অতিরিক্ত তারিখ যোগ করার সুবিধা। ডুপ্লিকেট তারিখ নির্বাচন রোধের লাইভ সতর্কতা এবং প্রতিটি তারিখের আলাদা রেকর্ড একটি কমন `bulk_id` সহ ডাটাবেজে সংরক্ষিত হওয়ার সুবিধা। এছাড়া, সুপারভাইজার এবং অ্যাডমিনের এপ্রুভাল প্যানেলে এটিকে একক রিকোয়েস্ট (কমা দিয়ে তারিখগুলো সাজিয়ে) হিসেবে দেখাবে এবং মাত্র **এক ক্লিকে সম্পূর্ণ বাল্ক প্যাকেজটি অ্যাপ্রুভ বা রিভিশনে পাঠানো যাবে**।
 *   **ছুটি সমন্বয় (Adjustment)**: কাজের অতিরিক্ত ঘণ্টা (Overtime) বা জমে থাকা রিজার্ভ ডে দিয়ে শর্ট লিভ অ্যাডজাস্ট করার রিকোয়েস্ট পাঠানো।
 *   **ব্যক্তিগত ফিল্টারিং প্যানেল**: বছর-লকড ক্যালেন্ডার এবং ক্যাটাগরি দিয়ে নিজের ছুটির রেকর্ড ফিল্টার করা।
@@ -177,6 +178,7 @@ npm run build
 ### 🔑 এডমিন (Admin) ড্যাশবোর্ড
 *   **মাস্টার সামারি টেবিল**: প্রতিষ্ঠানের সকল স্টাফদের মোট ছুটির হিসাব ও ব্যালেন্স এক নজরে দেখার মাস্টার প্যানেল।
 *   **ইউজার অ্যাকাউন্ট কন্ট্রোল**: নতুন স্টাফ তৈরি করা, পাসওয়ার্ড রিসেট বা কোডনেম আপডেট করার সরাসরি প্যানেল।
+*   **সরকারি ছুটির রেসপন্স রিপোর্ট ও এক্সপোর্ট**: কর্মকর্তাদের পেমেন্ট বা রিজার্ভ করার সিদ্ধান্তগুলো সহজে অনুসন্ধান করার জন্য সার্চ ফিল্টার প্যানেল এবং এক ক্লিকে Excel, CSV ও PDF ফরম্যাটে রিপোর্ট ডাউনলোড করার প্যানেল।
 *   **আইন কানুন কাস্টমাইজেশন**: কর্মকর্তা অনুযায়ী রুলস পরিবর্তন করা (যেমন: ওভারটাইম অন/অফ করা, রিজার্ভ ডে অ্যাক্সেস বা সুপারভাইজার অ্যাপ্রুভাল বাধ্যতামূলক করা)।
 *   **কুইক অ্যাডজাস্টমেন্ট**: এডমিন প্যানেল থেকে সরাসরি যেকোনো ইউজারের ছুটি ইনস্ট্যান্ট অ্যাডজাস্ট করে দেওয়া (কোনো প্রকার পেন্ডিং অ্যাপ্রুভালের প্রয়োজন ছাড়া)।
 *   **মাস্টার ডেটা এক্সপোর্ট**: প্রতিষ্ঠানের সকল কর্মকর্তাদের ছুটির সামগ্রিক ডেটাবেজ এক ক্লিকে Excel/CSV-তে ডাউনলোড করা।
@@ -214,7 +216,7 @@ npm run build
 ## 💻 লোকাল রান করার নিয়মাবলী
 
 ১. গিটহাব থেকে ক্লোন করে `npm install` দিয়ে প্যাকেজগুলো ইন্সটল করে নিন।
-২. আপনার Supabase প্রোজেক্টের SQL এডিটরে গিয়ে প্রথমে `supabase/schema.sql` এবং পরবর্তীতে `supabase/push_subscriptions.sql` রান করুন।
+২. আপনার Supabase প্রোজেক্টের SQL এডিটরে গিয়ে একত্রিত ডাটাবেজ স্ক্রিপ্ট `supabase/schema.sql`-এর সম্পূর্ণ কোডটি রান করুন (এটি প্রোফাইল, ছুটি, নোটিফিকেশন সাবস্ক্রিপশন এবং সমস্ত পলিসি/ফাংশন একসাথে তৈরি করবে)।
 ৩. প্রজেক্টের রুটে `.env.local` ফাইল তৈরি করে আপনার Supabase এবং VAPID Credentials বসিয়ে দিন:
 ```env
 # Supabase Configuration

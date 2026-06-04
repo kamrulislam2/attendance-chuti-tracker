@@ -20,7 +20,6 @@ import { AdminCreateUserModal } from '@/components/modals/AdminCreateUserModal';
 import { AdminCredentialsModal } from '@/components/modals/AdminCredentialsModal';
 import { AdminDeleteUserModal } from '@/components/modals/AdminDeleteUserModal';
 import { AdminAddLeaveModal } from '@/components/modals/AdminAddLeaveModal';
-import { StatusBadge } from '@/components/StatusBadge';
 import { 
   CheckCircle, 
   AlertTriangle
@@ -86,6 +85,10 @@ export default function Dashboard() {
     checkOfflineQueue,
     handleManualSync,
     handleLogout,
+    globalSettings,
+    handleSaveGlobalSettings,
+    holidayResponses,
+    handleSaveHolidayResponse,
   } = dashboardData;
 
   // View Filter states
@@ -114,6 +117,9 @@ export default function Dashboard() {
     filterEndDate,
     viewingStaffId,
     lastViewedTime,
+    holidayResponses,
+    globalSettings,
+    loading,
   });
 
   const {
@@ -154,6 +160,7 @@ export default function Dashboard() {
     setReviewingIds,
     approvedIds,
     setApprovedIds,
+    globalSettings,
   });
 
   const {
@@ -166,6 +173,8 @@ export default function Dashboard() {
     setLeaveType,
     adjustment,
     setAdjustment,
+    adjustmentCategory,
+    setAdjustmentCategory,
     adjustShortLeave,
     setAdjustShortLeave,
     signInTime,
@@ -174,8 +183,6 @@ export default function Dashboard() {
     setSignOutTime,
     leaveHour,
     setLeaveHour,
-    reserveHoliday,
-    setReserveHoliday,
     comment,
     setComment,
     selectedSupervisors,
@@ -216,8 +223,6 @@ export default function Dashboard() {
     setRevisionSignOutTime,
     revisionLeaveHour,
     setRevisionLeaveHour,
-    revisionReserveHoliday,
-    setRevisionReserveHoliday,
     revisionComment,
     setRevisionComment,
     handleUserSubmitRevision,
@@ -240,8 +245,6 @@ export default function Dashboard() {
     setAdminEditAdjustment,
     adminEditAdjustShortLeave,
     setAdminEditAdjustShortLeave,
-    adminEditReserveHoliday,
-    setAdminEditReserveHoliday,
     adminEditComment,
     setAdminEditComment,
     handleAdminSaveEdit,
@@ -415,15 +418,32 @@ export default function Dashboard() {
     setEditAllowReserve,
     editAllowOvertime,
     setEditAllowOvertime,
+    editEligibleOfficeLeave,
+    setEditEligibleOfficeLeave,
+    editEligibleGovtHoliday,
+    setEditEligibleGovtHoliday,
     isEditRequestMode,
     setIsEditRequestMode,
     editMaxFullLeaves,
     setEditMaxFullLeaves,
-    editMaxShortLeaves,
-    setEditMaxShortLeaves,
+    newStaffJobRole,
+    setNewStaffJobRole,
+    newStaffWorkingHours,
+    setNewStaffWorkingHours,
+    newStaffBreakTime,
+    setNewStaffBreakTime,
+    newStaffSignInTime,
+    setNewStaffSignInTime,
+    newStaffSignOutTime,
+    setNewStaffSignOutTime,
+    newStaffEligibleOfficeLeave,
+    setNewStaffEligibleOfficeLeave,
+    newStaffEligibleGovtHoliday,
+    setNewStaffEligibleGovtHoliday,
 
     handleUpdateSettings,
     handleApproveProfileChangeRequest,
+    handleConvertShortLeaveToFullLeave,
   } = adminStaffOps;
 
   // Export operations
@@ -448,6 +468,9 @@ export default function Dashboard() {
     handleExportSummaryCSV,
     handleExportSummaryExcel,
     handleExportSummaryPDF,
+    handleExportHolidayResponsesCSV,
+    handleExportHolidayResponsesExcel,
+    handleExportHolidayResponsesPDF,
   } = exportOps;
 
   // Modal open/close handlers
@@ -462,7 +485,6 @@ export default function Dashboard() {
     setRevisionSignInTime,
     setRevisionSignOutTime,
     setRevisionLeaveHour,
-    setRevisionReserveHoliday,
     setRevisionComment,
     setShowUserRevisionModal,
     setAdminEditRecord: chutiOps.setAdminEditRecord,
@@ -473,11 +495,9 @@ export default function Dashboard() {
     setAdminEditSignInTime,
     setAdminEditSignOutTime,
     setAdminEditLeaveHour,
-    setAdminEditReserveHoliday,
     setAdminEditComment,
     setShowAdminEditModal,
     setComment,
-    setReserveHoliday,
     setAdjustShortLeave,
     setDate,
     setShowAddLeaveModal,
@@ -496,8 +516,9 @@ export default function Dashboard() {
     setEditNeedsApproval,
     setEditAllowReserve,
     setEditAllowOvertime,
+    setEditEligibleOfficeLeave,
+    setEditEligibleGovtHoliday,
     setEditMaxFullLeaves,
-    setEditMaxShortLeaves,
     setCredTargetUserId,
     setCredNewUsername,
     setCredNewPassword,
@@ -523,8 +544,7 @@ export default function Dashboard() {
     handleResetFilters,
   } = modalHandlers;
 
-  // StatusBadge render helper (wraps the component for prop compatibility)
-  const renderStatusBadge = (r: import('@/utils/offlineSync').ChutiRecord) => <StatusBadge record={r} />;
+
 
   if (loading) {
     return (
@@ -590,7 +610,9 @@ export default function Dashboard() {
           <UserDashboardView
             profile={profile}
             userStats={userStats}
+            globalSettings={globalSettings}
             filteredUserRecords={filteredUserRecords}
+            userRecords={userRecords}
             selectedYear={selectedYear}
             setSelectedYear={(val) => {
               setSelectedYear(val);
@@ -611,7 +633,9 @@ export default function Dashboard() {
             onToggleAdjustment={handleToggleAdjustmentClick}
             onDeleteClick={triggerDeleteRecord}
             onRevisionClick={handleOpenRevisionModal}
-            renderStatusBadge={renderStatusBadge}
+            onConvertShortLeaveToFullLeave={handleConvertShortLeaveToFullLeave}
+            holidayResponses={holidayResponses}
+            onSaveHolidayResponse={handleSaveHolidayResponse}
           />
         )}
 
@@ -623,6 +647,7 @@ export default function Dashboard() {
             setViewingStaffId={setViewingStaffId}
             staffProfile={staffProfile}
             individualRecords={individualRecords}
+            unfilteredStaffRecords={viewingStaffId ? adminRecords.filter(r => r.user_id === viewingStaffId) : []}
             staffStats={staffStats}
             filterType={filterType}
             setFilterType={setFilterType}
@@ -637,7 +662,6 @@ export default function Dashboard() {
             onToggleAdjustment={handleToggleAdjustmentClick}
             onEditClick={handleOpenAdminEditModal}
             onDeleteClick={triggerDeleteRecord}
-            renderStatusBadge={renderStatusBadge}
             selectedYear={selectedYear}
             setSelectedYear={(val) => {
               setSelectedYear(val);
@@ -655,6 +679,13 @@ export default function Dashboard() {
             onExportSummaryExcel={handleExportSummaryExcel}
             onExportSummaryPDF={handleExportSummaryPDF}
             onAddLeaveClick={() => setShowAdminAddLeaveModal(true)}
+            globalSettings={globalSettings}
+            onSaveGlobalSettings={handleSaveGlobalSettings}
+            onConvertShortLeaveToFullLeave={handleConvertShortLeaveToFullLeave}
+            holidayResponses={holidayResponses}
+            onExportHolidayResponsesCSV={handleExportHolidayResponsesCSV}
+            onExportHolidayResponsesExcel={handleExportHolidayResponsesExcel}
+            onExportHolidayResponsesPDF={handleExportHolidayResponsesPDF}
           />
         )}
 
@@ -700,7 +731,8 @@ export default function Dashboard() {
         setShowModal={setShowAdminAddLeaveModal}
         staffProfile={staffProfile}
         onSuccess={fetchRecords}
-        records={individualRecords}
+        records={viewingStaffId ? adminRecords.filter(r => r.user_id === viewingStaffId) : []}
+        globalSettings={globalSettings}
       />
 
       {/* User Leave & Personal Notifications Modals */}
@@ -713,6 +745,8 @@ export default function Dashboard() {
         setLeaveType={setLeaveType}
         adjustment={adjustment}
         setAdjustment={setAdjustment}
+        adjustmentCategory={adjustmentCategory}
+        setAdjustmentCategory={setAdjustmentCategory}
         adjustShortLeave={adjustShortLeave}
         setAdjustShortLeave={setAdjustShortLeave}
         signInTime={signInTime}
@@ -721,8 +755,6 @@ export default function Dashboard() {
         setSignOutTime={setSignOutTime}
         leaveHour={leaveHour}
         setLeaveHour={setLeaveHour}
-        reserveHoliday={reserveHoliday}
-        setReserveHoliday={setReserveHoliday}
         comment={comment}
         setComment={setComment}
         bulkDates={bulkDates}
@@ -738,6 +770,7 @@ export default function Dashboard() {
         profilesList={profilesList}
         selectedSupervisors={selectedSupervisors}
         setSelectedSupervisors={setSelectedSupervisors}
+        globalSettings={globalSettings}
       />
 
       <UserRevisionModal
@@ -759,8 +792,6 @@ export default function Dashboard() {
         setRevisionSignOutTime={setRevisionSignOutTime}
         revisionLeaveHour={revisionLeaveHour}
         setRevisionLeaveHour={setRevisionLeaveHour}
-        revisionReserveHoliday={revisionReserveHoliday}
-        setRevisionReserveHoliday={setRevisionReserveHoliday}
         revisionComment={revisionComment}
         setRevisionComment={setRevisionComment}
         handleUserSubmitRevision={handleUserSubmitRevision}
@@ -784,9 +815,9 @@ export default function Dashboard() {
         setRevisionSignInTime={setRevisionSignInTime}
         setRevisionSignOutTime={setRevisionSignOutTime}
         setRevisionLeaveHour={setRevisionLeaveHour}
-        setRevisionReserveHoliday={setRevisionReserveHoliday}
         setRevisionComment={setRevisionComment}
         setShowUserRevisionModal={setShowUserRevisionModal}
+        onSaveHolidayResponse={handleSaveHolidayResponse}
       />
 
       <DeleteConfirmModal
@@ -867,14 +898,16 @@ export default function Dashboard() {
         setEditAllowReserve={setEditAllowReserve}
         editAllowOvertime={editAllowOvertime}
         setEditAllowOvertime={setEditAllowOvertime}
+        editEligibleOfficeLeave={editEligibleOfficeLeave}
+        setEditEligibleOfficeLeave={setEditEligibleOfficeLeave}
+        editEligibleGovtHoliday={editEligibleGovtHoliday}
+        setEditEligibleGovtHoliday={setEditEligibleGovtHoliday}
         isEditRequestMode={isEditRequestMode}
         setIsEditRequestMode={setIsEditRequestMode}
         setupSubmitting={setupSubmitting}
         handleUpdateSettings={handleUpdateSettings}
         editMaxFullLeaves={editMaxFullLeaves}
         setEditMaxFullLeaves={setEditMaxFullLeaves}
-        editMaxShortLeaves={editMaxShortLeaves}
-        setEditMaxShortLeaves={setEditMaxShortLeaves}
       />
 
       <AdminLeaveApprovalModal
@@ -913,8 +946,6 @@ export default function Dashboard() {
         setAdminEditAdjustment={setAdminEditAdjustment}
         adminEditAdjustShortLeave={adminEditAdjustShortLeave}
         setAdminEditAdjustShortLeave={setAdminEditAdjustShortLeave}
-        adminEditReserveHoliday={adminEditReserveHoliday}
-        setAdminEditReserveHoliday={setAdminEditReserveHoliday}
         adminEditComment={adminEditComment}
         setAdminEditComment={setAdminEditComment}
         handleAdminSaveEdit={handleAdminSaveEdit}
@@ -952,6 +983,20 @@ export default function Dashboard() {
         newStaffConfirmPassword={newStaffConfirmPassword}
         setNewStaffConfirmPassword={setNewStaffConfirmPassword}
         handleCreateNewUser={handleCreateNewUser}
+        newStaffJobRole={newStaffJobRole}
+        setNewStaffJobRole={setNewStaffJobRole}
+        newStaffWorkingHours={newStaffWorkingHours}
+        setNewStaffWorkingHours={setNewStaffWorkingHours}
+        newStaffBreakTime={newStaffBreakTime}
+        setNewStaffBreakTime={setNewStaffBreakTime}
+        newStaffSignInTime={newStaffSignInTime}
+        setNewStaffSignInTime={setNewStaffSignInTime}
+        newStaffSignOutTime={newStaffSignOutTime}
+        setNewStaffSignOutTime={setNewStaffSignOutTime}
+        newStaffEligibleOfficeLeave={newStaffEligibleOfficeLeave}
+        setNewStaffEligibleOfficeLeave={setNewStaffEligibleOfficeLeave}
+        newStaffEligibleGovtHoliday={newStaffEligibleGovtHoliday}
+        setNewStaffEligibleGovtHoliday={setNewStaffEligibleGovtHoliday}
       />
 
       <AdminCredentialsModal

@@ -156,7 +156,6 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
                       <option value="Short Leave">Short Leave</option>
                       <option value="Full Leave">Full Leave</option>
                       <option value="Overtime">Overtime</option>
-                      <option value="Reserve">Reserve</option>
                     </select>
                   </div>
                   {(searchQuery || leaveTypeFilter !== 'all') && (
@@ -194,11 +193,8 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
                         </div>
                         <p><span className="text-slate-500 font-medium">তারিখ:</span> <span className="font-semibold text-slate-200">{r.is_bulk ? r.formatted_bulk_dates : formatDate(r.date)}</span></p>
                         <p><span className="text-slate-500 font-medium">ছুটির ধরন:</span> <span className="font-bold text-blue-400">{r.leave_type}</span></p>
-                        {r.leave_type !== 'Reserve' && r.leave_type !== 'Full Leave' && (
+                        {r.leave_type !== 'Full Leave' && (
                           <p><span className="text-slate-500 font-medium">সময় ও ঘণ্টা:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} ঘণ্টা)</span></p>
-                        )}
-                        {r.leave_type === 'Reserve' && (
-                          <p><span className="text-slate-500 font-medium">রিজার্ভ ছুটির দিন:</span> <span className="text-slate-200 font-semibold">{r.reserve_holiday || '-'}</span></p>
                         )}
                         <p>
                           <span className="text-slate-500 font-medium">সমন্বয় (Adjustment):</span>{' '}

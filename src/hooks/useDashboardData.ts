@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile } from '@/types';
 import { ChutiRecord, getOfflineRecords, syncOfflineData } from '@/utils/offlineSync';
-import { checkSubscriptionStatus } from '@/utils/webPushHelper';
+import { checkSubscriptionStatus, sendPushNotification } from '@/utils/webPushHelper';
+import { getGlobalSettingsFromProfile, defaultGlobalSettings, GlobalSettings, formatDate, parseHolidayItem } from '@/utils/dashboardHelpers';
 
 export const useDashboardData = () => {
   const router = useRouter();
@@ -24,6 +25,7 @@ export const useDashboardData = () => {
   const [userRecords, setUserRecords] = useState<ChutiRecord[]>([]);
   const [adminRecords, setAdminRecords] = useState<ChutiRecordWithProfile[]>([]);
   const [profilesList, setProfilesList] = useState<Profile[]>([]);
+  const [holidayResponses, setHolidayResponses] = useState<any[]>([]);
 
   // Navigation / Tab states
   const [adminActiveTab, setAdminActiveTab] = useState<'user' | 'admin'>('admin');
@@ -34,6 +36,203 @@ export const useDashboardData = () => {
 
   // Theme Toggle state
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Global Settings state
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(defaultGlobalSettings);
+
+  // Fetch Chuti Records based on Role
+  const fetchRecords = useCallback(async () => {
+    if (!sessionUser || !profile) return;
+
+    if (profile.role === 'admin' || profile.role === 'supervisor') {
+      // Fetch all user records for Admin/Supervisor
+      const { data: records, error } = await supabase
+        .from('chuti')
+        .select(`
+          *,
+          profiles (username)
+        `)
+        .order('date', { ascending: false });
+
+      if (!error && records) {
+        setAdminRecords(records);
+      }
+
+      // Fetch profile list for filtering
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('username', { ascending: true });
+
+      if (profiles) {
+        setProfilesList(profiles);
+      }
+    } else {
+      // For normal users, fetch only the list of supervisors to allow routing requests
+      const { data: supervisors } = await supabase
+        .from('profiles')
+        .select('id, username, role, full_name')
+        .eq('role', 'supervisor')
+        .order('username', { ascending: true });
+
+      if (supervisors) {
+        setProfilesList(supervisors as any[]);
+      }
+    }
+    
+    if (profile.role === 'user' || profile.role === 'supervisor' || profile.role === 'admin') {
+      // Fetch only logged-in user records
+      const { data: records, error } = await supabase
+        .from('chuti')
+        .select('*')
+        .eq('user_id', sessionUser.id)
+        .order('date', { ascending: false });
+
+      if (!error && records) {
+        setUserRecords(records);
+      }
+    }
+
+    // Fetch Govt Holiday Responses
+    if (profile.role === 'admin' || profile.role === 'supervisor') {
+      const { data: responses, error: respError } = await supabase
+        .from('govt_holiday_responses')
+        .select(`
+          *,
+          profiles (full_name, username)
+        `)
+        .order('created_at', { ascending: false });
+      if (!respError && responses) {
+        setHolidayResponses(responses);
+      }
+    } else {
+      const { data: responses, error: respError } = await supabase
+        .from('govt_holiday_responses')
+        .select('*')
+        .eq('user_id', sessionUser.id)
+        .order('created_at', { ascending: false });
+      if (!respError && responses) {
+        setHolidayResponses(responses);
+      }
+    }
+  }, [sessionUser, profile]);
+
+  const handleSaveGlobalSettings = useCallback(async (newSettings: GlobalSettings) => {
+    if (!profile) return false;
+    const hasGlobalSettingsColumn = 'global_settings' in profile;
+    const updates: any = {};
+    if (hasGlobalSettingsColumn) {
+      updates.global_settings = newSettings;
+    } else {
+      updates.requested_default_sign_in = JSON.stringify(newSettings);
+    }
+    
+    // Compare old and new government holidays to detect newly added ones
+    const oldHolidays = (globalSettings.govt_holidays || []).map((h: any) => parseHolidayItem(h));
+    const newHolidays = (newSettings.govt_holidays || []).map((h: any) => parseHolidayItem(h));
+    const oldDates = new Set(oldHolidays.map(h => h.date));
+    const addedHolidays = newHolidays.filter(h => h.date && !oldDates.has(h.date));
+
+    setLoading(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .neq('role', 'none');
+      
+    if (error) {
+      console.error('Error saving global settings:', error);
+      setMessage({ type: 'error', text: 'সেটিংস সেভ করতে ব্যর্থ হয়েছে: ' + error.message });
+      setLoading(false);
+      return false;
+    }
+    
+    setGlobalSettings(newSettings);
+    setMessage({ type: 'success', text: 'লিভ কোটা সেটিংস সফলভাবে আপডেট করা হয়েছে!' });
+    setLoading(false);
+    fetchRecords();
+
+    // Send push notifications for newly added holidays
+    if (addedHolidays.length > 0) {
+      addedHolidays.forEach((h) => {
+        const reserveFalseIds = profilesList
+          .filter(p => p.eligible_govt_holiday !== false && p.allow_reserve === false)
+          .map(p => p.id);
+          
+        const reserveTrueIds = profilesList
+          .filter(p => p.eligible_govt_holiday !== false && p.allow_reserve !== false)
+          .map(p => p.id);
+
+        if (reserveFalseIds.length > 0) {
+          sendPushNotification({
+            userIds: reserveFalseIds,
+            title: 'সরকারি ছুটির পেমেন্ট অনুমোদন 🎉',
+            body: `${h.name} (${formatDate(h.date)}) Govt Holiday paymentটি আপনার সেলারির সাথে পেমেন্ট করার জন্য অনুমোদন করা হয়েছে।`,
+            url: '/'
+          }).catch(err => console.error('Error sending push notification to paid users:', err));
+        }
+
+        if (reserveTrueIds.length > 0) {
+          sendPushNotification({
+            userIds: reserveTrueIds,
+            title: 'সরকারি ছুটির পছন্দ নির্বাচন করুন 🔔',
+            body: `${h.name} (${formatDate(h.date)}) এই সরকারি ছুটির দিনটি আপনি কী করতে চান?`,
+            url: '/'
+          }).catch(err => console.error('Error sending push notification to reserve-enabled users:', err));
+        }
+      });
+    }
+
+    return true;
+  }, [profile, globalSettings.govt_holidays, profilesList, fetchRecords]);
+
+  const handleSaveHolidayResponse = useCallback(async (holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => {
+    if (!sessionUser) return false;
+    
+    setLoading(true);
+    const { error } = await supabase
+      .from('govt_holiday_responses')
+      .upsert({
+        user_id: sessionUser.id,
+        holiday_date: holidayDate,
+        holiday_name: holidayName,
+        response: response
+      }, {
+        onConflict: 'user_id,holiday_date'
+      });
+      
+    if (error) {
+      console.error('Error saving holiday response:', error);
+      setMessage({ type: 'error', text: 'রেসপন্স সেভ করতে ব্যর্থ হয়েছে: ' + error.message });
+      setLoading(false);
+      return false;
+    }
+    
+    // Trigger push notification to admins
+    const staffName = profile?.full_name || 'স্টাফ';
+    const staffCode = profile?.username ? profile.username.toUpperCase() : 'N/A';
+    const titleText = 'সরকারি ছুটির রেসপন্স রিপোর্ট 🔔';
+    const bodyText = response === 'reserve'
+      ? `${staffName} (${staffCode}) ${holidayName} (${formatDate(holidayDate)}) chuti reserve korar jonno agroho janiyeche.`
+      : `${staffName} (${staffCode}) ${holidayName} (${formatDate(holidayDate)}) chutir payment neyar jonno agroho janiyeche.`;
+
+    sendPushNotification({
+      userIds: ['admins'],
+      title: titleText,
+      body: bodyText,
+      url: '/'
+    }).catch(err => console.error('Error sending push notification to admins for holiday choice:', err));
+
+    setMessage({ type: 'success', text: 'আপনার পছন্দটি সফলভাবে সংরক্ষিত হয়েছে!' });
+    setLoading(false);
+    fetchRecords();
+    return true;
+  }, [sessionUser, profile, fetchRecords]);
+
+  useEffect(() => {
+    if (profile) {
+      setGlobalSettings(getGlobalSettingsFromProfile(profile));
+    }
+  }, [profile]);
 
   // Load theme on mount
   useEffect(() => {
@@ -90,59 +289,7 @@ export const useDashboardData = () => {
     checkOfflineQueue();
   }, [checkOfflineQueue]);
 
-  // Fetch Chuti Records based on Role
-  const fetchRecords = useCallback(async () => {
-    if (!sessionUser || !profile) return;
 
-    if (profile.role === 'admin' || profile.role === 'supervisor') {
-      // Fetch all user records for Admin/Supervisor
-      const { data: records, error } = await supabase
-        .from('chuti')
-        .select(`
-          *,
-          profiles (username)
-        `)
-        .order('date', { ascending: false });
-
-      if (!error && records) {
-        setAdminRecords(records);
-      }
-
-      // Fetch profile list for filtering
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, role, full_name, working_hours, break_time, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
-        .order('username', { ascending: true });
-
-      if (profiles) {
-        setProfilesList(profiles);
-      }
-    } else {
-      // For normal users, fetch only the list of supervisors to allow routing requests
-      const { data: supervisors } = await supabase
-        .from('profiles')
-        .select('id, username, role, full_name')
-        .eq('role', 'supervisor')
-        .order('username', { ascending: true });
-
-      if (supervisors) {
-        setProfilesList(supervisors as any[]);
-      }
-    }
-    
-    if (profile.role === 'user' || profile.role === 'supervisor' || profile.role === 'admin') {
-      // Fetch only logged-in user records
-      const { data: records, error } = await supabase
-        .from('chuti')
-        .select('*')
-        .eq('user_id', sessionUser.id)
-        .order('date', { ascending: false });
-
-      if (!error && records) {
-        setUserRecords(records);
-      }
-    }
-  }, [sessionUser, profile]);
 
   useEffect(() => {
     if (!loading && sessionUser && profile) {
@@ -298,7 +445,7 @@ export const useDashboardData = () => {
       // Fetch user profile
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, username, role, full_name, working_hours, break_time, is_setup_completed, has_changed_password, username_changes, username_request_status, job_role, requested_full_name, requested_working_hours, requested_break_time, requested_job_role, profile_change_status, default_sign_in, default_sign_out, requested_default_sign_in, requested_default_sign_out, needs_supervisor_approval, allow_reserve, allow_overtime, has_edited_profile')
+        .select('*')
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -417,5 +564,10 @@ export const useDashboardData = () => {
     checkOfflineQueue,
     handleManualSync,
     handleLogout,
+    globalSettings,
+    handleSaveGlobalSettings,
+    holidayResponses,
+    setHolidayResponses,
+    handleSaveHolidayResponse,
   };
 };

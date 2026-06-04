@@ -15,7 +15,7 @@ interface UseExportOperationsParams {
   searchQuery: string;
   setMessage: (msg: { type: 'success' | 'error'; text: string } | null) => void;
   getFilteredRecordsForUser: (userId: string) => ChutiRecord[];
-  getUserSummaryStats: (userId: string) => { full: number; short: string; reserve: number; overtime: string };
+  getUserSummaryStats: (userId: string) => { full: number; short: string; overtime: string };
 }
 
 export function useExportOperations({
@@ -146,9 +146,13 @@ export function useExportOperations({
         filterStartDate,
         filterEndDate,
         searchTerm: searchTerm || '',
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
       }
     );
-  }, [profilesList, sessionUser, profile, selectedYear, filterType, filterStartDate, filterEndDate, getFilteredRecordsForUser]);
+  }, [profilesList, sessionUser, profile, selectedYear, filterType, filterStartDate, filterEndDate, setMessage, getFilteredRecordsForUser]);
 
   const handleExportSummaryPDF = useCallback(() => {
     const staffProfiles = searchQuery.trim() 
@@ -167,9 +171,43 @@ export function useExportOperations({
         filterStartDate,
         filterEndDate,
         searchQuery,
+      },
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
       }
     );
-  }, [profilesList, searchQuery, selectedYear, filterType, filterStartDate, filterEndDate, getUserSummaryStats]);
+  }, [profilesList, searchQuery, selectedYear, filterType, filterStartDate, filterEndDate, setMessage, getUserSummaryStats]);
+
+  const handleExportHolidayResponsesCSV = useCallback((responses: any[]) => {
+    exportHelper.exportHolidayResponsesCSV(
+      responses,
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
+      }
+    );
+  }, [setMessage]);
+
+  const handleExportHolidayResponsesExcel = useCallback((responses: any[]) => {
+    exportHelper.exportHolidayResponsesExcel(
+      responses,
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
+      }
+    );
+  }, [setMessage]);
+
+  const handleExportHolidayResponsesPDF = useCallback((responses: any[]) => {
+    exportHelper.exportHolidayResponsesPDF(
+      responses,
+      () => {},
+      (msg) => {
+        setMessage({ type: 'error', text: msg });
+      }
+    );
+  }, [setMessage]);
 
   return {
     handleExportIndividualCSV,
@@ -178,5 +216,8 @@ export function useExportOperations({
     handleExportSummaryCSV,
     handleExportSummaryExcel,
     handleExportSummaryPDF,
+    handleExportHolidayResponsesCSV,
+    handleExportHolidayResponsesExcel,
+    handleExportHolidayResponsesPDF,
   };
 }

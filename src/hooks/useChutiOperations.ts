@@ -9,9 +9,10 @@ import {
   getOfflineRecords, 
   saveOfflineUpdate, 
   saveOfflineDelete, 
-  deleteOfflineRecord 
+  deleteOfflineRecord,
+  generateUUID 
 } from '@/utils/offlineSync';
-import { formatDate, calculateLeaveOrOvertime } from '@/utils/dashboardHelpers';
+import { formatDate, calculateLeaveOrOvertime, getExistingNotifications, createNotification, calculateStats, parseIntervalToMinutes, GlobalSettings, checkIfHolidayOrWeekend } from '@/utils/dashboardHelpers';
 import { sendPushNotification } from '@/utils/webPushHelper';
 
 interface useChutiOperationsParams {
@@ -34,6 +35,7 @@ interface useChutiOperationsParams {
   setReviewingIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   approvedIds: Set<string>;
   setApprovedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  globalSettings: GlobalSettings;
 }
 
 export const useChutiOperations = ({
@@ -56,17 +58,18 @@ export const useChutiOperations = ({
   setReviewingIds,
   approvedIds,
   setApprovedIds,
+  globalSettings,
 }: useChutiOperationsParams) => {
   // --- Form states for Adding Leave ---
   const [showAddLeaveModal, setShowAddLeaveModal] = useState(false);
   const [date, setDate] = useState('');
   const [leaveType, setLeaveType] = useState('Short Leave');
   const [adjustment, setAdjustment] = useState(false);
+  const [adjustmentCategory, setAdjustmentCategory] = useState('None');
   const [adjustShortLeave, setAdjustShortLeave] = useState(false);
   const [signInTime, setSignInTime] = useState('13:00');
   const [signOutTime, setSignOutTime] = useState('22:30');
   const [leaveHour, setLeaveHour] = useState('00:00');
-  const [reserveHoliday, setReserveHoliday] = useState('');
   const [comment, setComment] = useState('');
   const [bulkDates, setBulkDates] = useState<string[]>([]);
   const [bulkAdjustments, setBulkAdjustments] = useState<boolean[]>([]);
@@ -81,7 +84,6 @@ export const useChutiOperations = ({
   const [revisionSignInTime, setRevisionSignInTime] = useState('13:00');
   const [revisionSignOutTime, setRevisionSignOutTime] = useState('22:30');
   const [revisionLeaveHour, setRevisionLeaveHour] = useState('00:00');
-  const [revisionReserveHoliday, setRevisionReserveHoliday] = useState('');
   const [revisionComment, setRevisionComment] = useState('');
   const [revisionAdjustShortLeave, setRevisionAdjustShortLeave] = useState(false);
 
@@ -99,7 +101,6 @@ export const useChutiOperations = ({
   const [adminEditSignInTime, setAdminEditSignInTime] = useState('13:00');
   const [adminEditSignOutTime, setAdminEditSignOutTime] = useState('22:30');
   const [adminEditLeaveHour, setAdminEditLeaveHour] = useState('00:00');
-  const [adminEditReserveHoliday, setAdminEditReserveHoliday] = useState('');
   const [adminEditComment, setAdminEditComment] = useState('');
   const [adminEditAdjustShortLeave, setAdminEditAdjustShortLeave] = useState(false);
 
@@ -129,10 +130,9 @@ export const useChutiOperations = ({
 
   // Set default form date to today (respecting local timezone)
   useEffect(() => {
-    const offset = new Date().getTimezoneOffset();
-    const localDate = new Date(new Date().getTime() - (offset * 60 * 1050)); // ~offset
-    const today = localDate.toISOString().split('T')[0];
-    setDate(today);
+    const today = new Date();
+    const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    setDate(localDate);
   }, []);
 
   // Update default form sign-in/out times from profile
@@ -147,9 +147,11 @@ export const useChutiOperations = ({
   useEffect(() => {
     const shiftStart = profile?.default_sign_in || '13:00';
     const shiftEnd = profile?.default_sign_out || '22:30';
-    const calc = calculateLeaveOrOvertime(leaveType, signInTime, signOutTime, shiftStart, shiftEnd);
+    const workingHours = profile?.working_hours ?? 9.5;
+    const isHoliday = checkIfHolidayOrWeekend(date, globalSettings);
+    const calc = calculateLeaveOrOvertime(leaveType, signInTime, signOutTime, shiftStart, shiftEnd, workingHours, isHoliday);
     setLeaveHour(calc);
-  }, [signInTime, signOutTime, leaveType, profile]);
+  }, [signInTime, signOutTime, leaveType, date, profile, globalSettings]);
 
   // Admin Edit Hour Auto-Calculation
   useEffect(() => {
@@ -157,21 +159,25 @@ export const useChutiOperations = ({
     const targetProfile = profilesList.find(p => p.id === adminEditRecord.user_id) || profile;
     const shiftStart = targetProfile?.default_sign_in || '13:00';
     const shiftEnd = targetProfile?.default_sign_out || '22:30';
-    const calc = calculateLeaveOrOvertime(adminEditLeaveType, adminEditSignInTime, adminEditSignOutTime, shiftStart, shiftEnd);
+    const workingHours = targetProfile?.working_hours ?? 9.5;
+    const isHoliday = checkIfHolidayOrWeekend(adminEditDate, globalSettings);
+    const calc = calculateLeaveOrOvertime(adminEditLeaveType, adminEditSignInTime, adminEditSignOutTime, shiftStart, shiftEnd, workingHours, isHoliday);
     setAdminEditLeaveHour(calc);
-  }, [adminEditSignInTime, adminEditSignOutTime, adminEditLeaveType, adminEditRecord, profilesList, profile]);
+  }, [adminEditSignInTime, adminEditSignOutTime, adminEditLeaveType, adminEditDate, adminEditRecord, profilesList, profile, globalSettings]);
 
   // User Revision Hour Auto-Calculation
   useEffect(() => {
     const shiftStart = profile?.default_sign_in || '13:00';
     const shiftEnd = profile?.default_sign_out || '22:30';
-    const calc = calculateLeaveOrOvertime(revisionLeaveType, revisionSignInTime, revisionSignOutTime, shiftStart, shiftEnd);
+    const workingHours = profile?.working_hours ?? 9.5;
+    const isHoliday = checkIfHolidayOrWeekend(revisionDate, globalSettings);
+    const calc = calculateLeaveOrOvertime(revisionLeaveType, revisionSignInTime, revisionSignOutTime, shiftStart, shiftEnd, workingHours, isHoliday);
     setRevisionLeaveHour(calc);
-  }, [revisionSignInTime, revisionSignOutTime, revisionLeaveType, profile]);
+  }, [revisionSignInTime, revisionSignOutTime, revisionLeaveType, revisionDate, profile, globalSettings]);
 
   const handleAddBulkDate = () => {
     if (bulkDates.length + 1 >= 10) {
-      alert('সর্বোচ্চ ১০ দিন পর্যন্ত ছুটি একসাথে আবেদন করতে পারবেন!');
+      setMessage({ type: 'error', text: 'সর্বোচ্চ ১০ দিন পর্যন্ত ছুটি একসাথে আবেদন করতে পারবেন!' });
       return;
     }
     setBulkDates(prev => [...prev, '']);
@@ -180,7 +186,7 @@ export const useChutiOperations = ({
 
   const handleUpdateBulkDate = (index: number, val: string) => {
     if (val === date || bulkDates.some((d, idx) => idx !== index && d === val)) {
-      alert('এই তারিখটি ইতিমধ্যে নির্বাচন করা হয়েছে!');
+      setMessage({ type: 'error', text: 'এই তারিখটি ইতিমধ্যে নির্বাচন করা হয়েছে!' });
       return;
     }
     setBulkDates(prev => prev.map((d, idx) => idx === index ? val : d));
@@ -203,54 +209,119 @@ export const useChutiOperations = ({
     setSubmitting(true);
     setMessage(null);
 
-    const isReserve = leaveType === 'Reserve';
     const isFullLeave = leaveType === 'Full Leave';
 
     // Gather all selected dates with their adjustments
     const datesWithAdjustment = isFullLeave
       ? [
-          { date, adjustment },
+          { date, adjustment: adjustmentCategory !== 'None' },
           ...bulkDates.map((d, idx) => ({ date: d, adjustment: bulkAdjustments[idx] || false }))
         ].filter(item => item.date)
-      : [{ date, adjustment }];
+      : [{ date, adjustment: false }];
 
     const allDates = datesWithAdjustment.map(item => item.date);
 
     if (allDates.length === 0) {
-      setMessage({ type: 'error', text: 'অন্তত একটি তারিখ নির্বাচন করুন!' });
+      setMessage({ type: 'error', text: 'অনুতত একটি তারিখ নির্বাচন করুন!' });
       setSubmitting(false);
       return;
     }
 
-    const bulkId = allDates.length > 1 ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    })) : null;
+    const bulkId = allDates.length > 1 ? generateUUID() : null;
 
     const bypassSupervisor = 
       profile?.needs_supervisor_approval === false ||
       profile?.role === 'admin' ||
       profile?.role === 'supervisor';
 
-    const getRecordForDate = (targetDate: string, targetAdjustment: boolean) => ({
-      user_id: sessionUser.id,
-      date: targetDate,
-      leave_type: leaveType,
-      adjustment: isReserve ? false : targetAdjustment,
-      adjust_short_leave: (leaveType === 'Overtime' || leaveType === 'Reserve') && targetAdjustment ? adjustShortLeave : false,
-      sign_in_time: (isReserve || isFullLeave) ? null : signInTime,
-      sign_out_time: (isReserve || isFullLeave) ? null : signOutTime,
-      leave_hour: (isReserve || isFullLeave) ? null : `${leaveHour}:00`,
-      reserve_holiday: isReserve ? reserveHoliday : null,
-      reserve_adjustment_status: isReserve ? (targetAdjustment ? 'pending' : 'none') : 'none',
-      status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
-      comment: comment || null,
-      bulk_id: bulkId,
-      admin_edit_request: (!bypassSupervisor && selectedSupervisors.length > 0)
-        ? { supervisor_ids: selectedSupervisors }
-        : null
-    });
+    // Calculate available overtime and short leave minutes
+    const selectedYear = date ? date.substring(0, 4) : new Date().getFullYear().toString();
+    const approvedRecords = userRecords.filter(r => r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
+    const stats = calculateStats(approvedRecords);
+    
+    const availableOvertimeMins = parseIntervalToMinutes(stats.overtimeHours);
+    const availableShortLeaveMins = parseIntervalToMinutes(stats.shortHours);
+    const leaveMins = parseIntervalToMinutes(`${leaveHour}:00`);
+
+    let finalAdjustment = false;
+    let finalAdjustedHour: string | null = null;
+    let finalAdjustShortLeave = false;
+
+    if (leaveType === 'Full Leave') {
+      finalAdjustment = adjustmentCategory !== 'None';
+      finalAdjustedHour = null;
+      finalAdjustShortLeave = false;
+    } else if (leaveType === 'Short Leave') {
+      if (adjustment && availableOvertimeMins > 0) {
+        if (leaveMins <= availableOvertimeMins) {
+          finalAdjustment = true;
+          finalAdjustedHour = null;
+        } else {
+          finalAdjustment = false;
+          const otHours = Math.floor(availableOvertimeMins / 60);
+          const otMins = availableOvertimeMins % 60;
+          finalAdjustedHour = `${String(otHours).padStart(2, '0')}:${String(otMins).padStart(2, '0')}:00`;
+        }
+      } else {
+        finalAdjustment = false;
+        finalAdjustedHour = null;
+      }
+      finalAdjustShortLeave = false;
+    } else if (leaveType === 'Overtime') {
+      if (adjustShortLeave && availableShortLeaveMins > 0) {
+        finalAdjustShortLeave = true;
+        if (leaveMins <= availableShortLeaveMins) {
+          finalAdjustment = true;
+          finalAdjustedHour = null;
+        } else {
+          finalAdjustment = false;
+          const slHours = Math.floor(availableShortLeaveMins / 60);
+          const slMins = availableShortLeaveMins % 60;
+          finalAdjustedHour = `${String(slHours).padStart(2, '0')}:${String(slMins).padStart(2, '0')}:00`;
+        }
+      } else {
+        finalAdjustment = false;
+        finalAdjustedHour = null;
+        finalAdjustShortLeave = false;
+      }
+    }
+
+    const getRecordForDate = (targetDate: string, targetAdjustment: boolean) => {
+      let commentWithCategory = comment;
+      if (leaveType === 'Full Leave') {
+        commentWithCategory = (targetAdjustment && adjustmentCategory !== 'None')
+          ? `Adjusted: ${adjustmentCategory} | ${comment}`
+          : comment;
+      } else if (leaveType === 'Short Leave' && finalAdjustment) {
+        commentWithCategory = `Adjusted with Overtime | ${comment}`;
+      } else if (leaveType === 'Short Leave' && finalAdjustedHour) {
+        commentWithCategory = `Partially Adjusted with Overtime (${finalAdjustedHour.substring(0, 5)}) | ${comment}`;
+      } else if (leaveType === 'Overtime' && finalAdjustment) {
+        commentWithCategory = `Adjusted with Short Leave | ${comment}`;
+      } else if (leaveType === 'Overtime' && finalAdjustedHour) {
+        commentWithCategory = `Partially Adjusted with Short Leave (${finalAdjustedHour.substring(0, 5)}) | ${comment}`;
+      }
+
+      return {
+        user_id: sessionUser.id,
+        date: targetDate,
+        leave_type: leaveType,
+        adjustment: leaveType === 'Full Leave' ? targetAdjustment : finalAdjustment,
+        adjusted_hour: leaveType === 'Full Leave' ? null : finalAdjustedHour,
+        adjust_short_leave: finalAdjustShortLeave,
+        sign_in_time: isFullLeave ? null : signInTime,
+        sign_out_time: isFullLeave ? null : signOutTime,
+        leave_hour: isFullLeave ? null : `${leaveHour}:00`,
+        reserve_holiday: null,
+        reserve_adjustment_status: 'none',
+        status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
+        comment: commentWithCategory || null,
+        bulk_id: bulkId,
+        admin_edit_request: (!bypassSupervisor && selectedSupervisors.length > 0)
+          ? { supervisor_ids: selectedSupervisors }
+          : null
+      };
+    };
 
     const offlineItems = await getOfflineRecords();
     const offlineDuplicates = allDates.filter(d => 
@@ -285,8 +356,8 @@ export const useChutiOperations = ({
         setUserRecords(prev => [...addedTempRecords, ...prev]);
 
         setComment('');
-        setReserveHoliday('');
         setAdjustShortLeave(false);
+        setAdjustmentCategory('None');
         setBulkDates([]);
         setBulkAdjustments([]);
         setShowAddLeaveModal(false);
@@ -335,8 +406,8 @@ export const useChutiOperations = ({
       fetchRecords();
 
       setComment('');
-      setReserveHoliday('');
       setAdjustShortLeave(false);
+      setAdjustmentCategory('None');
       setBulkDates([]);
       setBulkAdjustments([]);
       setSelectedSupervisors([]);
@@ -406,7 +477,6 @@ export const useChutiOperations = ({
     setSubmitting(true);
 
     try {
-      const isReserve = revisionLeaveType === 'Reserve';
       const isFullLeave = revisionLeaveType === 'Full Leave';
 
       const bypassSupervisor = 
@@ -417,13 +487,13 @@ export const useChutiOperations = ({
       const updates = {
         date: revisionDate,
         leave_type: revisionLeaveType,
-        adjustment: isReserve ? false : revisionAdjustment,
-        adjust_short_leave: (revisionLeaveType === 'Overtime' || revisionLeaveType === 'Reserve') && revisionAdjustment ? revisionAdjustShortLeave : false,
-        sign_in_time: (isReserve || isFullLeave) ? null : revisionSignInTime,
-        sign_out_time: (isReserve || isFullLeave) ? null : revisionSignOutTime,
-        leave_hour: (isReserve || isFullLeave) ? null : `${revisionLeaveHour}:00`,
-        reserve_holiday: isReserve ? revisionReserveHoliday : null,
-        reserve_adjustment_status: isReserve ? (revisionAdjustment ? 'pending' : 'none') : 'none',
+        adjustment: revisionAdjustment,
+        adjust_short_leave: revisionLeaveType === 'Overtime' && revisionAdjustment ? revisionAdjustShortLeave : false,
+        sign_in_time: isFullLeave ? null : revisionSignInTime,
+        sign_out_time: isFullLeave ? null : revisionSignOutTime,
+        leave_hour: isFullLeave ? null : `${revisionLeaveHour}:00`,
+        reserve_holiday: null,
+        reserve_adjustment_status: 'none',
         comment: revisionComment || null,
         status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor'
       };
@@ -452,7 +522,7 @@ export const useChutiOperations = ({
           : 'সংশোধিত তথ্য সুপারভাইজারের কাছে পুনরায় পাঠানো হয়েছে।' 
       });
     } catch (err) {
-      alert('রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + (err as Error).message });
     } finally {
       setSubmitting(false);
     }
@@ -465,30 +535,25 @@ export const useChutiOperations = ({
     setSubmitting(true);
     
     try {
-      const isReserve = adminEditLeaveType === 'Reserve';
       const isFullLeave = adminEditLeaveType === 'Full Leave';
       
-      const newNotification = {
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-        type: 'edited',
-        timestamp: new Date().toISOString(),
-        title: 'ছুটির তথ্য সংশোধিত ✏️',
-        body: `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`
-      };
-      const existingNotifications = (adminEditRecord.admin_edit_request && typeof adminEditRecord.admin_edit_request === 'object' && 'notifications' in adminEditRecord.admin_edit_request)
-        ? (adminEditRecord.admin_edit_request as { notifications?: any[] }).notifications || []
-        : [];
+      const newNotification = createNotification(
+        'edited',
+        'ছুটির তথ্য সংশোধিত ✏️',
+        `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`
+      );
+      const existingNotifications = getExistingNotifications(adminEditRecord);
 
       const updates = {
         date: adminEditDate,
         leave_type: adminEditLeaveType,
         adjustment: adminEditAdjustment,
-        adjust_short_leave: (adminEditLeaveType === 'Overtime' || adminEditLeaveType === 'Reserve') && adminEditAdjustment ? adminEditAdjustShortLeave : false,
-        sign_in_time: (isReserve || isFullLeave) ? null : adminEditSignInTime,
-        sign_out_time: (isReserve || isFullLeave) ? null : adminEditSignOutTime,
-        leave_hour: (isReserve || isFullLeave) ? null : `${adminEditLeaveHour}:00`,
-        reserve_holiday: isReserve ? adminEditReserveHoliday : null,
-        reserve_adjustment_status: isReserve ? (adminEditAdjustment ? 'approved' : 'none') : 'none',
+        adjust_short_leave: adminEditLeaveType === 'Overtime' && adminEditAdjustment ? adminEditAdjustShortLeave : false,
+        sign_in_time: isFullLeave ? null : adminEditSignInTime,
+        sign_out_time: isFullLeave ? null : adminEditSignOutTime,
+        leave_hour: isFullLeave ? null : `${adminEditLeaveHour}:00`,
+        reserve_holiday: null,
+        reserve_adjustment_status: 'none',
         comment: adminEditComment || null,
         is_edited: true,
         admin_edit_request: {
@@ -523,7 +588,7 @@ export const useChutiOperations = ({
         text: 'ছুটির তথ্য সফলভাবে আপডেট করা হয়েছে।' 
       });
     } catch (err) {
-      alert('এডিট করতে সমস্যা হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'এডিট করতে সমস্যা হয়েছে: ' + (err as Error).message });
     } finally {
       setSubmitting(false);
     }
@@ -535,7 +600,7 @@ export const useChutiOperations = ({
     if (!chutiId) return;
     const reasonText = revisionPromptText.trim();
     if (!reasonText) {
-      alert('সংশোধনের জন্য পাঠানোর পূর্বে কারণ/মন্তব্য লেখা আবশ্যক!');
+      setMessage({ type: 'error', text: 'সংশোধনের জন্য পাঠানোর পূর্বে কারণ/মন্তব্য লেখা আবশ্যক!' });
       return;
     }
     
@@ -567,16 +632,12 @@ export const useChutiOperations = ({
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
-          const newNotification = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-            type: 'revision',
-            timestamp: new Date().toISOString(),
-            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${t.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
-          };
-          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
-            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
-            : [];
+          const newNotification = createNotification(
+            'revision',
+            'ছুটি সংশোধনের অনুরোধ ⚠️',
+            `আপনার ${t.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+          );
+          const existingNotifications = getExistingNotifications(t);
 
           const updates = { 
             status: 'needs_review',
@@ -618,16 +679,12 @@ export const useChutiOperations = ({
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
-          const newNotification = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-            type: 'revision',
-            timestamp: new Date().toISOString(),
-            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${t.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
-          };
-          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
-            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
-            : [];
+          const newNotification = createNotification(
+            'revision',
+            'ছুটি সংশোধনের অনুরোধ ⚠️',
+            `আপনার ${t.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+          );
+          const existingNotifications = getExistingNotifications(t);
 
           const updates = {
             status: 'needs_review',
@@ -669,7 +726,7 @@ export const useChutiOperations = ({
       setRevisionPromptText('');
       fetchRecords();
     } catch (err) {
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
     } finally {
       setSubmittingRevision(false);
       setReviewingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
@@ -761,7 +818,7 @@ export const useChutiOperations = ({
       setMessage({ type: 'success', text: 'ছুটির আবেদনটি সুপারভাইজার সফলভাবে অনুমোদন করেছেন।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      alert('অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
     }
   };
 
@@ -802,16 +859,12 @@ export const useChutiOperations = ({
         let updatedComment = t.comment || '';
         updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
-        const newNotification = {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-          type: 'approved',
-          timestamp: new Date().toISOString(),
-          title: 'ছুটির আবেদন অনুমোদিত ✅',
-          body: `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
-        };
-        const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
-          ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
-          : [];
+        const newNotification = createNotification(
+          'approved',
+          'ছুটির আবেদন অনুমোদিত ✅',
+          `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
+        );
+        const existingNotifications = getExistingNotifications(t);
 
         const updates = { 
           status: 'approved',
@@ -845,16 +898,12 @@ export const useChutiOperations = ({
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
-          const newNotification = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-            type: 'approved',
-            timestamp: new Date().toISOString(),
-            title: 'ছুটির আবেদন অনুমোদিত ✅',
-            body: `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
-          };
-          const existingNotifications = (t.admin_edit_request && typeof t.admin_edit_request === 'object' && 'notifications' in t.admin_edit_request)
-            ? (t.admin_edit_request as { notifications?: any[] }).notifications || []
-            : [];
+          const newNotification = createNotification(
+            'approved',
+            'ছুটির আবেদন অনুমোদিত ✅',
+            `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
+          );
+          const existingNotifications = getExistingNotifications(t);
 
           const updates = { 
             status: 'approved',
@@ -881,7 +930,7 @@ export const useChutiOperations = ({
       setMessage({ type: 'success', text: 'ছুটির আবেদনটি অ্যাডমিন সফলভাবে অনুমোদন করেছেন।' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      alert('অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
     }
   };
 
@@ -901,6 +950,8 @@ export const useChutiOperations = ({
     setLeaveType,
     adjustment,
     setAdjustment,
+    adjustmentCategory,
+    setAdjustmentCategory,
     adjustShortLeave,
     setAdjustShortLeave,
     signInTime,
@@ -909,8 +960,6 @@ export const useChutiOperations = ({
     setSignOutTime,
     leaveHour,
     setLeaveHour,
-    reserveHoliday,
-    setReserveHoliday,
     comment,
     setComment,
     selectedSupervisors,
@@ -938,8 +987,6 @@ export const useChutiOperations = ({
     setRevisionSignOutTime,
     revisionLeaveHour,
     setRevisionLeaveHour,
-    revisionReserveHoliday,
-    setRevisionReserveHoliday,
     revisionComment,
     setRevisionComment,
 
@@ -965,8 +1012,6 @@ export const useChutiOperations = ({
     setAdminEditSignOutTime,
     adminEditLeaveHour,
     setAdminEditLeaveHour,
-    adminEditReserveHoliday,
-    setAdminEditReserveHoliday,
     adminEditComment,
     setAdminEditComment,
     adminEditAdjustShortLeave,

@@ -11,7 +11,6 @@ interface FilterPanelProps {
   setFilterEndDate: (val: string) => void;
   selectedYear: string;
   allowOvertime?: boolean;
-  allowReserve?: boolean;
   onExportCSV: () => void;
   onExportExcel: () => void;
   onExportPDF: () => void;
@@ -27,7 +26,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   setFilterEndDate,
   selectedYear,
   allowOvertime,
-  allowReserve,
   onExportCSV,
   onExportExcel,
   onExportPDF,
@@ -52,7 +50,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <option value="Short Leave">Short Leave</option>
             <option value="Full Leave">Full Leave</option>
             {allowOvertime && <option value="Overtime">Overtime</option>}
-            {allowReserve && <option value="Reserve">Reserve</option>}
           </select>
         </div>
 

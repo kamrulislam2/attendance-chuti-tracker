@@ -15,7 +15,6 @@ interface UseModalHandlersParams {
   setRevisionSignInTime: (t: string) => void;
   setRevisionSignOutTime: (t: string) => void;
   setRevisionLeaveHour: (h: string) => void;
-  setRevisionReserveHoliday: (h: string) => void;
   setRevisionComment: (c: string) => void;
   setShowUserRevisionModal: (v: boolean) => void;
 
@@ -28,13 +27,10 @@ interface UseModalHandlersParams {
   setAdminEditSignInTime: (t: string) => void;
   setAdminEditSignOutTime: (t: string) => void;
   setAdminEditLeaveHour: (h: string) => void;
-  setAdminEditReserveHoliday: (h: string) => void;
   setAdminEditComment: (c: string) => void;
   setShowAdminEditModal: (v: boolean) => void;
 
-  // Add leave modal setters
   setComment: (c: string) => void;
-  setReserveHoliday: (h: string) => void;
   setAdjustShortLeave: (v: boolean) => void;
   setDate: (d: string) => void;
   setShowAddLeaveModal: (v: boolean) => void;
@@ -56,7 +52,8 @@ interface UseModalHandlersParams {
   setEditAllowReserve: (v: boolean) => void;
   setEditAllowOvertime: (v: boolean) => void;
   setEditMaxFullLeaves: (v: string) => void;
-  setEditMaxShortLeaves: (v: string) => void;
+  setEditEligibleOfficeLeave: (v: boolean) => void;
+  setEditEligibleGovtHoliday: (v: boolean) => void;
 
   // Credentials modal setters
   setCredTargetUserId: (id: string) => void;
@@ -88,7 +85,6 @@ export function useModalHandlers({
   setRevisionSignInTime,
   setRevisionSignOutTime,
   setRevisionLeaveHour,
-  setRevisionReserveHoliday,
   setRevisionComment,
   setShowUserRevisionModal,
   setAdminEditRecord,
@@ -99,11 +95,9 @@ export function useModalHandlers({
   setAdminEditSignInTime,
   setAdminEditSignOutTime,
   setAdminEditLeaveHour,
-  setAdminEditReserveHoliday,
   setAdminEditComment,
   setShowAdminEditModal,
   setComment,
-  setReserveHoliday,
   setAdjustShortLeave,
   setDate,
   setShowAddLeaveModal,
@@ -123,7 +117,8 @@ export function useModalHandlers({
   setEditAllowReserve,
   setEditAllowOvertime,
   setEditMaxFullLeaves,
-  setEditMaxShortLeaves,
+  setEditEligibleOfficeLeave,
+  setEditEligibleGovtHoliday,
   setCredTargetUserId,
   setCredNewUsername,
   setCredNewPassword,
@@ -140,7 +135,6 @@ export function useModalHandlers({
   // Open "Add Leave" modal with default values
   const handleOpenAddLeaveModal = useCallback(() => {
     setComment('');
-    setReserveHoliday('');
     setAdjustShortLeave(false);
     if (setSelectedSupervisors) {
       setSelectedSupervisors([]);
@@ -149,7 +143,7 @@ export function useModalHandlers({
     const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     setDate(localDate);
     setShowAddLeaveModal(true);
-  }, [setComment, setReserveHoliday, setAdjustShortLeave, setDate, setShowAddLeaveModal, setSelectedSupervisors]);
+  }, [setComment, setAdjustShortLeave, setDate, setShowAddLeaveModal, setSelectedSupervisors]);
 
   // Open "User Revision" modal with record data
   const handleOpenRevisionModal = useCallback((r: ChutiRecord) => {
@@ -161,10 +155,9 @@ export function useModalHandlers({
     setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
     setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
     setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-    setRevisionReserveHoliday(r.reserve_holiday || '');
     setRevisionComment('');
     setShowUserRevisionModal(true);
-  }, [setRevisionRecord, setRevisionDate, setRevisionLeaveType, setRevisionAdjustment, setRevisionAdjustShortLeave, setRevisionSignInTime, setRevisionSignOutTime, setRevisionLeaveHour, setRevisionReserveHoliday, setRevisionComment, setShowUserRevisionModal]);
+  }, [setRevisionRecord, setRevisionDate, setRevisionLeaveType, setRevisionAdjustment, setRevisionAdjustShortLeave, setRevisionSignInTime, setRevisionSignOutTime, setRevisionLeaveHour, setRevisionComment, setShowUserRevisionModal]);
 
   // Open "Admin Edit" modal with record data
   const handleOpenAdminEditModal = useCallback((r: ChutiRecord) => {
@@ -176,10 +169,9 @@ export function useModalHandlers({
     setAdminEditSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
     setAdminEditSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
     setAdminEditLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-    setAdminEditReserveHoliday(r.reserve_holiday || '');
     setAdminEditComment(r.comment || '');
     setShowAdminEditModal(true);
-  }, [setAdminEditRecord, setAdminEditDate, setAdminEditLeaveType, setAdminEditAdjustment, setAdminEditAdjustShortLeave, setAdminEditSignInTime, setAdminEditSignOutTime, setAdminEditLeaveHour, setAdminEditReserveHoliday, setAdminEditComment, setShowAdminEditModal]);
+  }, [setAdminEditRecord, setAdminEditDate, setAdminEditLeaveType, setAdminEditAdjustment, setAdminEditAdjustShortLeave, setAdminEditSignInTime, setAdminEditSignOutTime, setAdminEditLeaveHour, setAdminEditComment, setShowAdminEditModal]);
 
   // Open Profile Settings for self (from Navbar)
   const handleOpenProfileSettingsForSelf = useCallback(() => {
@@ -198,8 +190,9 @@ export function useModalHandlers({
     setEditAllowReserve(profile?.allow_reserve === true);
     setEditAllowOvertime(profile?.allow_overtime === true);
     setEditMaxFullLeaves(String(profile?.max_full_leaves ?? 15));
-    setEditMaxShortLeaves(String(profile?.max_short_leaves ?? 15));
-  }, [profile, setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setShowProfileSettingsModal, setIsEditRequestMode, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditMaxShortLeaves]);
+    setEditEligibleOfficeLeave(profile?.eligible_office_leave !== false);
+    setEditEligibleGovtHoliday(profile?.eligible_govt_holiday !== false);
+  }, [profile, setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setShowProfileSettingsModal, setIsEditRequestMode, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditEligibleOfficeLeave, setEditEligibleGovtHoliday]);
 
   // Open Profile Settings for a specific staff member (admin)
   const handleOpenProfileSettingsForStaff = useCallback((staff: Profile) => {
@@ -216,9 +209,10 @@ export function useModalHandlers({
     setEditAllowReserve(staff.allow_reserve === true);
     setEditAllowOvertime(staff.allow_overtime === true);
     setEditMaxFullLeaves(String(staff.max_full_leaves ?? 15));
-    setEditMaxShortLeaves(String(staff.max_short_leaves ?? 15));
+    setEditEligibleOfficeLeave(staff.eligible_office_leave !== false);
+    setEditEligibleGovtHoliday(staff.eligible_govt_holiday !== false);
     setShowProfileSettingsModal(true);
-  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditMaxShortLeaves, setShowProfileSettingsModal]);
+  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditEligibleOfficeLeave, setEditEligibleGovtHoliday, setShowProfileSettingsModal]);
 
   // Open Credentials modal
   const handleOpenCredentialsModal = useCallback((userId: string, username: string) => {

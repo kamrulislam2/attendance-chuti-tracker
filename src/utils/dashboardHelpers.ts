@@ -1,13 +1,83 @@
-import { ChutiRecord } from '@/utils/offlineSync';
+import { ChutiRecord, generateUUID } from '@/utils/offlineSync';
 
-// Helper function to clean supervisor/admin approval prefix from comment for table display
+export interface GlobalSettings {
+  office_leave_default: number;
+  eid_fitr_leave: number;
+  eid_adha_leave: number;
+  govt_holidays: any[]; // Supports date strings or { date: string; name: string } objects
+}
+
+export const defaultGlobalSettings: GlobalSettings = {
+  office_leave_default: 14,
+  eid_fitr_leave: 0,
+  eid_adha_leave: 0,
+  govt_holidays: []
+};
+
+export const parseHolidayItem = (item: any): { date: string; name: string } => {
+  if (item && typeof item === 'object' && item.date) {
+    return { date: item.date, name: item.name || 'সরকারি সাধারণ ছুটি' };
+  }
+  return { date: String(item), name: 'সরকারি সাধারণ ছুটি' };
+};
+
+export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
+  if (!profile) return defaultGlobalSettings;
+  
+  if (profile.global_settings) {
+    try {
+      const gs = typeof profile.global_settings === 'string'
+        ? JSON.parse(profile.global_settings)
+        : profile.global_settings;
+      if (gs && typeof gs === 'object') {
+        return {
+          office_leave_default: Number(gs.office_leave_default ?? 14),
+          eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
+          eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
+          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : []
+        };
+      }
+    } catch (e) {
+      console.error('Error parsing global_settings:', e);
+    }
+  }
+  
+  if (profile.requested_default_sign_in && profile.requested_default_sign_in.startsWith('{')) {
+    try {
+      const gs = JSON.parse(profile.requested_default_sign_in);
+      if (gs && typeof gs === 'object') {
+        return {
+          office_leave_default: Number(gs.office_leave_default ?? 14),
+          eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
+          eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
+          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : []
+        };
+      }
+    } catch (e) {
+      console.error('Error parsing fallback settings:', e);
+    }
+  }
+  
+  return defaultGlobalSettings;
+};
+
+// Helper function to clean supervisor/admin approval prefix and adjustments from comment for table display
 export const getCleanComment = (comment: string | null | undefined): string => {
   if (!comment) return '';
   let clean = comment;
+  
+  // Clean approval prefixes
   const regex = /^[A-Za-z0-9_-]+\s+Approved(?:\s*\|\s*)?/;
   while (regex.test(clean)) {
     clean = clean.replace(regex, '');
   }
+  
+  // Clean adjustment prefixes
+  const adjRegex = /^Adjusted:\s*(?:Office Leave|Eid-ul-Fitr|Eid-ul-Adha|Govt Holiday)(?:\s*\|\s*)?/;
+  while (adjRegex.test(clean)) {
+    clean = clean.replace(adjRegex, '');
+  }
+  
   return clean.trim();
 };
 
@@ -67,48 +137,63 @@ export const calculateStats = (records: ChutiRecord[]) => {
   let totalShortMinutes = 0;
   let totalOvertimeMinutes = 0;
   let totalFullLeaves = 0;
-  let totalReserveLeaves = 0;
+  const totalReserveLeaves = 0;
+  
+  let officeLeavesTaken = 0;
+  let eidFitrTaken = 0;
+  let eidAdhaTaken = 0;
+  let govtHolidaysTaken = 0;
 
   records.forEach(r => {
     // Count only approved leaves in total counters
     if (r.status === 'approved') {
+      const isOfficeLeave = r.comment?.startsWith("Adjusted: Office Leave") || false;
+      const isEidFitr = r.comment?.startsWith("Adjusted: Eid-ul-Fitr") || false;
+      const isEidAdha = r.comment?.startsWith("Adjusted: Eid-ul-Adha") || false;
+      const isGovtHoliday = r.comment?.startsWith("Adjusted: Govt Holiday") || false;
+      const hasCategoryAdj = isOfficeLeave || isEidFitr || isEidAdha || isGovtHoliday;
+
       if (r.leave_type === 'Full Leave') {
-        if (!r.adjustment) totalFullLeaves++;
-      } else if (r.leave_type === 'Reserve') {
-        if (r.adjustment) {
-          if (r.adjust_short_leave) {
-            totalFullLeaves--;
-          }
+        if (hasCategoryAdj) {
+          if (isOfficeLeave) officeLeavesTaken++;
+          else if (isEidFitr) eidFitrTaken++;
+          else if (isEidAdha) eidAdhaTaken++;
+          else if (isGovtHoliday) govtHolidaysTaken++;
         } else {
-          totalReserveLeaves++;
+          if (!r.adjustment) totalFullLeaves++;
         }
       } else if (r.leave_type === 'Short Leave') {
         if (r.leave_hour) {
           let mins = parseIntervalToMinutes(r.leave_hour);
+          const isNegative = r.leave_hour.toString().startsWith('-');
           if (r.adjustment) {
             mins = 0;
+            const fullAdjMins = parseIntervalToMinutes(r.leave_hour);
+            totalOvertimeMinutes -= isNegative ? -fullAdjMins : fullAdjMins;
           } else if (r.adjusted_hour) {
             const adjMins = parseIntervalToMinutes(r.adjusted_hour);
             mins = Math.max(0, mins - adjMins);
+            totalOvertimeMinutes -= isNegative ? -adjMins : adjMins;
           }
-          const isNegative = r.leave_hour.toString().startsWith('-');
           totalShortMinutes += isNegative ? -mins : mins;
         }
       } else if (r.leave_type === 'Overtime') {
         if (r.leave_hour) {
           let mins = parseIntervalToMinutes(r.leave_hour);
+          const isNegative = r.leave_hour.toString().startsWith('-');
           if (r.adjustment) {
             mins = 0;
             if (r.adjust_short_leave) {
-              const isNegative = r.leave_hour.toString().startsWith('-');
               const otMins = parseIntervalToMinutes(r.leave_hour);
               totalShortMinutes -= isNegative ? -otMins : otMins;
             }
           } else if (r.adjusted_hour) {
             const adjMins = parseIntervalToMinutes(r.adjusted_hour);
             mins = Math.max(0, mins - adjMins);
+            if (r.adjust_short_leave) {
+              totalShortMinutes -= isNegative ? -adjMins : adjMins;
+            }
           }
-          const isNegative = r.leave_hour.toString().startsWith('-');
           totalOvertimeMinutes += isNegative ? -mins : mins;
         }
       }
@@ -120,8 +205,33 @@ export const calculateStats = (records: ChutiRecord[]) => {
     overtimeHours: formatDuration(totalOvertimeMinutes),
     fullLeaves: Math.max(0, totalFullLeaves),
     reserveLeaves: totalReserveLeaves,
-    totalHours: formatDuration(totalShortMinutes)
+    totalHours: formatDuration(totalShortMinutes),
+    officeLeavesTaken,
+    eidFitrTaken,
+    eidAdhaTaken,
+    govtHolidaysTaken
   };
+};
+
+export const checkIfHolidayOrWeekend = (dateString: string, globalSettings: GlobalSettings): boolean => {
+  if (!dateString) return false;
+  
+  const parts = dateString.split('-').map(Number);
+  if (parts.length === 3) {
+    const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    const day = dateObj.getDay();
+    if (day === 5 || day === 6) { // Friday and Saturday
+      return true;
+    }
+  }
+  
+  const holidays = globalSettings?.govt_holidays || [];
+  const isGovtHoliday = holidays.some((h: any) => {
+    const hDate = typeof h === 'object' ? h.date : String(h);
+    return hDate === dateString;
+  });
+  
+  return isGovtHoliday;
 };
 
 export const calculateLeaveOrOvertime = (
@@ -129,9 +239,11 @@ export const calculateLeaveOrOvertime = (
   actualStart: string,
   actualEnd: string,
   shiftStart: string,
-  shiftEnd: string
+  shiftEnd: string,
+  workingHours: number = 9.5,
+  isHoliday: boolean = false
 ) => {
-  if (type === 'Reserve' || type === 'Full Leave') {
+  if (type === 'Full Leave') {
     return '00:00';
   }
   if (!actualStart || !actualEnd) return '00:00';
@@ -155,9 +267,16 @@ export const calculateLeaveOrOvertime = (
     const earlyOut = Math.max(0, shiftEndMins - actualEndMins);
     return formatDuration(Math.max(0, lateIn + earlyOut));
   } else if (type === 'Overtime') {
-    const worked = actualEndMins - actualStartMins;
-    const regular = shiftEndMins - shiftStartMins;
-    return formatDuration(Math.max(0, worked - regular));
+    let worked = actualEndMins - actualStartMins;
+    if (worked < 0) {
+      worked += 24 * 60;
+    }
+    if (isHoliday) {
+      return formatDuration(Math.max(0, worked));
+    } else {
+      const regular = workingHours * 60;
+      return formatDuration(Math.max(0, worked - regular));
+    }
   }
   return '00:00';
 };
@@ -189,8 +308,93 @@ export const formatTimeToAMPM = (timeStr: string | null) => {
 };
 
 export const getDetailedLeaveLabel = (rec: { leave_type: string; reserve_holiday?: string | null }) => {
-  if (rec.leave_type === 'Reserve' && rec.reserve_holiday) {
-    return `Reserve (${rec.reserve_holiday})`;
-  }
   return rec.leave_type;
 };
+
+export interface HalfYearlyOfficeLeaveStats {
+  h1Total: number;
+  h1Taken: number;
+  h1Remaining: number;
+  carryForward: number;
+  h2Total: number;
+  h2Taken: number;
+  h2Remaining: number;
+  currentHalf: 1 | 2;
+}
+
+export const calculateHalfYearlyOfficeLeave = (
+  records: ChutiRecord[],
+  officeLeaveDefault: number,
+  selectedYear: string
+): HalfYearlyOfficeLeaveStats => {
+  const h1Quota = Math.floor(officeLeaveDefault / 2); // 7 days
+  const h2Quota = officeLeaveDefault - h1Quota; // 7 days
+
+  // Filter approved full-day records for the selected year
+  const approvedRecs = records.filter(r => r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
+
+  let h1Taken = 0;
+  let h2Taken = 0;
+
+  approvedRecs.forEach(r => {
+    // Only count full-day leaves (Full Leave or Reserve) that count against office leave
+    const isFullLeave = r.leave_type === 'Full Leave';
+    if (!isFullLeave) return;
+
+    // Check if it's adjusted to Govt Holiday (which uses govt holiday quota, not office leave)
+    const isGovtHolidayAdj = r.comment?.startsWith("Adjusted: Govt Holiday") || false;
+    if (isGovtHolidayAdj) return;
+
+    const month = parseInt(r.date.substring(5, 7), 10);
+    if (month <= 6) {
+      h1Taken++;
+    } else {
+      h2Taken++;
+    }
+  });
+
+  const h1Remaining = h1Quota - h1Taken;
+  const carryForward = Math.max(0, h1Remaining);
+  const h2Total = h2Quota + carryForward;
+  const h2Remaining = h2Total - h2Taken;
+
+  // Determine current active half
+  const now = new Date();
+  const currentYear = now.getFullYear().toString();
+  let currentHalf: 1 | 2 = 1;
+  if (selectedYear < currentYear) {
+    currentHalf = 2; // Past year is fully complete, default to H2
+  } else if (selectedYear > currentYear) {
+    currentHalf = 1; // Future year starts in H1
+  } else {
+    currentHalf = (now.getMonth() + 1) <= 6 ? 1 : 2;
+  }
+
+  return {
+    h1Total: h1Quota,
+    h1Taken,
+    h1Remaining,
+    carryForward,
+    h2Total: h2Quota,
+    h2Taken,
+    h2Remaining,
+    currentHalf,
+  };
+};
+
+// Helper to safely extract existing notifications from a ChutiRecord's admin_edit_request
+export const getExistingNotifications = (record: ChutiRecord): any[] => {
+  if (record.admin_edit_request && typeof record.admin_edit_request === 'object' && 'notifications' in record.admin_edit_request) {
+    return (record.admin_edit_request as { notifications?: any[] }).notifications || [];
+  }
+  return [];
+};
+
+// Factory to create a notification object with auto-generated id and timestamp
+export const createNotification = (type: string, title: string, body: string) => ({
+  id: generateUUID(),
+  type,
+  timestamp: new Date().toISOString(),
+  title,
+  body,
+});

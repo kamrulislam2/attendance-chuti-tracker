@@ -1,19 +1,28 @@
 -- Supabase Database Schema Setup SQL
 
--- ==========================================
--- Clean-up (Drop existing tables, triggers, and functions to allow clean reruns)
--- ==========================================
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP FUNCTION IF EXISTS public.is_admin();
-DROP FUNCTION IF EXISTS public.is_supervisor();
-DROP FUNCTION IF EXISTS public.is_admin_or_supervisor();
-DROP FUNCTION IF EXISTS public.get_user_email_by_username(TEXT);
-DROP FUNCTION IF EXISTS public.create_new_user(TEXT, TEXT, TEXT, TEXT, TEXT);
-DROP FUNCTION IF EXISTS public.delete_user_by_id(UUID);
-DROP FUNCTION IF EXISTS public.admin_update_user_credentials(UUID, TEXT, TEXT);
+-- Drop tables first (with CASCADE) to automatically drop dependent policies and avoid dependency conflicts
 DROP TABLE IF EXISTS public.chuti CASCADE;
+DROP TABLE IF EXISTS public.govt_holiday_responses CASCADE;
+DROP TABLE IF EXISTS public.push_subscriptions CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- Drop trigger on auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Drop functions (with CASCADE to be absolutely safe)
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
+DROP FUNCTION IF EXISTS public.is_supervisor() CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin_or_supervisor() CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_email_by_username(TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.create_new_user(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) CASCADE;
+DROP FUNCTION IF EXISTS public.delete_user_by_id(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_update_user_credentials(UUID, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_insert_chuti_records_bulk(UUID, DATE[], TEXT, BOOLEAN[], BOOLEAN, TIME, TIME, INTERVAL, TEXT, TEXT, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_ids_by_roles(TEXT[]) CASCADE;
+DROP FUNCTION IF EXISTS public.get_push_subscriptions_for_users(UUID[]) CASCADE;
+DROP FUNCTION IF EXISTS public.delete_push_subscription(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.register_push_subscription(UUID, TEXT, TEXT, TEXT) CASCADE;
 
 -- ==========================================
 -- 1. Create Profiles Table (Stores user roles: admin, supervisor, or user)
@@ -46,8 +55,15 @@ CREATE TABLE public.profiles (
   has_edited_profile BOOLEAN NOT NULL DEFAULT FALSE,
   has_changed_password BOOLEAN NOT NULL DEFAULT FALSE,
   max_full_leaves INTEGER DEFAULT 15,
-  max_short_leaves INTEGER DEFAULT 15
+  max_short_leaves INTEGER DEFAULT 15,
+  eligible_office_leave BOOLEAN DEFAULT TRUE,
+  eligible_govt_holiday BOOLEAN DEFAULT TRUE,
+  converted_short_leaves_days INTEGER DEFAULT 0,
+  converted_short_leaves_hours NUMERIC DEFAULT 0,
+  global_settings JSONB DEFAULT '{"office_leave_default": 14, "eid_fitr_leave": 0, "eid_adha_leave": 0, "govt_holidays": []}'::jsonb
 );
+
+COMMENT ON COLUMN public.profiles.global_settings IS 'Global leave quotas and government holidays list stored in JSON format';
 
 -- Enable RLS on Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -59,7 +75,7 @@ CREATE TABLE public.chuti (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   date DATE NOT NULL,
-  leave_type TEXT NOT NULL CHECK (leave_type IN ('Short Leave', 'Full Leave', 'Overtime', 'Reserve')),
+  leave_type TEXT NOT NULL CHECK (leave_type IN ('Short Leave', 'Full Leave', 'Overtime')),
   adjustment BOOLEAN NOT NULL DEFAULT FALSE,
   adjusted_hour INTERVAL, -- Stores partial adjustment amount if any
   sign_in_time TIME,
@@ -336,12 +352,12 @@ BEGIN
       v_date,
       p_leave_type,
       v_adjustment,
-      CASE WHEN (p_leave_type = 'Overtime' OR p_leave_type = 'Reserve') AND v_adjustment THEN p_adjust_short_leave ELSE false END,
+      CASE WHEN p_leave_type = 'Overtime' AND v_adjustment THEN p_adjust_short_leave ELSE false END,
       p_sign_in_time,
       p_sign_out_time,
       p_leave_hour,
       p_reserve_holiday,
-      CASE WHEN p_leave_type = 'Reserve' AND v_adjustment THEN 'approved'::TEXT ELSE 'none'::TEXT END,
+      'none'::TEXT,
       'approved', -- Admin added records are auto-approved
       p_comment,
       p_bulk_id
@@ -363,6 +379,11 @@ USING (auth.uid() = id);
 CREATE POLICY "Allow admin/supervisor to read all profiles"
 ON public.profiles FOR SELECT
 USING (public.is_admin_or_supervisor());
+
+CREATE POLICY "Allow authenticated users to read supervisor profiles"
+ON public.profiles FOR SELECT
+TO authenticated
+USING (role = 'supervisor');
 
 CREATE POLICY "Allow admins to insert profiles"
 ON public.profiles FOR INSERT
@@ -467,8 +488,8 @@ BEGIN
     suffix := suffix + 1;
   END LOOP;
 
-  -- Insert into public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime)
-  INSERT INTO public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime)
+  -- Insert into public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday)
+  INSERT INTO public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday)
   VALUES (
     NEW.id,
     final_username,
@@ -489,7 +510,9 @@ BEGIN
       END
     ),
     COALESCE((NEW.raw_user_meta_data->>'allow_reserve')::BOOLEAN, FALSE),
-    COALESCE((NEW.raw_user_meta_data->>'allow_overtime')::BOOLEAN, FALSE)
+    COALESCE((NEW.raw_user_meta_data->>'allow_overtime')::BOOLEAN, FALSE),
+    COALESCE((NEW.raw_user_meta_data->>'eligible_office_leave')::BOOLEAN, TRUE),
+    COALESCE((NEW.raw_user_meta_data->>'eligible_govt_holiday')::BOOLEAN, TRUE)
   );
   RETURN NEW;
 END;
@@ -498,3 +521,128 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==========================================
+-- 6. Government Holiday Responses Table
+-- ==========================================
+CREATE TABLE public.govt_holiday_responses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  holiday_date DATE NOT NULL,
+  holiday_name TEXT NOT NULL,
+  response TEXT NOT NULL CHECK (response IN ('paid', 'reserve')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_user_holiday UNIQUE (user_id, holiday_date)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.govt_holiday_responses ENABLE ROW LEVEL SECURITY;
+
+-- Create Policies for govt_holiday_responses
+CREATE POLICY "Users can read own holiday responses" 
+  ON public.govt_holiday_responses 
+  FOR SELECT 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own holiday responses" 
+  ON public.govt_holiday_responses 
+  FOR INSERT 
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can read all holiday responses" 
+  ON public.govt_holiday_responses 
+  FOR SELECT 
+  USING (public.is_admin());
+
+CREATE POLICY "Admins can update/delete responses" 
+  ON public.govt_holiday_responses 
+  FOR ALL 
+  USING (public.is_admin());
+
+COMMENT ON TABLE public.govt_holiday_responses IS 'Stores user choices (Get Paid vs Reserve) for each government holiday';
+
+
+-- ==========================================
+-- 7. Push Subscriptions Table & Policies for Web Push Notifications
+-- ==========================================
+CREATE TABLE public.push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Create Policies for push_subscriptions
+CREATE POLICY "push_sub_insert_own" 
+  ON public.push_subscriptions FOR INSERT 
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "push_sub_select_own" 
+  ON public.push_subscriptions FOR SELECT 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "push_sub_delete_own" 
+  ON public.push_subscriptions FOR DELETE 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "push_sub_update_own"
+  ON public.push_subscriptions FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- SECURITY DEFINER RPC Functions for Push Notifications
+CREATE OR REPLACE FUNCTION public.get_user_ids_by_roles(p_roles TEXT[])
+RETURNS TABLE(user_id UUID) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT p.id
+    FROM public.profiles p
+    WHERE p.role = ANY(p_roles);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.get_push_subscriptions_for_users(p_user_ids UUID[])
+RETURNS TABLE(
+  sub_id UUID,
+  sub_user_id UUID,
+  sub_endpoint TEXT,
+  sub_p256dh TEXT,
+  sub_auth TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT ps.id, ps.user_id, ps.endpoint, ps.p256dh, ps.auth
+    FROM public.push_subscriptions ps
+    WHERE ps.user_id = ANY(p_user_ids);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.delete_push_subscription(p_sub_id UUID)
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM public.push_subscriptions WHERE id = p_sub_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.register_push_subscription(
+  p_user_id UUID,
+  p_endpoint TEXT,
+  p_p256dh TEXT,
+  p_auth TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM public.push_subscriptions WHERE endpoint = p_endpoint;
+  INSERT INTO public.push_subscriptions (user_id, endpoint, p256dh, auth)
+  VALUES (p_user_id, p_endpoint, p_p256dh, p_auth);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Enable Realtime for chuti and profiles tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;

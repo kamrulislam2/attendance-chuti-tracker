@@ -40,7 +40,7 @@ const DB_VERSION = 1;
 const STORE_NAME = 'pending_chuti';
 
 // Secure context safe UUID generator helper
-const generateUUID = (): string => {
+export const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }

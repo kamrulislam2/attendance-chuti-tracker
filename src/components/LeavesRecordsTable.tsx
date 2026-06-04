@@ -3,11 +3,11 @@ import { SlidersHorizontal, Download, RefreshCw, Edit, Trash2, Search, Plus } fr
 import { ChutiRecord } from '@/utils/offlineSync';
 import { DateInput } from './DateInput';
 import { FilterPanel } from './FilterPanel';
+import { StatusBadge } from './StatusBadge';
 
 interface LeavesRecordsTableProps {
   records: ChutiRecord[];
   allowOvertime?: boolean;
-  allowReserve?: boolean;
   filterType: string;
   setFilterType: (val: string) => void;
   filterStartDate: string;
@@ -25,7 +25,6 @@ interface LeavesRecordsTableProps {
   formatDate: (d: string) => string;
   formatTimeToAMPM: (t: string | null) => string;
   getCleanComment: (c: string | null | undefined) => string;
-  renderStatusBadge: (r: ChutiRecord) => React.ReactNode;
   selectedYear: string;
   setSelectedYear: (val: string) => void;
   availableYears: string[];
@@ -38,7 +37,6 @@ interface LeavesRecordsTableProps {
 export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
   records,
   allowOvertime,
-  allowReserve,
   filterType,
   setFilterType,
   filterStartDate,
@@ -56,7 +54,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
   formatDate,
   formatTimeToAMPM,
   getCleanComment,
-  renderStatusBadge,
   selectedYear,
   setSelectedYear,
   availableYears,
@@ -73,8 +70,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
       const term = searchTerm.toLowerCase();
       const commentMatch = (r.comment || '').toLowerCase().includes(term);
       const typeMatch = (r.leave_type || '').toLowerCase().includes(term);
-      const reserveMatch = (r.reserve_holiday || '').toLowerCase().includes(term);
-      return commentMatch || typeMatch || reserveMatch;
+      return commentMatch || typeMatch;
     });
   }, [records, searchTerm]);
 
@@ -95,7 +91,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
         setFilterEndDate={setFilterEndDate}
         selectedYear={selectedYear}
         allowOvertime={allowOvertime}
-        allowReserve={allowReserve}
         onExportCSV={() => onExportCSV(filteredRecords, searchTerm)}
         onExportExcel={() => onExportExcel(filteredRecords, searchTerm)}
         onExportPDF={() => onExportPDF(filteredRecords, searchTerm)}
@@ -171,7 +166,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন ইন/আউট</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">লিভ আওয়ার</th>
                   {allowOvertime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম</th>}
-                  {allowReserve && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রিজার্ভ ছুটি</th>}
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">মন্তব্য</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">একশন</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
@@ -194,8 +188,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                           r.leave_type === 'Full Leave' 
                             ? 'bg-red-955/50 border border-red-800 text-red-300' 
-                            : r.leave_type === 'Reserve'
-                            ? 'bg-amber-955/50 border border-amber-800 text-amber-300'
                             : r.leave_type === 'Overtime'
                             ? 'bg-emerald-955/50 border border-emerald-800 text-emerald-300'
                             : 'bg-blue-955/50 border border-blue-800 text-blue-300'
@@ -203,85 +195,48 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           {r.leave_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
-                        {r.leave_type === 'Reserve' ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onToggleAdjustment(r)}
-                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                  ? 'bg-blue-600' 
-                                  : 'bg-slate-800'
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onToggleAdjustment(r)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-blue-600' : 'bg-slate-800'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'translate-x-4' : 'translate-x-0'
                               }`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  (r.reserve_adjustment_status === 'approved' || r.reserve_adjustment_status === 'pending' || r.adjustment) 
-                                    ? 'translate-x-4' 
-                                    : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                            <span className="text-xs font-semibold">
-                              {(r.reserve_adjustment_status === 'approved' || r.adjustment) ? (
-                                <span className="text-emerald-400">হ্যাঁ</span>
-                              ) : r.reserve_adjustment_status === 'pending' ? (
-                                <span className="text-amber-400 animate-pulse">হ্যাঁ</span>
-                              ) : r.reserve_adjustment_status === 'rejected' ? (
-                                <span className="text-slate-500">না (Rejected)</span>
-                              ) : (
-                                <span className="text-slate-500">না</span>
-                              )}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onToggleAdjustment(r)}
-                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-blue-600' : 'bg-slate-800'
-                              }`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'translate-x-4' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                            <span className="text-xs font-semibold">
-                              {r.reserve_adjustment_status === 'pending' ? (
-                                <span className="text-amber-400 animate-pulse font-semibold">পেন্ডিং</span>
-                              ) : r.adjustment ? (
-                                <span className="text-blue-400">হ্যাঁ</span>
-                              ) : r.adjusted_hour ? (
-                                <span className="text-cyan-400 font-mono">আংশিক ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
-                              ) : r.reserve_adjustment_status === 'rejected' ? (
-                                <span className="text-slate-500">না (Rejected)</span>
-                              ) : (
-                                <span className="text-slate-500">না</span>
-                              )}
-                            </span>
-                          </div>
-                        )}
+                            />
+                          </button>
+                          <span className="text-xs font-semibold">
+                            {r.reserve_adjustment_status === 'pending' ? (
+                              <span className="text-amber-400 animate-pulse font-semibold">পেন্ডিং</span>
+                            ) : r.adjustment ? (
+                              <span className="text-blue-400">হ্যাঁ</span>
+                            ) : r.adjusted_hour ? (
+                              <span className="text-cyan-400 font-mono">আংশিক ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
+                            ) : r.reserve_adjustment_status === 'rejected' ? (
+                              <span className="text-slate-500">না (Rejected)</span>
+                            ) : (
+                              <span className="text-slate-500">না</span>
+                            )}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
-                        {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
+                        {r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
-                        {r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-')}
+                        {r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-')}
                       </td>
                       {allowOvertime && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
                           {r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}
                         </td>
                       )}
-                      {allowReserve && (
-                        <td className="px-6 py-4 text-sm text-slate-355 max-w-[120px] truncate">
-                          {r.reserve_holiday || '-'}
-                        </td>
-                      )}
+                      {/* Comment Column */}
                       <td className="px-6 py-4 text-sm text-slate-400 max-w-[150px] truncate" title={getCleanComment(r.comment)}>
                         {getCleanComment(r.comment) || '-'}
                       </td>
@@ -316,7 +271,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <div className="flex flex-col gap-1 items-end">
-                          {renderStatusBadge(r)}
+                          <StatusBadge record={r} />
                           {r.is_edited && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-955/40 border border-blue-800 text-blue-400">
                               (Edited)

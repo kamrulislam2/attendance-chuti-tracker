@@ -4,6 +4,7 @@ import React from 'react';
 import { CheckCircle, Lock, AlertTriangle, User, RefreshCw } from 'lucide-react';
 import { Profile } from '@/types';
 import { PasswordMatchIndicator } from '@/components/PasswordMatchIndicator';
+import { ProfileFields } from '../ProfileFields';
 
 interface WelcomeModalsProps {
   // Onboarding welcome popup
@@ -90,7 +91,7 @@ export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
             </div>
 
             <h3 className="text-lg font-bold text-white mb-2">আপনার প্রোফাইলে স্বাগতম! 🎉</h3>
-            <p className="text-xs text-slate-350 leading-relaxed mb-4">
+            <p className="text-xs text-slate-355 leading-relaxed mb-4">
               {profile?.role === 'admin'
                 ? 'পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে।'
                 : 'আপনার পাসওয়ার্ড পরিবর্তন এবং প্রোফাইল সেটআপ সফলভাবে সম্পন্ন হয়েছে!'}
@@ -212,94 +213,30 @@ export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
 
             <form onSubmit={handleSetupSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">সম্পূর্ণ নাম (Full Name)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="যেমন: কামরুল হাসান"
-                  value={setupFullName}
-                  onChange={(e) => setSetupFullName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
                 <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">কোডনেম (Codename)</label>
                 <input
                   type="text"
                   required
                   disabled
                   value={(setupUsername || '').toUpperCase()}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-lg text-slate-500 text-sm cursor-not-allowed opacity-60"
+                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-850 rounded-lg text-slate-500 text-sm cursor-not-allowed opacity-60 font-mono"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">জব রোল (Job Role)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="যেমন: IT Officer"
-                  value={setupJobRole}
-                  onChange={(e) => setSetupJobRole(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">দৈনিক কর্মঘণ্টা</label>
-                  <select
-                    required
-                    value={setupWorkingHours}
-                    onChange={(e) => setSetupWorkingHours(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="" disabled hidden>নির্বাচন করুন</option>
-                    <option value="7.5">৭ ঘণ্টা ৩০ মিনিট</option>
-                    <option value="8.0">৮ ঘণ্টা</option>
-                    <option value="8.5">৮ ঘণ্টা ৩০ মিনিট</option>
-                    <option value="9.0">৯ ঘণ্টা</option>
-                    <option value="9.5">৯ ঘণ্টা ৩০ মিনিট</option>
-                    <option value="10.0">১০ ঘণ্টা</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ব্রেক (মিনিট)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={setupBreakTime}
-                    onChange={(e) => setSetupBreakTime(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ডিফল্ট সাইন-ইন টাইম</label>
-                  <input
-                    type="time"
-                    required
-                    value={setupSignInTime}
-                    onChange={(e) => setSetupSignInTime(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ডিফল্ট সাইন-আউট টাইম</label>
-                  <input
-                    type="time"
-                    required
-                    value={setupSignOutTime}
-                    onChange={(e) => setSetupSignOutTime(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+              <ProfileFields
+                fullName={setupFullName}
+                setFullName={setSetupFullName}
+                jobRole={setupJobRole}
+                setJobRole={setSetupJobRole}
+                workingHours={setupWorkingHours}
+                setWorkingHours={setSetupWorkingHours}
+                breakTime={setupBreakTime}
+                setBreakTime={setSetupBreakTime}
+                signInTime={setupSignInTime}
+                setSignInTime={setSetupSignInTime}
+                signOutTime={setupSignOutTime}
+                setSignOutTime={setSetupSignOutTime}
+              />
 
               <button
                 type="submit"

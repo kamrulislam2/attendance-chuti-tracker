@@ -49,7 +49,7 @@ export const validator = {
     if (!data.leaveType) {
       errors.push('ছুটির ধরন নির্বাচন করুন।');
     } else {
-      const validTypes = ['Full Leave', 'Short Leave', 'Overtime', 'Reserve'];
+      const validTypes = ['Full Leave', 'Short Leave', 'Overtime'];
       if (!validTypes.includes(data.leaveType)) {
         errors.push('অবৈধ ছুটির ধরন।');
       }
@@ -82,13 +82,6 @@ export const validator = {
         if (outMins <= inMins) {
           errors.push('সাইন-আউট সময় সাইন-ইন সময়ের চেয়ে বড় হতে হবে।');
         }
-      }
-    }
-
-    // Reserve holiday validation
-    if (data.leaveType === 'Reserve') {
-      if (!data.reserveHoliday || data.reserveHoliday.trim() === '') {
-        errors.push('রিজার্ভ হলিডে নাম দিন।');
       }
     }
 

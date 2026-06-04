@@ -76,35 +76,23 @@ export const exportHelper = {
     }
 
     const showOvertime = activeProfile?.allow_overtime === true;
-    const showReserve = activeProfile?.allow_reserve === true;
 
     const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour'];
     if (showOvertime) headers.push('Overtime');
-    if (showReserve) headers.push('Reserve Holiday');
     headers.push('Comment', 'Status');
 
     const rows = recordsToExport.map(record => {
       let adjustmentVal = 'No';
-      if (record.leave_type === 'Reserve') {
-        if (record.reserve_adjustment_status === 'approved' || record.adjustment) {
-          adjustmentVal = 'Yes';
-        } else if (record.reserve_adjustment_status === 'pending') {
-          adjustmentVal = 'Pending';
-        } else if (record.reserve_adjustment_status === 'rejected') {
-          adjustmentVal = 'Rejected';
-        }
-      } else {
-        if (record.adjustment) {
-          adjustmentVal = 'Yes';
-        } else if (record.adjusted_hour) {
-          const adjHourStr = record.adjusted_hour.toString().split('.')[0].substring(0, 5);
-          adjustmentVal = `Partial (${adjHourStr})`;
-        }
+      if (record.adjustment) {
+        adjustmentVal = 'Yes';
+      } else if (record.adjusted_hour) {
+        const adjHourStr = record.adjusted_hour.toString().split('.')[0].substring(0, 5);
+        adjustmentVal = `Partial (${adjHourStr})`;
       }
 
-      const signInStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_in_time);
-      const signOutStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_out_time);
-      const leaveHourStr = record.leave_type === 'Reserve' || record.leave_type === 'Full Leave' || record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
+      const signInStr = record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_in_time);
+      const signOutStr = record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_out_time);
+      const leaveHourStr = record.leave_type === 'Full Leave' || record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
 
       const row = [
         `="${formatDate(record.date)}"`, // force Excel to treat date as text
@@ -120,9 +108,7 @@ export const exportHelper = {
         row.push(overtimeStr);
       }
 
-      if (showReserve) {
-        row.push(record.reserve_holiday || '-');
-      }
+
 
       row.push(
         `="${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
@@ -197,7 +183,6 @@ export const exportHelper = {
     }
 
     const showOvertime = activeProfile?.allow_overtime === true;
-    const showReserve = activeProfile?.allow_reserve === true;
 
     let headersHtml = `
       <th>তারিখ</th>
@@ -207,7 +192,6 @@ export const exportHelper = {
       <th>লিভ আওয়ার</th>
     `;
     if (showOvertime) headersHtml += `<th>ওভারটাইম</th>`;
-    if (showReserve) headersHtml += `<th>রিজার্ভ ছুটি</th>`;
     headersHtml += `
       <th>মন্তব্য</th>
       <th>অবস্থা</th>
@@ -216,33 +200,23 @@ export const exportHelper = {
     let rowsHtml = '';
     recordsToExport.forEach(r => {
       let adjustmentVal = 'না';
-      if (r.leave_type === 'Reserve') {
-        if (r.reserve_adjustment_status === 'approved' || r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.reserve_adjustment_status === 'pending') {
-          adjustmentVal = 'হ্যাঁ (Pending)';
-        } else if (r.reserve_adjustment_status === 'rejected') {
-          adjustmentVal = 'না (Rejected)';
-        }
-      } else {
-        if (r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.adjusted_hour) {
-          const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
-          adjustmentVal = `আংশিক (${adjHourStr})`;
-        }
+      if (r.adjustment) {
+        adjustmentVal = 'হ্যাঁ';
+      } else if (r.adjusted_hour) {
+        const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
+        adjustmentVal = `আংশিক (${adjHourStr})`;
       }
 
-      const signInStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
-      const signOutStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
-      const leaveHourStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
+      const signInStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
+      const signOutStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
+      const leaveHourStr = r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
 
       rowsHtml += `
         <tr>
           <td style="mso-number-format:'\\@';">${escapeHtml(formatDate(r.date))}</td>
           <td>${escapeHtml(r.leave_type)}</td>
           <td>${escapeHtml(adjustmentVal)}</td>
-          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : escapeHtml(`${signInStr} / ${signOutStr}`)}</td>
+          <td>${r.leave_type === 'Full Leave' ? '-' : escapeHtml(`${signInStr} / ${signOutStr}`)}</td>
           <td>${escapeHtml(leaveHourStr)}</td>
       `;
 
@@ -251,9 +225,7 @@ export const exportHelper = {
         rowsHtml += `<td>${escapeHtml(overtimeStr)}</td>`;
       }
 
-      if (showReserve) {
-        rowsHtml += `<td>${escapeHtml(r.reserve_holiday) || '-'}</td>`;
-      }
+
 
       rowsHtml += `
           <td>${escapeHtml(getCleanComment(r.comment)) || '-'}</td>
@@ -324,7 +296,7 @@ export const exportHelper = {
   // Export summary report for all staff as CSV
   exportSummaryCSV: (
     staffProfiles: Profile[],
-    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string; reserve: number },
+    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string },
     filters: {
       selectedYear?: string;
       filterType?: string;
@@ -340,7 +312,7 @@ export const exportHelper = {
       return;
     }
 
-    const headers = ['Full Name', 'Codename', 'Total Full Leave', 'Total Short Leave', 'Total Overtime', 'Total Reserve Holiday'];
+    const headers = ['Full Name', 'Codename', 'Total Full Leave', 'Total Short Leave', 'Total Overtime'];
     const rows = staffProfiles.map(p => {
       const stats = getUserSummaryStats(p.id);
       return [
@@ -348,8 +320,7 @@ export const exportHelper = {
         p.username ? p.username.toUpperCase() : '',
         stats.full,
         stats.short,
-        p.allow_overtime ? stats.overtime : '-',
-        p.allow_reserve ? stats.reserve : '-'
+        p.allow_overtime ? stats.overtime : '-'
       ];
     });
 
@@ -396,7 +367,7 @@ export const exportHelper = {
   // Export summary report for all staff as Excel (HTML format)
   exportSummaryExcel: (
     staffProfiles: Profile[],
-    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string; reserve: number },
+    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string },
     filters: {
       selectedYear?: string;
       filterType?: string;
@@ -416,7 +387,7 @@ export const exportHelper = {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
-        <h3>স্টাফ উপস্থিতি ও ছুটির মাস্টার ডাটাবেজ সামারি</h3>
+        <h3>স্টাফ ছুটির মাস্টার ডাটাবেজ সামারি</h3>
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
@@ -425,7 +396,6 @@ export const exportHelper = {
               <th>ফুল লিভ</th>
               <th>শর্ট লিভ</th>
               <th>ওভারটাইম</th>
-              <th>রিজার্ভ হলিডে</th>
             </tr>
           </thead>
           <tbody>
@@ -440,7 +410,6 @@ export const exportHelper = {
           <td>${stats.full}</td>
           <td>${stats.short}</td>
           <td>${p.allow_overtime ? stats.overtime : '-'}</td>
-          <td>${p.allow_reserve ? stats.reserve : '-'}</td>
         </tr>
       `;
     });
@@ -505,57 +474,47 @@ export const exportHelper = {
       filterStartDate?: string;
       filterEndDate?: string;
       searchTerm?: string;
-    }
+    },
+    onSuccess: () => void,
+    onError: (msg: string) => void
   ) => {
     const activeProfile = staffProfile || (userId === sessionUser?.id ? profile : null);
     if (recordsToExport.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
       return;
     }
 
     const showOvertime = activeProfile?.allow_overtime === true;
-    const showReserve = activeProfile?.allow_reserve === true;
     const stats = calculateStats(recordsToExport);
 
     let rowsHtml = '';
     recordsToExport.forEach(r => {
       let adjustmentVal = 'না';
-      if (r.leave_type === 'Reserve') {
-        if (r.reserve_adjustment_status === 'approved' || r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.reserve_adjustment_status === 'pending') {
-          adjustmentVal = 'হ্যাঁ (Pending)';
-        } else if (r.reserve_adjustment_status === 'rejected') {
-          adjustmentVal = 'না (Rejected)';
-        }
-      } else {
-        if (r.adjustment) {
-          adjustmentVal = 'হ্যাঁ';
-        } else if (r.adjusted_hour) {
-          const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
-          adjustmentVal = `আংশিক (${adjHourStr})`;
-        }
+      if (r.adjustment) {
+        adjustmentVal = 'হ্যাঁ';
+      } else if (r.adjusted_hour) {
+        const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
+        adjustmentVal = `আংশিক (${adjHourStr})`;
       }
 
-      const signInStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
-      const signOutStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
-      const leaveHourStr = r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
+      const signInStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
+      const signOutStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_out_time);
+      const leaveHourStr = r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
 
       rowsHtml += `
         <tr>
           <td>${formatDate(r.date)}</td>
           <td>${r.leave_type}</td>
           <td>${adjustmentVal}</td>
-          <td>${r.leave_type === 'Reserve' || r.leave_type === 'Full Leave' ? '-' : `${signInStr} / ${signOutStr}`}</td>
+          <td>${r.leave_type === 'Full Leave' ? '-' : `${signInStr} / ${signOutStr}`}</td>
           <td>${leaveHourStr}</td>
           ${showOvertime ? `<td>${r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}</td>` : ''}
-          ${showReserve ? `<td>${r.reserve_holiday || '-'}</td>` : ''}
           <td>${getCleanComment(r.comment) || '-'}</td>
           <td><span class="status-badge ${r.status}">${r.status}</span></td>
         </tr>
@@ -627,10 +586,7 @@ export const exportHelper = {
             <span>ফুল লিভ</span>
             <strong>${stats.fullLeaves} দিন</strong>
           </div>
-          ${showReserve ? `<div class="stat-box">
-            <span>রিজার্ভ ছুটি</span>
-            <strong>${stats.reserveLeaves} দিন</strong>
-          </div>` : ''}
+
           ${showOvertime ? `<div class="stat-box">
             <span>ওভারটাইম</span>
             <strong>${stats.overtimeHours} ঘণ্টা</strong>
@@ -646,7 +602,6 @@ export const exportHelper = {
               <th>সাইন ইন/আউট</th>
               <th>লিভ আওয়ার</th>
               ${showOvertime ? '<th>ওভারটাইম</th>' : ''}
-              ${showReserve ? '<th>রিজার্ভ ছুটি</th>' : ''}
               <th>মন্তব্য</th>
               <th>অবস্থা</th>
             </tr>
@@ -668,28 +623,31 @@ export const exportHelper = {
     `;
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    onSuccess();
   },
 
   // Export summary report for all staff as PDF
   exportSummaryPDF: (
     staffProfiles: Profile[],
-    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string; reserve: number },
+    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string },
     filters: {
       selectedYear?: string;
       filterType?: string;
       filterStartDate?: string;
       filterEndDate?: string;
       searchQuery?: string;
-    }
+    },
+    onSuccess: () => void,
+    onError: (msg: string) => void
   ) => {
     if (staffProfiles.length === 0) {
-      alert('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
       return;
     }
 
@@ -704,7 +662,6 @@ export const exportHelper = {
           <td>${stats.full} দিন</td>
           <td>${stats.short} ঘণ্টা</td>
           <td>${p.allow_overtime ? `${stats.overtime} ঘণ্টা` : '-'}</td>
-          <td>${p.allow_reserve ? `${stats.reserve} দিন` : '-'}</td>
         </tr>
       `;
     });
@@ -755,7 +712,6 @@ export const exportHelper = {
               <th>ফুল লিভ</th>
               <th>শর্ট লিভ</th>
               <th>ওভারটাইম</th>
-              <th>রিজার্ভ হলিডে</th>
             </tr>
           </thead>
           <tbody>
@@ -775,5 +731,196 @@ export const exportHelper = {
     `;
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    onSuccess();
+  },
+
+  // Export Govt Holiday Responses as CSV
+  exportHolidayResponsesCSV: (
+    responses: any[],
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) => {
+    if (responses.length === 0) {
+      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      return;
+    }
+
+    const headers = ['Date', 'Holiday Name', 'Staff Name', 'Codename', 'Response Choice', 'Submitted At'];
+    const rows = responses.map(r => {
+      const staffName = r.profiles?.full_name || 'N/A';
+      const staffCode = r.profiles?.username ? r.profiles.username.toUpperCase() : 'N/A';
+      return [
+        `="${formatDate(r.holiday_date)}"`,
+        `="${(r.holiday_name || '').replace(/"/g, '""')}"`,
+        `="${staffName.replace(/"/g, '""')}"`,
+        staffCode,
+        r.response === 'paid' ? 'Get Paid' : 'Reserve',
+        r.created_at ? new Date(r.created_at).toLocaleString() : ''
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', `govt_holiday_responses_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onSuccess();
+  },
+
+  // Export Govt Holiday Responses as Excel
+  exportHolidayResponsesExcel: (
+    responses: any[],
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) => {
+    if (responses.length === 0) {
+      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      return;
+    }
+
+    let rowsHtml = '';
+    responses.forEach(r => {
+      const staffName = r.profiles?.full_name || 'N/A';
+      const staffCode = r.profiles?.username ? r.profiles.username.toUpperCase() : 'N/A';
+      rowsHtml += `
+        <tr>
+          <td style="mso-number-format:'\\@';">${escapeHtml(formatDate(r.holiday_date))}</td>
+          <td>${escapeHtml(r.holiday_name)}</td>
+          <td>${escapeHtml(staffName)}</td>
+          <td>${escapeHtml(staffCode)}</td>
+          <td>${r.response === 'paid' ? 'পেমেন্ট নিবে' : 'রিজার্ভ রাখবে'}</td>
+          <td>${escapeHtml(r.created_at ? new Date(r.created_at).toLocaleString('bn-BD') : '')}</td>
+        </tr>
+      `;
+    });
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
+      <body>
+        <h3>সরকারি ছুটির স্টাফ রেসপন্সসমূহ</h3>
+        <table border="1">
+          <thead>
+            <tr style="background-color: #4F81BD; color: white;">
+              <th>ছুটির তারিখ</th>
+              <th>ছুটির নাম</th>
+              <th>স্টাফ নাম</th>
+              <th>কোডনেম</th>
+              <th>বিকল্প নির্বাচন</th>
+              <th>রেসপন্স সময়</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `govt_holiday_responses_${new Date().toISOString().split('T')[0]}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onSuccess();
+  },
+
+  // Export Govt Holiday Responses as PDF
+  exportHolidayResponsesPDF: (
+    responses: any[],
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) => {
+    if (responses.length === 0) {
+      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      return;
+    }
+
+    let rowsHtml = '';
+    responses.forEach(r => {
+      const staffName = r.profiles?.full_name || 'N/A';
+      const staffCode = r.profiles?.username ? r.profiles.username.toUpperCase() : 'N/A';
+      rowsHtml += `
+        <tr>
+          <td>${formatDate(r.holiday_date)}</td>
+          <td>${r.holiday_name}</td>
+          <td>${staffName} (${staffCode})</td>
+          <td><span class="status-badge ${r.response === 'paid' ? 'approved' : 'pending_supervisor'}">${r.response === 'paid' ? 'Get Paid (পেমেন্ট)' : 'Reserve (রিজার্ভ)'}</span></td>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleString('bn-BD') : ''}</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>সরকারি ছুটির স্টাফ রেসপন্স রিপোর্ট</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
+          .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+          .header h1 { margin: 0 0 5px 0; font-size: 22px; color: #0f172a; }
+          .header p { margin: 0; font-size: 13px; color: #64748b; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+          th { background-color: #f1f5f9; color: #334155; font-weight: 600; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          
+          .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+          .status-badge.approved { background: #dcfce7; color: #15803d; }
+          .status-badge.pending_supervisor { background: #fef3c7; color: #b45309; }
+
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>সরকারি ছুটির স্টাফ রেসপন্স রিপোর্ট</h1>
+          <p>রিপোর্ট জেনারেটেড অন: ${new Date().toLocaleDateString('bn-BD')}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>ছুটির তারিখ</th>
+              <th>ছুটির নাম</th>
+              <th>স্টাফ নাম ও কোডনেম</th>
+              <th>বিকল্প নির্বাচন</th>
+              <th>রেসপন্স সময়</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    onSuccess();
   }
 };

@@ -27,6 +27,10 @@ export interface Profile {
   has_changed_password?: boolean;
   max_full_leaves?: number;
   max_short_leaves?: number;
+  eligible_office_leave?: boolean;
+  eligible_govt_holiday?: boolean;
+  converted_short_leaves_days?: number;
+  converted_short_leaves_hours?: number;
 }
 
 export interface ChutiRecordWithProfile extends ChutiRecord {
@@ -42,4 +46,17 @@ export interface BulkRepresentative extends ChutiRecordWithProfile {
   all_bulk_ids?: string[];
   all_bulk_records?: ChutiRecordWithProfile[];
   formatted_bulk_dates?: string;
+}
+
+export interface GovtHolidayResponse {
+  id: string;
+  user_id: string;
+  holiday_date: string;
+  holiday_name: string;
+  response: 'paid' | 'reserve';
+  created_at?: string;
+  profiles?: {
+    full_name: string | null;
+    username: string;
+  } | null;
 }

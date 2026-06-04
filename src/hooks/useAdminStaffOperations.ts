@@ -81,6 +81,15 @@ export const useAdminStaffOperations = ({
   const [newStaffAllowOvertime, setNewStaffAllowOvertime] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
 
+  // New staff details and eligibility states
+  const [newStaffJobRole, setNewStaffJobRole] = useState('IT Officer');
+  const [newStaffWorkingHours, setNewStaffWorkingHours] = useState('9.5');
+  const [newStaffBreakTime, setNewStaffBreakTime] = useState('10');
+  const [newStaffSignInTime, setNewStaffSignInTime] = useState('13:00');
+  const [newStaffSignOutTime, setNewStaffSignOutTime] = useState('22:30');
+  const [newStaffEligibleOfficeLeave, setNewStaffEligibleOfficeLeave] = useState(true);
+  const [newStaffEligibleGovtHoliday, setNewStaffEligibleGovtHoliday] = useState(true);
+
   // --- Edit Credentials states ---
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [credTargetUserId, setCredTargetUserId] = useState<string | null>(null);
@@ -111,7 +120,8 @@ export const useAdminStaffOperations = ({
   const [isEditRequestMode, setIsEditRequestMode] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [editMaxFullLeaves, setEditMaxFullLeaves] = useState('15');
-  const [editMaxShortLeaves, setEditMaxShortLeaves] = useState('15');
+  const [editEligibleOfficeLeave, setEditEligibleOfficeLeave] = useState(true);
+  const [editEligibleGovtHoliday, setEditEligibleGovtHoliday] = useState(true);
 
   // Sync state values on profile change
   useEffect(() => {
@@ -131,7 +141,8 @@ export const useAdminStaffOperations = ({
       setProfileSignInTime(profile.requested_default_sign_in || profile.default_sign_in || '13:00');
       setProfileSignOutTime(profile.requested_default_sign_out || profile.default_sign_out || '22:30');
       setEditMaxFullLeaves(String(profile.max_full_leaves ?? 15));
-      setEditMaxShortLeaves(String(profile.max_short_leaves ?? 15));
+      setEditEligibleOfficeLeave(profile.eligible_office_leave !== false);
+      setEditEligibleGovtHoliday(profile.eligible_govt_holiday !== false);
       
       if (profile.has_changed_password === false) {
         setShowFirstTimePasswordModal(true);
@@ -213,7 +224,9 @@ export const useAdminStaffOperations = ({
           allow_reserve: editAllowReserve,
           allow_overtime: editAllowOvertime,
           max_full_leaves: parseInt(editMaxFullLeaves) || 15,
-          max_short_leaves: parseInt(editMaxShortLeaves) || 15,
+          max_short_leaves: 0,
+          eligible_office_leave: editEligibleOfficeLeave,
+          eligible_govt_holiday: editEligibleGovtHoliday,
         };
 
         const { error } = await supabase
@@ -240,7 +253,9 @@ export const useAdminStaffOperations = ({
           allow_reserve: editAllowReserve,
           allow_overtime: editAllowOvertime,
           max_full_leaves: parseInt(editMaxFullLeaves) || 15,
-          max_short_leaves: parseInt(editMaxShortLeaves) || 15,
+          max_short_leaves: 0,
+          eligible_office_leave: editEligibleOfficeLeave,
+          eligible_govt_holiday: editEligibleGovtHoliday,
         };
 
         const { data: updatedProfile, error } = await supabase
@@ -445,7 +460,7 @@ export const useAdminStaffOperations = ({
     setCreatingUser(true);
     try {
       const derivedEmail = `${newStaffUsername.toLowerCase().trim()}@office.local`;
-      const { error } = await supabase.rpc('create_new_user', {
+      const { data: newUserId, error } = await supabase.rpc('create_new_user', {
         p_email: derivedEmail,
         p_password: newStaffPassword,
         p_username: newStaffUsername.toUpperCase(),
@@ -456,6 +471,24 @@ export const useAdminStaffOperations = ({
         p_allow_overtime: newStaffAllowOvertime,
       });
       if (error) throw error;
+
+      if (newUserId) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            job_role: newStaffJobRole,
+            working_hours: parseFloat(newStaffWorkingHours) || 9.5,
+            break_time: parseInt(newStaffBreakTime) || 10,
+            default_sign_in: newStaffSignInTime || '13:00',
+            default_sign_out: newStaffSignOutTime || '22:30',
+            eligible_office_leave: newStaffEligibleOfficeLeave,
+            eligible_govt_holiday: newStaffEligibleGovtHoliday,
+          })
+          .eq('id', newUserId);
+        if (updateError) {
+          console.error('Error setting profile defaults:', updateError);
+        }
+      }
       
       setMessage({ type: 'success', text: `নতুন স্টাফ "${newStaffFullName}" সফলভাবে তৈরি করা হয়েছে!` });
       setShowCreateUserModal(false);
@@ -467,6 +500,16 @@ export const useAdminStaffOperations = ({
       setNewStaffNeedsApproval(false);
       setNewStaffAllowReserve(false);
       setNewStaffAllowOvertime(false);
+      
+      // Reset additional fields
+      setNewStaffJobRole('IT Officer');
+      setNewStaffWorkingHours('9.5');
+      setNewStaffBreakTime('10');
+      setNewStaffSignInTime('13:00');
+      setNewStaffSignOutTime('22:30');
+      setNewStaffEligibleOfficeLeave(true);
+      setNewStaffEligibleGovtHoliday(true);
+      
       fetchRecords();
     } catch (err) {
       setMessage({ type: 'error', text: 'ইউজার তৈরি করতে ব্যর্থ: ' + (err as Error).message });
@@ -665,7 +708,106 @@ export const useAdminStaffOperations = ({
       if (setApprovingIds) {
         setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
       }
-      alert('অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message);
+      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+    }
+  };
+
+  // Convert Short Leave to Full Leave
+  const handleConvertShortLeaveToFullLeave = async (targetUserId: string, workingHours: number, shortMins: number) => {
+    if (shortMins <= 0 || workingHours <= 0) return;
+    const workingMins = workingHours * 60;
+    if (shortMins < workingMins) {
+      setMessage({ type: 'error', text: 'শর্ট লিভের পরিমাণ দৈনিক কর্মঘণ্টার চেয়ে কম!' });
+      return;
+    }
+    
+    setProfileSubmitting(true);
+    try {
+      const staff = profilesList.find(p => p.id === targetUserId) || (profile && profile.id === targetUserId ? profile : null);
+      if (!staff) throw new Error('স্টাফ খুঁজে পাওয়া যায়নি');
+      
+      const currentDays = staff.converted_short_leaves_days || 0;
+      const currentHours = staff.converted_short_leaves_hours || 0;
+      
+      const daysToConvert = Math.floor(shortMins / workingMins);
+      const hoursToConvert = daysToConvert * workingHours;
+
+      // Ask for adjustment category if they are eligible for govt holiday and have reserve entries
+      let adjustCategory = 'Office Leave';
+      if (staff.eligible_govt_holiday !== false) {
+        const { data: userResps } = await supabase
+          .from('govt_holiday_responses')
+          .select('id')
+          .eq('user_id', targetUserId)
+          .eq('response', 'reserve');
+          
+        const reserveCount = userResps ? userResps.length : 0;
+        if (reserveCount > 0) {
+          const choice = prompt(
+            `কনভার্ট করা ${daysToConvert} দিন ছুটি কোন ক্যাটাগরি থেকে অ্যাডজাস্ট করতে চান?\n\n` +
+            `১ লিখতে '1' লিখুন: অফিস বরাদ্দকৃত ছুটি (Office Leave)\n` +
+            `২ লিখতে '2' লিখুন: সরকারি রিজার্ভ ছুটি (Reserve Holiday)`,
+            "1"
+          );
+          if (choice === '2') {
+            adjustCategory = 'Govt Holiday';
+          }
+        }
+      }
+
+      // Find free dates starting from today and going backward
+      const datesToInsert: string[] = [];
+      const currentDate = new Date();
+      while (datesToInsert.length < daysToConvert) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const { data: existingEntry } = await supabase
+          .from('chuti')
+          .select('id')
+          .eq('user_id', targetUserId)
+          .eq('date', dateStr)
+          .maybeSingle();
+          
+        if (!existingEntry) {
+          datesToInsert.push(dateStr);
+        }
+        currentDate.setDate(currentDate.getDate() - 1);
+      }
+
+      // Insert chuti records for the converted days
+      const recordsToInsert = datesToInsert.map(d => ({
+        user_id: targetUserId,
+        date: d,
+        leave_type: 'Full Leave',
+        adjustment: true,
+        status: 'approved',
+        comment: `Adjusted: ${adjustCategory} | Converted from Short Leave`
+      }));
+
+      const { error: insertError } = await supabase
+        .from('chuti')
+        .insert(recordsToInsert);
+
+      if (insertError) throw insertError;
+      
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          converted_short_leaves_days: currentDays + daysToConvert,
+          converted_short_leaves_hours: currentHours + hoursToConvert
+        })
+        .eq('id', targetUserId);
+        
+      if (profileError) throw profileError;
+      
+      setMessage({ 
+        type: 'success', 
+        text: `সফলভাবে ${hoursToConvert} ঘণ্টা শর্ট লিভ ${daysToConvert} দিন ফুল লিভে কনভার্ট করা হয়েছে এবং ${adjustCategory === 'Govt Holiday' ? 'সরকারি রিজার্ভ' : 'অফিস বরাদ্দকৃত'} ছুটির সাথে অ্যাডজাস্ট করা হয়েছে!` 
+      });
+      fetchRecords();
+    } catch (err) {
+      setMessage({ type: 'error', text: 'কনভার্ট করতে ব্যর্থ: ' + (err as Error).message });
+    } finally {
+      setProfileSubmitting(false);
     }
   };
 
@@ -721,6 +863,20 @@ export const useAdminStaffOperations = ({
     newStaffAllowOvertime,
     setNewStaffAllowOvertime,
     creatingUser,
+    newStaffJobRole,
+    setNewStaffJobRole,
+    newStaffWorkingHours,
+    setNewStaffWorkingHours,
+    newStaffBreakTime,
+    setNewStaffBreakTime,
+    newStaffSignInTime,
+    setNewStaffSignInTime,
+    newStaffSignOutTime,
+    setNewStaffSignOutTime,
+    newStaffEligibleOfficeLeave,
+    setNewStaffEligibleOfficeLeave,
+    newStaffEligibleGovtHoliday,
+    setNewStaffEligibleGovtHoliday,
 
     showCredentialsModal,
     setShowCredentialsModal,
@@ -766,13 +922,15 @@ export const useAdminStaffOperations = ({
     setEditAllowReserve,
     editAllowOvertime,
     setEditAllowOvertime,
+    editEligibleOfficeLeave,
+    setEditEligibleOfficeLeave,
+    editEligibleGovtHoliday,
+    setEditEligibleGovtHoliday,
     isEditRequestMode,
     setIsEditRequestMode,
     profileSubmitting,
     editMaxFullLeaves,
     setEditMaxFullLeaves,
-    editMaxShortLeaves,
-    setEditMaxShortLeaves,
 
     // Handlers
     handleUpdateSettings,
@@ -782,5 +940,6 @@ export const useAdminStaffOperations = ({
     handleUpdateCredentials,
     handleDeleteUser,
     handleApproveProfileChangeRequest,
+    handleConvertShortLeaveToFullLeave,
   };
 };

@@ -2,18 +2,20 @@ import { useMemo, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { Profile, ChutiRecordWithProfile, BulkRepresentative } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { formatDate, calculateStats } from '@/utils/dashboardHelpers';
+import { formatDate, calculateStats, parseHolidayItem, GlobalSettings } from '@/utils/dashboardHelpers';
 
 // Notification item type (shared across the app)
 export interface NotificationItem {
   id: string;
   chutiId?: string;
   record?: ChutiRecord;
-  type: 'revision' | 'approved' | 'rejected' | 'adjusted' | 'cancelled' | 'supervisor_approved' | 'edited';
+  type: string;
   timestamp: string;
   title: string;
   body: string;
   text?: string;
+  holidayDate?: string;
+  holidayName?: string;
 }
 
 interface UseDerivedStateParams {
@@ -28,6 +30,9 @@ interface UseDerivedStateParams {
   filterEndDate: string;
   viewingStaffId: string | null;
   lastViewedTime: string | null;
+  holidayResponses: any[];
+  globalSettings: GlobalSettings;
+  loading: boolean;
 }
 
 export function useDerivedState({
@@ -42,6 +47,9 @@ export function useDerivedState({
   filterEndDate,
   viewingStaffId,
   lastViewedTime,
+  holidayResponses,
+  globalSettings,
+  loading,
 }: UseDerivedStateParams) {
 
   // --- Record Filtering ---
@@ -65,7 +73,11 @@ export function useDerivedState({
   }, [profile, sessionUser, adminRecords, userRecords, applyFilters]);
 
   // --- Stats ---
-  const userStats = useMemo(() => calculateStats(filteredUserRecords), [filteredUserRecords]);
+  const userYearlyRecords = useMemo(() => {
+    return userRecords.filter(r => selectedYear === 'all' || (r.date && r.date.substring(0, 4) === selectedYear));
+  }, [userRecords, selectedYear]);
+
+  const userStats = useMemo(() => calculateStats(userYearlyRecords), [userYearlyRecords]);
 
   const getUserSummaryStats = useCallback((userId: string) => {
     const userRecs = adminRecords.filter(r => {
@@ -81,7 +93,6 @@ export function useDerivedState({
     return {
       full: stats.fullLeaves,
       short: stats.shortHours,
-      reserve: stats.reserveLeaves,
       overtime: stats.overtimeHours
     };
   }, [adminRecords, selectedYear, filterType, filterStartDate, filterEndDate]);
@@ -132,7 +143,6 @@ export function useDerivedState({
 
   const pendingReserveRequests = useMemo(() => 
     adminRecords.filter(r => 
-      (r.leave_type === 'Reserve' && (r.status === 'approved_by_supervisor' || r.reserve_adjustment_status === 'pending')) ||
       (r.leave_type === 'Overtime' && r.status === 'approved_by_supervisor') ||
       (r.reserve_adjustment_status === 'pending')
     ), 
@@ -140,7 +150,7 @@ export function useDerivedState({
   );
 
   const pendingChutiRequests = useMemo(() => 
-    adminRecords.filter(r => r.status === 'approved_by_supervisor' && r.leave_type !== 'Reserve' && r.leave_type !== 'Overtime'), 
+    adminRecords.filter(r => r.status === 'approved_by_supervisor' && r.leave_type !== 'Overtime'), 
     [adminRecords]
   );
 
@@ -179,6 +189,67 @@ export function useDerivedState({
 
     const list: NotificationItem[] = [];
 
+    // Inject active government holiday notifications once initial load is complete
+    if (!loading && profile.eligible_govt_holiday !== false) {
+      const activeHolidays = (globalSettings.govt_holidays || []).map((h: any) => parseHolidayItem(h));
+
+      activeHolidays.forEach((holiday: any) => {
+        // Look up this user's response to this holiday
+        const response = holidayResponses.find(r => r.user_id === profile.id && r.holiday_date === holiday.date);
+        
+        if (response) {
+          if (response.response === 'reserve') {
+            list.push({
+              id: `govt-holiday-choice-${holiday.date}`,
+              type: 'govt_holiday_choice',
+              timestamp: response.created_at || new Date(holiday.date).toISOString(),
+              title: 'সরকারি ছুটি রিজার্ভ করা হয়েছে 📥',
+              body: `${holiday.name} (${formatDate(holiday.date)}) সরকারি ছুটির দিনটি আপনার রিজার্ভ ব্যালেন্সে যোগ করা হয়েছে।`
+            });
+          } else {
+            list.push({
+              id: `govt-holiday-choice-${holiday.date}`,
+              type: 'govt_holiday_choice',
+              timestamp: response.created_at || new Date(holiday.date).toISOString(),
+              title: 'সরকারি ছুটির পেমেন্ট অনুমোদন 🎉',
+              body: `${holiday.name} (${formatDate(holiday.date)}) সরকারি ছুটির পেমেন্টটি আপনার সেলারির সাথে পরিশোধ করার জন্য অনুমোদন করা হয়েছে।`
+            });
+          }
+        } else if (profile.allow_reserve !== false) {
+          // Actionable prompt: only show if the user is allowed to reserve
+          list.push({
+            id: `govt-holiday-prompt-${holiday.date}`,
+            type: 'govt_holiday_prompt',
+            timestamp: new Date(holiday.date).toISOString(),
+            title: 'সরকারি ছুটির পছন্দ নির্বাচন করুন 🔔',
+            body: `${holiday.name} (${formatDate(holiday.date)}) এই সরকারি ছুটির দিনটি আপনি কী করতে চান?`,
+            holidayDate: holiday.date,
+            holidayName: holiday.name
+          });
+        }
+      });
+    }
+
+    // For Admin / Supervisor: inject all staff holiday responses as notifications
+    if (!loading && (profile.role === 'admin' || profile.role === 'supervisor')) {
+      holidayResponses.forEach((r: any) => {
+        const staffName = r.profiles?.full_name || 'স্টাফ';
+        const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
+        const title = r.response === 'reserve' ? 'সরকারি ছুটি রিজার্ভের অনুরোধ 🔔' : 'সরকারি ছুটির পেমেন্টের অনুরোধ 🔔';
+        const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
+          r.response === 'reserve' ? 'ছুটি রিজার্ভ করার জন্য আগ্রহ জানিয়েছে।' : 'ছুটির পেমেন্ট নেয়ার জন্য আগ্রহ জানিয়েছে।'
+        }`;
+        
+        list.push({
+          id: `admin-holiday-resp-${r.id}`,
+          type: 'admin_holiday_response',
+          timestamp: r.created_at || new Date().toISOString(),
+          title,
+          body
+        });
+      });
+    }
+
     userRecords.forEach(r => {
       const hasRequest = r.admin_edit_request && typeof r.admin_edit_request === 'object';
       const editRequestObj = r.admin_edit_request as { notifications?: NotificationItem[] } | null;
@@ -211,7 +282,7 @@ export function useDerivedState({
     });
 
     return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [sessionUser, profile, userRecords]);
+  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading]);
 
   const unreadUserNotificationsCount = useMemo(() => 
     userNotificationsList.filter(
@@ -231,7 +302,12 @@ export function useDerivedState({
     [viewingStaffId, adminRecords, applyFilters]
   );
 
-  const staffStats = useMemo(() => calculateStats(individualRecords), [individualRecords]);
+  const staffYearlyRecords = useMemo(() => 
+    viewingStaffId ? adminRecords.filter(r => r.user_id === viewingStaffId && (selectedYear === 'all' || (r.date && r.date.substring(0, 4) === selectedYear))) : [],
+    [viewingStaffId, adminRecords, selectedYear]
+  );
+
+  const staffStats = useMemo(() => calculateStats(staffYearlyRecords), [staffYearlyRecords]);
 
   // --- Available Years ---
   const availableYears = useMemo(() => 

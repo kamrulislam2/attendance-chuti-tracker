@@ -146,42 +146,6 @@ export function AdjustmentModal({
               </button>
             </div>
           </div>
-        ) : adjustmentRecord.leave_type === 'Reserve' ? (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-350 font-medium">রিজার্ভ ছুটির সমন্বয় করার সময় আপনি কি এটি ফুল লিভের মোট ব্যালেন্স থেকে বিয়োগ (Adjust) করতে চান?</p>
-            <div className="flex flex-col gap-2 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setAdjustShortLeaveOption(true);
-                  handleSaveAdjustment(true);
-                }}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
-              >
-                হ্যাঁ, ফুল লিভ থেকে বিয়োগ করুন
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdjustShortLeaveOption(false);
-                  handleSaveAdjustment(false);
-                }}
-                className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
-              >
-                না, কেবল রিজার্ভ থেকে মাইনাস করুন
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAdjustmentModal(false);
-                  setAdjustmentRecord(null);
-                }}
-                className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
-              >
-                বাতিল করুন
-              </button>
-            </div>
-          </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-slate-355 font-medium">আপনি কি নিশ্চিতভাবে এই ছুটির রেকর্ডটি সম্পূর্ণ সমন্বয় করতে চান?</p>

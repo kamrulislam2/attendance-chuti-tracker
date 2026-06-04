@@ -4,6 +4,7 @@ import React from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { PasswordMatchIndicator } from '@/components/PasswordMatchIndicator';
 import { Profile } from '@/types';
+import { ProfileFields } from '@/components/ProfileFields';
 
 interface AdminCreateUserModalProps {
   showCreateUserModal: boolean;
@@ -27,6 +28,20 @@ interface AdminCreateUserModalProps {
   newStaffConfirmPassword: string;
   setNewStaffConfirmPassword: (val: string) => void;
   handleCreateNewUser: () => void;
+  newStaffJobRole: string;
+  setNewStaffJobRole: (val: string) => void;
+  newStaffWorkingHours: string;
+  setNewStaffWorkingHours: (val: string) => void;
+  newStaffBreakTime: string;
+  setNewStaffBreakTime: (val: string) => void;
+  newStaffSignInTime: string;
+  setNewStaffSignInTime: (val: string) => void;
+  newStaffSignOutTime: string;
+  setNewStaffSignOutTime: (val: string) => void;
+  newStaffEligibleOfficeLeave: boolean;
+  setNewStaffEligibleOfficeLeave: (val: boolean) => void;
+  newStaffEligibleGovtHoliday: boolean;
+  setNewStaffEligibleGovtHoliday: (val: boolean) => void;
 }
 
 export function AdminCreateUserModal({
@@ -51,6 +66,20 @@ export function AdminCreateUserModal({
   newStaffConfirmPassword,
   setNewStaffConfirmPassword,
   handleCreateNewUser,
+  newStaffJobRole,
+  setNewStaffJobRole,
+  newStaffWorkingHours,
+  setNewStaffWorkingHours,
+  newStaffBreakTime,
+  setNewStaffBreakTime,
+  newStaffSignInTime,
+  setNewStaffSignInTime,
+  newStaffSignOutTime,
+  setNewStaffSignOutTime,
+  newStaffEligibleOfficeLeave,
+  setNewStaffEligibleOfficeLeave,
+  newStaffEligibleGovtHoliday,
+  setNewStaffEligibleGovtHoliday,
 }: AdminCreateUserModalProps) {
   if (!showCreateUserModal || profile?.role !== 'admin') return null;
 
@@ -72,6 +101,9 @@ export function AdminCreateUserModal({
                 setNewStaffUsername('');
                 setNewStaffFullName('');
                 setNewStaffRole('user');
+                setNewStaffNeedsApproval(false);
+                setNewStaffAllowReserve(false);
+                setNewStaffAllowOvertime(false);
               }}
               className="text-slate-450 hover:text-white text-sm cursor-pointer"
             >
@@ -80,17 +112,6 @@ export function AdminCreateUserModal({
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">স্টাফ নাম (Full Name)</label>
-              <input
-                type="text"
-                placeholder="যেমন: Kamrul Islam"
-                value={newStaffFullName}
-                onChange={(e) => setNewStaffFullName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">কোডনেম (Codename / Username)</label>
               <input
@@ -101,7 +122,6 @@ export function AdminCreateUserModal({
                 className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase font-mono"
               />
             </div>
-
 
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">পাসওয়ার্ড (Password)</label>
@@ -126,6 +146,21 @@ export function AdminCreateUserModal({
               <PasswordMatchIndicator password={newStaffPassword} confirmPassword={newStaffConfirmPassword} />
             </div>
 
+            <ProfileFields
+              fullName={newStaffFullName}
+              setFullName={setNewStaffFullName}
+              jobRole={newStaffJobRole}
+              setJobRole={setNewStaffJobRole}
+              workingHours={newStaffWorkingHours}
+              setWorkingHours={setNewStaffWorkingHours}
+              breakTime={newStaffBreakTime}
+              setBreakTime={setNewStaffBreakTime}
+              signInTime={newStaffSignInTime}
+              setSignInTime={setNewStaffSignInTime}
+              signOutTime={newStaffSignOutTime}
+              setSignOutTime={setNewStaffSignOutTime}
+            />
+
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">রোল (Role)</label>
               <select
@@ -139,67 +174,72 @@ export function AdminCreateUserModal({
               </select>
             </div>
 
-            {/* Needs Supervisor Approval Toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-              <div>
-                <span className="block text-sm font-medium text-white font-semibold">Supervisor Approval?</span>
-                <span className="block text-[11px] text-slate-400">Yes দিলে ছুটির জন্য সুপারভাইজার অ্যাপ্রুভাল লাগবে</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNewStaffNeedsApproval(!newStaffNeedsApproval)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  newStaffNeedsApproval ? 'bg-purple-600' : 'bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    newStaffNeedsApproval ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+            {/* Checkboxes Grid */}
+            <div className="grid grid-cols-1 gap-2.5 pt-2">
+              <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={newStaffNeedsApproval}
+                  onChange={(e) => setNewStaffNeedsApproval(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-purple-600 focus:ring-purple-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
-              </button>
-            </div>
+                <div>
+                  <span className="block text-xs font-semibold text-white">Supervisor Approval?</span>
+                  <span className="block text-[10px] text-slate-400">Yes দিলে ছুটির জন্য সুপারভাইজার অ্যাপ্রুভাল লাগবে</span>
+                </div>
+              </label>
 
-            {/* Allow Reserve Toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-              <div>
-                <span className="block text-sm font-medium text-white font-semibold">Reserve Holiday?</span>
-                <span className="block text-[11px] text-slate-400">Yes দিলে রিজার্ভ ছুটির ক্যাটাগরি চালু হবে</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNewStaffAllowReserve(!newStaffAllowReserve)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  newStaffAllowReserve ? 'bg-purple-600' : 'bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    newStaffAllowReserve ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+              <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={newStaffEligibleOfficeLeave}
+                  onChange={(e) => setNewStaffEligibleOfficeLeave(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-purple-600 focus:ring-purple-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
-              </button>
-            </div>
+                <div>
+                  <span className="block text-xs font-semibold text-white">Office Leave Eligible?</span>
+                  <span className="block text-[10px] text-slate-400">অন থাকলে বাৎসরিক অফিস বরাদ্দকৃত ছুটি ও ঈদ ছুটির যোগ্য হবেন</span>
+                </div>
+              </label>
 
-            {/* Allow Overtime Toggle */}
-            <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-              <div>
-                <span className="block text-sm font-medium text-white font-semibold">Overtime Category?</span>
-                <span className="block text-[11px] text-slate-400">Yes দিলে ওভারটাইমের ক্যাটাগরি চালু হবে</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNewStaffAllowOvertime(!newStaffAllowOvertime)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  newStaffAllowOvertime ? 'bg-purple-600' : 'bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    newStaffAllowOvertime ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+              <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={newStaffEligibleGovtHoliday}
+                  onChange={(e) => setNewStaffEligibleGovtHoliday(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-purple-600 focus:ring-purple-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
-              </button>
+                <div>
+                  <span className="block text-xs font-semibold text-white">Govt Holiday Eligible?</span>
+                  <span className="block text-[10px] text-slate-400">অন থাকলে সরকারি সাধারণ ছুটির তালিকা অনুযায়ী ছুটি পাওয়ার যোগ্য হবেন</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={newStaffAllowReserve}
+                  onChange={(e) => setNewStaffAllowReserve(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-purple-600 focus:ring-purple-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                />
+                <div>
+                  <span className="block text-xs font-semibold text-white">Reserve Govt Holiday?</span>
+                  <span className="block text-[10px] text-slate-400">Yes দিলে সরকারি সাধারণ ছুটি রিজার্ভ করার সুযোগ পাবে</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={newStaffAllowOvertime}
+                  onChange={(e) => setNewStaffAllowOvertime(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-purple-600 focus:ring-purple-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                />
+                <div>
+                  <span className="block text-xs font-semibold text-white">Overtime Category?</span>
+                  <span className="block text-[10px] text-slate-400">Yes দিলে ওভারটাইমের ক্যাটাগরি চালু হবে</span>
+                </div>
+              </label>
             </div>
 
             <div className="flex gap-3 pt-4 border-t border-slate-800/80">
@@ -213,6 +253,8 @@ export function AdminCreateUserModal({
                   setNewStaffFullName('');
                   setNewStaffRole('user');
                   setNewStaffNeedsApproval(false);
+                  setNewStaffAllowReserve(false);
+                  setNewStaffAllowOvertime(false);
                 }}
                 className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
               >

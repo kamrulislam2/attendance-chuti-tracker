@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, Edit } from 'lucide-react';
 import { Profile } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
@@ -21,9 +21,9 @@ interface UserNotificationsModalProps {
   setRevisionSignInTime: (val: string) => void;
   setRevisionSignOutTime: (val: string) => void;
   setRevisionLeaveHour: (val: string) => void;
-  setRevisionReserveHoliday: (val: string) => void;
   setRevisionComment: (val: string) => void;
   setShowUserRevisionModal: (val: boolean) => void;
+  onSaveHolidayResponse: (holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => Promise<boolean>;
 }
 
 export function UserNotificationsModal({
@@ -42,10 +42,18 @@ export function UserNotificationsModal({
   setRevisionSignInTime,
   setRevisionSignOutTime,
   setRevisionLeaveHour,
-  setRevisionReserveHoliday,
   setRevisionComment,
   setShowUserRevisionModal,
+  onSaveHolidayResponse,
 }: UserNotificationsModalProps) {
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+  const handleChoice = async (holidayDate: string, holidayName: string, choice: 'paid' | 'reserve', notifId: string) => {
+    setSubmittingId(notifId);
+    await onSaveHolidayResponse(holidayDate, holidayName, choice);
+    setSubmittingId(null);
+  };
+
   if (!showUserNotificationsModal) return null;
 
   return (
@@ -79,17 +87,24 @@ export function UserNotificationsModal({
                       {n.timestamp ? new Date(n.timestamp).toLocaleString('bn-BD', { hour12: true }) : ''}
                     </span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold w-fit ${
-                      n.record?.leave_type === 'Full Leave' 
+                      n.type === 'govt_holiday_prompt'
+                        ? 'bg-amber-955 border border-amber-900/50 text-amber-300'
+                      : n.type === 'govt_holiday_choice'
+                        ? 'bg-teal-955 border border-teal-900/50 text-teal-300'
+                      : n.type === 'admin_holiday_response'
+                        ? 'bg-indigo-955 border border-indigo-900/50 text-indigo-300'
+                      : n.record?.leave_type === 'Full Leave' 
                         ? 'bg-red-955 border border-red-900 text-red-400' 
-                        : n.record?.leave_type === 'Reserve'
-                        ? 'bg-purple-955 border border-purple-900 text-purple-400'
-                        : n.record?.leave_type === 'Overtime'
+                      : n.record?.leave_type === 'Overtime'
                         ? 'bg-blue-955 border border-blue-900 text-blue-400'
-                        : n.record?.leave_type === 'Short Leave'
+                      : n.record?.leave_type === 'Short Leave'
                         ? 'bg-amber-955 border border-amber-900 text-amber-400'
-                        : 'bg-slate-955 border border-slate-900 text-slate-400'
+                      : 'bg-slate-955 border border-slate-900 text-slate-400'
                     }`}>
-                      {n.record?.leave_type || 'Notification'}
+                      {n.type === 'govt_holiday_prompt' ? 'সরকারি ছুটি (পছন্দ)'
+                       : n.type === 'govt_holiday_choice' ? 'সরকারি ছুটি (রেসপন্স)'
+                       : n.type === 'admin_holiday_response' ? 'সরকারি ছুটি রেসপন্স (স্টাফ)'
+                       : n.record?.leave_type || 'নোটিফিকেশন'}
                     </span>
                   </div>
                   
@@ -105,7 +120,6 @@ export function UserNotificationsModal({
                         setRevisionSignInTime(r.sign_in_time ? r.sign_in_time.substring(0, 5) : '13:00');
                         setRevisionSignOutTime(r.sign_out_time ? r.sign_out_time.substring(0, 5) : '22:30');
                         setRevisionLeaveHour(r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '00:00');
-                        setRevisionReserveHoliday(r.reserve_holiday || '');
                         setRevisionComment('');
                         setShowUserNotificationsModal(false);
                         setShowUserRevisionModal(true);
@@ -121,6 +135,27 @@ export function UserNotificationsModal({
                   <span className="font-semibold text-slate-200 block mb-1">{n.title}</span>
                   {n.body || n.text}
                 </div>
+
+                {n.type === 'govt_holiday_prompt' && n.holidayDate && n.holidayName && (
+                  <div className="flex gap-2 justify-end mt-1">
+                    <button
+                      type="button"
+                      disabled={submittingId !== null}
+                      onClick={() => handleChoice(n.holidayDate, n.holidayName, 'paid', n.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans"
+                    >
+                      {submittingId === n.id ? 'লোড হচ্ছে...' : 'পেমেন্ট নিব (Get Paid)'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submittingId !== null}
+                      onClick={() => handleChoice(n.holidayDate, n.holidayName, 'reserve', n.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white border border-teal-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans"
+                    >
+                      {submittingId === n.id ? 'লোড হচ্ছে...' : 'রিজার্ভ রাখব (Reserve)'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}

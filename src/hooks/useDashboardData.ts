@@ -17,6 +17,7 @@ export const useDashboardData = () => {
   const [isPushSubscribed, setIsPushSubscribed] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [offlineCount, setOfflineCount] = useState(0);
@@ -56,76 +57,80 @@ export const useDashboardData = () => {
   const fetchRecords = useCallback(async () => {
     if (!sessionUser || !profile) return;
 
-    if (profile.role === 'admin' || profile.role === 'supervisor') {
-      // Fetch all user records for Admin/Supervisor
-      const { data: records, error } = await supabase
-        .from('chuti')
-        .select(`
-          *,
-          profiles (username)
-        `)
-        .order('date', { ascending: false });
+    try {
+      if (profile.role === 'admin' || profile.role === 'supervisor') {
+        // Fetch all user records for Admin/Supervisor
+        const { data: records, error } = await supabase
+          .from('chuti')
+          .select(`
+            *,
+            profiles (username)
+          `)
+          .order('date', { ascending: false });
 
-      if (!error && records) {
-        setAdminRecords(records);
+        if (!error && records) {
+          setAdminRecords(records);
+        }
+
+        // Fetch profile list for filtering
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('username', { ascending: true });
+
+        if (profiles) {
+          setProfilesList(profiles);
+        }
+      } else {
+        // For normal users, fetch only the list of supervisors to allow routing requests
+        const { data: supervisors } = await supabase
+          .from('profiles')
+          .select('id, username, role, full_name')
+          .eq('role', 'supervisor')
+          .order('username', { ascending: true });
+
+        if (supervisors) {
+          setProfilesList(supervisors as any[]);
+        }
+      }
+      
+      if (profile.role === 'user' || profile.role === 'supervisor' || profile.role === 'admin') {
+        // Fetch only logged-in user records
+        const { data: records, error } = await supabase
+          .from('chuti')
+          .select('*')
+          .eq('user_id', sessionUser.id)
+          .order('date', { ascending: false });
+
+        if (!error && records) {
+          setUserRecords(records);
+        }
       }
 
-      // Fetch profile list for filtering
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('username', { ascending: true });
-
-      if (profiles) {
-        setProfilesList(profiles);
+      // Fetch Govt Holiday Responses
+      if (profile.role === 'admin' || profile.role === 'supervisor') {
+        const { data: responses, error: respError } = await supabase
+          .from('govt_holiday_responses')
+          .select(`
+            *,
+            profiles (full_name, username)
+          `)
+          .order('created_at', { ascending: false });
+        if (!respError && responses) {
+          setHolidayResponses(responses);
+        }
+      } else {
+        const { data: responses, error: respError } = await supabase
+          .from('govt_holiday_responses')
+          .select('*')
+          .eq('user_id', sessionUser.id)
+          .order('created_at', { ascending: false });
+        if (!respError && responses) {
+          setHolidayResponses(responses);
+        }
       }
-    } else {
-      // For normal users, fetch only the list of supervisors to allow routing requests
-      const { data: supervisors } = await supabase
-        .from('profiles')
-        .select('id, username, role, full_name')
-        .eq('role', 'supervisor')
-        .order('username', { ascending: true });
-
-      if (supervisors) {
-        setProfilesList(supervisors as any[]);
-      }
-    }
-    
-    if (profile.role === 'user' || profile.role === 'supervisor' || profile.role === 'admin') {
-      // Fetch only logged-in user records
-      const { data: records, error } = await supabase
-        .from('chuti')
-        .select('*')
-        .eq('user_id', sessionUser.id)
-        .order('date', { ascending: false });
-
-      if (!error && records) {
-        setUserRecords(records);
-      }
-    }
-
-    // Fetch Govt Holiday Responses
-    if (profile.role === 'admin' || profile.role === 'supervisor') {
-      const { data: responses, error: respError } = await supabase
-        .from('govt_holiday_responses')
-        .select(`
-          *,
-          profiles (full_name, username)
-        `)
-        .order('created_at', { ascending: false });
-      if (!respError && responses) {
-        setHolidayResponses(responses);
-      }
-    } else {
-      const { data: responses, error: respError } = await supabase
-        .from('govt_holiday_responses')
-        .select('*')
-        .eq('user_id', sessionUser.id)
-        .order('created_at', { ascending: false });
-      if (!respError && responses) {
-        setHolidayResponses(responses);
-      }
+    } finally {
+      setInitialFetchDone(true);
     }
   }, [sessionUser, profile]);
 
@@ -175,6 +180,23 @@ export const useDashboardData = () => {
           .map(p => p.id);
 
         if (reserveFalseIds.length > 0) {
+          // Auto-save 'paid' response in govt_holiday_responses for reserve-disabled users
+          const autoResponses = reserveFalseIds.map(userId => ({
+            user_id: userId,
+            holiday_date: h.date,
+            holiday_name: h.name,
+            response: 'paid'
+          }));
+          
+          supabase
+            .from('govt_holiday_responses')
+            .upsert(autoResponses, { onConflict: 'user_id,holiday_date' })
+            .then(({ error: upsertError }) => {
+              if (upsertError) {
+                console.error('Error auto-saving paid responses for holiday:', h.name, upsertError);
+              }
+            });
+
           sendPushNotification({
             userIds: reserveFalseIds,
             title: 'সরকারি ছুটির পেমেন্ট অনুমোদন 🎉',
@@ -426,6 +448,7 @@ export const useDashboardData = () => {
     const fetchSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        setInitialFetchDone(false);
         router.push('/login');
         return;
       }
@@ -532,6 +555,7 @@ export const useDashboardData = () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('selectedYear');
     }
+    setInitialFetchDone(false);
     await supabase.auth.signOut();
     router.push('/login');
   };
@@ -589,5 +613,6 @@ export const useDashboardData = () => {
     holidayResponses,
     setHolidayResponses,
     handleSaveHolidayResponse,
+    initialFetchDone,
   };
 };

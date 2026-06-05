@@ -562,6 +562,12 @@ CREATE POLICY "Users can insert own holiday responses"
   FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own holiday responses" 
+  ON public.govt_holiday_responses 
+  FOR UPDATE 
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 CREATE POLICY "Admins can read all holiday responses" 
   ON public.govt_holiday_responses 
   FOR SELECT 

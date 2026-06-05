@@ -33,6 +33,7 @@ interface UseDerivedStateParams {
   holidayResponses: any[];
   globalSettings: GlobalSettings;
   loading: boolean;
+  initialFetchDone: boolean;
 }
 
 export function useDerivedState({
@@ -50,6 +51,7 @@ export function useDerivedState({
   holidayResponses,
   globalSettings,
   loading,
+  initialFetchDone,
 }: UseDerivedStateParams) {
 
   // --- Record Filtering ---
@@ -190,7 +192,7 @@ export function useDerivedState({
     const list: NotificationItem[] = [];
 
     // Inject active government holiday notifications once initial load is complete
-    if (!loading && profile.eligible_govt_holiday !== false) {
+    if (initialFetchDone && profile.eligible_govt_holiday !== false) {
       const activeHolidays = (globalSettings.govt_holidays || []).map((h: any) => parseHolidayItem(h));
 
       activeHolidays.forEach((holiday: any) => {
@@ -231,7 +233,7 @@ export function useDerivedState({
     }
 
     // For Admin / Supervisor: inject all staff holiday responses as notifications
-    if (!loading && (profile.role === 'admin' || profile.role === 'supervisor')) {
+    if (initialFetchDone && (profile.role === 'admin' || profile.role === 'supervisor')) {
       holidayResponses.forEach((r: any) => {
         const staffName = r.profiles?.full_name || 'স্টাফ';
         const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';

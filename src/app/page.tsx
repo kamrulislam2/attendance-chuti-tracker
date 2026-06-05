@@ -90,6 +90,7 @@ export default function Dashboard() {
     handleSaveGlobalSettings,
     holidayResponses,
     handleSaveHolidayResponse,
+    initialFetchDone,
   } = dashboardData;
 
   // View Filter states
@@ -121,6 +122,7 @@ export default function Dashboard() {
     holidayResponses,
     globalSettings,
     loading,
+    initialFetchDone,
   });
 
   const {
@@ -648,6 +650,7 @@ export default function Dashboard() {
             onConvertShortLeaveToFullLeave={handleConvertShortLeaveToFullLeave}
             holidayResponses={holidayResponses}
             onSaveHolidayResponse={handleSaveHolidayResponse}
+            initialFetchDone={initialFetchDone}
           />
         )}
 

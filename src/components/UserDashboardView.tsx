@@ -51,6 +51,7 @@ interface UserDashboardViewProps {
   onConvertShortLeaveToFullLeave: (userId: string, workingHours: number, shortMins: number) => void;
   holidayResponses: GovtHolidayResponse[];
   onSaveHolidayResponse: (holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => Promise<boolean>;
+  initialFetchDone: boolean;
 }
 
 export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
@@ -79,6 +80,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   onConvertShortLeaveToFullLeave,
   holidayResponses,
   onSaveHolidayResponse,
+  initialFetchDone,
 }) => {
   // Eligibility & Deduction
   const isOfficeLeaveEligible = profile?.eligible_office_leave !== false;
@@ -134,14 +136,14 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
       });
   }, [globalSettings.govt_holidays, holidayResponses, profile?.id]);
 
-  // Auto-approve as 'paid' if allow_reserve is false and there are pending holidays
+  // Auto-approve as 'paid' if allow_reserve is false, initial fetch is done, and there are pending holidays
   React.useEffect(() => {
-    if (profile && profile.eligible_govt_holiday !== false && profile.allow_reserve === false && pendingHolidays.length > 0) {
+    if (initialFetchDone && profile && profile.eligible_govt_holiday !== false && profile.allow_reserve === false && pendingHolidays.length > 0) {
       pendingHolidays.forEach((holiday) => {
         onSaveHolidayResponse(holiday.date, holiday.name, 'paid');
       });
     }
-  }, [profile, pendingHolidays, onSaveHolidayResponse]);
+  }, [initialFetchDone, profile, pendingHolidays, onSaveHolidayResponse]);
 
   // Short to Full Leave Conversion Adjustments
   const convertedHours = profile?.converted_short_leaves_hours ?? 0;
@@ -165,8 +167,74 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     }
   };
 
+  const [submittingDates, setSubmittingDates] = React.useState<string[]>([]);
+
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in">
+      {/* Pending Govt Holiday Response Alert Banner */}
+      {initialFetchDone && profile && profile.eligible_govt_holiday !== false && profile.allow_reserve !== false && pendingHolidays.length > 0 && (
+        <div className="bg-slate-900/40 backdrop-blur-xl border border-amber-900/40 p-4 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-amber-600/10 border border-amber-500/20 text-amber-400 rounded-xl shrink-0 mt-0.5">
+              <Calendar className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">সরকারি ছুটির পছন্দ নির্বাচন পেন্ডিং রয়েছে 🔔</h4>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                নিম্নলিখিত সরকারি ছুটির দিনগুলোতে আপনি কী করতে চান তা নির্বাচন করুন। আপনি চাইলে পেমেন্ট নিতে পারেন অথবা ছুটি রিজার্ভ রাখতে পারেন:
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {pendingHolidays.map((holiday, idx) => (
+                  <span key={idx} className="inline-flex items-center px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 gap-1.5 font-sans">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    {holiday.name} ({formatDate(holiday.date)})
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 border-t border-slate-850/80 md:border-t-0 pt-3 md:pt-0">
+            {pendingHolidays.map((holiday) => {
+              const isSubmitting = submittingDates.includes(holiday.date);
+              return (
+                <div key={holiday.date} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-955/60 border border-slate-850 rounded-xl md:w-80 font-sans">
+                  <div className="text-[11px] font-semibold text-slate-300">
+                    {holiday.name}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={async () => {
+                        setSubmittingDates(prev => [...prev, holiday.date]);
+                        await onSaveHolidayResponse(holiday.date, holiday.name, 'paid');
+                        setSubmittingDates(prev => prev.filter(d => d !== holiday.date));
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-555 text-white border border-emerald-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans"
+                    >
+                      {isSubmitting ? '...' : 'Get Paid'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={async () => {
+                        setSubmittingDates(prev => [...prev, holiday.date]);
+                        await onSaveHolidayResponse(holiday.date, holiday.name, 'reserve');
+                        setSubmittingDates(prev => prev.filter(d => d !== holiday.date));
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-teal-600 hover:bg-teal-555 text-white border border-teal-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans"
+                    >
+                      {isSubmitting ? '...' : 'Reserve'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <UserStats 
         stats={{
           ...userStats,

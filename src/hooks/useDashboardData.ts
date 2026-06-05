@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
@@ -19,7 +20,18 @@ export const useDashboardData = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [offlineCount, setOfflineCount] = useState(0);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessageState] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const setMessage = useCallback((msg: { type: 'success' | 'error'; text: string } | null) => {
+    setMessageState(msg);
+    if (msg) {
+      if (msg.type === 'success') {
+        toast.success(msg.text, { id: msg.text });
+      } else {
+        toast.error(msg.text, { id: msg.text });
+      }
+    }
+  }, []);
 
   // Lists states
   const [userRecords, setUserRecords] = useState<ChutiRecord[]>([]);

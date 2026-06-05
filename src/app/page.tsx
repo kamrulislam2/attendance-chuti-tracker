@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { UserDashboardView } from '@/components/UserDashboardView';
@@ -585,22 +586,33 @@ export default function Dashboard() {
       />
 
       {/* Alert Messages */}
-      {message && (
-        <div className="max-w-7xl mx-auto px-4 mt-6 w-full z-10">
-          <div className={`p-4 rounded-xl border flex items-start gap-3 shadow-lg ${
-            message.type === 'success' 
-              ? 'bg-emerald-950/50 border-emerald-800/50 text-emerald-300' 
-              : 'bg-red-950/50 border-red-800/50 text-red-300'
-          }`}>
-            {message.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-            )}
-            <div className="text-sm">{message.text}</div>
-          </div>
-        </div>
-      )}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#0f172a',
+            color: '#cbd5e1',
+            border: '1px solid #1e293b',
+            fontSize: '12px',
+            borderRadius: '12px',
+            fontFamily: 'sans-serif',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#0f172a',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#0f172a',
+            },
+          },
+        }}
+      />
 
       {/* 2. Main Content Body */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full z-10 flex-1 flex flex-col gap-6">

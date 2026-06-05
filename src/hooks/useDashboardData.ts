@@ -230,9 +230,17 @@ export const useDashboardData = () => {
 
   useEffect(() => {
     if (profile) {
-      setGlobalSettings(getGlobalSettingsFromProfile(profile));
+      // Find the first admin profile in profilesList with custom settings, or fall back to the first admin profile
+      const adminProfile = profilesList.find(p => p.role === 'admin' && p.global_settings && JSON.stringify(p.global_settings) !== JSON.stringify(defaultGlobalSettings))
+        || profilesList.find(p => p.role === 'admin');
+
+      if (adminProfile && (profile.role === 'admin' || profile.role === 'supervisor')) {
+        setGlobalSettings(getGlobalSettingsFromProfile(adminProfile));
+      } else {
+        setGlobalSettings(getGlobalSettingsFromProfile(profile));
+      }
     }
-  }, [profile]);
+  }, [profile, profilesList]);
 
   // Load theme on mount
   useEffect(() => {

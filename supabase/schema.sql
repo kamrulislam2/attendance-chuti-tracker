@@ -478,7 +478,19 @@ DECLARE
   base_username TEXT;
   final_username TEXT;
   suffix INTEGER := 1;
+  v_global_settings JSONB;
 BEGIN
+  -- Get the current global settings from an existing admin profile to keep settings synchronized
+  SELECT global_settings INTO v_global_settings
+  FROM public.profiles
+  WHERE role = 'admin'
+  LIMIT 1;
+
+  -- Fallback if no admin profile exists (e.g. first registration)
+  IF v_global_settings IS NULL THEN
+    v_global_settings := '{"office_leave_default": 14, "eid_fitr_leave": 0, "eid_adha_leave": 0, "govt_holidays": []}'::jsonb;
+  END IF;
+
   base_username := UPPER(COALESCE(NEW.raw_user_meta_data->>'username', SPLIT_PART(NEW.email, '@', 1)));
   final_username := base_username;
   
@@ -488,8 +500,8 @@ BEGIN
     suffix := suffix + 1;
   END LOOP;
 
-  -- Insert into public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday)
-  INSERT INTO public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday)
+  -- Insert into public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday, global_settings)
+  INSERT INTO public.profiles (id, username, role, needs_supervisor_approval, allow_reserve, allow_overtime, eligible_office_leave, eligible_govt_holiday, global_settings)
   VALUES (
     NEW.id,
     final_username,
@@ -512,7 +524,8 @@ BEGIN
     COALESCE((NEW.raw_user_meta_data->>'allow_reserve')::BOOLEAN, FALSE),
     COALESCE((NEW.raw_user_meta_data->>'allow_overtime')::BOOLEAN, FALSE),
     COALESCE((NEW.raw_user_meta_data->>'eligible_office_leave')::BOOLEAN, TRUE),
-    COALESCE((NEW.raw_user_meta_data->>'eligible_govt_holiday')::BOOLEAN, TRUE)
+    COALESCE((NEW.raw_user_meta_data->>'eligible_govt_holiday')::BOOLEAN, TRUE),
+    v_global_settings
   );
   RETURN NEW;
 END;

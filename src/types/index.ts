@@ -31,6 +31,7 @@ export interface Profile {
   eligible_govt_holiday?: boolean;
   converted_short_leaves_days?: number;
   converted_short_leaves_hours?: number;
+  global_settings?: any;
 }
 
 export interface ChutiRecordWithProfile extends ChutiRecord {

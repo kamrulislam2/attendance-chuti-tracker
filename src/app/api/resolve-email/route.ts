@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-// Server-side client using service role key to execute restricted RPC
-const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
-
 // Basic in-memory rate limiting map (IP -> array of timestamps)
 const rateLimits = new Map<string, number[]>();
 const LIMIT_WINDOW_MS = 60000; // 1 minute window
@@ -32,6 +26,16 @@ function isRateLimited(ip: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[ResolveEmail] Missing Supabase environment variables.');
+      return NextResponse.json({ error: 'Server configuration error: missing credentials' }, { status: 500 });
+    }
+
+    const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
+
     // Basic IP detection from headers
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 

@@ -2,15 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
-// Create a Supabase client for this API route
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// Prioritize service role key for bypassing RLS server-side
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Clean server-side client to execute RPCs bypassing user RLS/scopes
-const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
-
 // Initialize web-push
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -39,6 +30,17 @@ interface PushSubscriptionRow {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[SendPush] Missing Supabase environment variables.');
+      return NextResponse.json({ error: 'Server configuration error: missing database credentials' }, { status: 500 });
+    }
+
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+    const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
+
     // 1. Authenticate the requester using their Supabase JWT
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {

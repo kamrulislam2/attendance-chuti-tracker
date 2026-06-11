@@ -12,6 +12,16 @@ export function getApiUrl(path: string): string {
     (window as any).__TAURI_INTERNALS__ !== undefined;
 
   if (isTauri) {
+    // If the Tauri webview itself is running on localhost/127.0.0.1 (Tauri dev mode),
+    // route API requests directly to the local Next.js server on port 3000
+    const isLocalDev = 
+      window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1';
+
+    if (isLocalDev) {
+      return `http://localhost:3000${path}`;
+    }
+
     // Default to the stable git branch deployment URL on Vercel, or override via Env variable
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://chuti-git-main-kamrulislam2s-projects.vercel.app';
     return `${baseUrl.replace(/\/$/, '')}${path}`;

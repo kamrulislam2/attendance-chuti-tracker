@@ -232,3 +232,35 @@ VAPID_PRIVATE_KEY=your_vapid_private_key
    *   লোকাল রান: `npm run dev`
    *   বিল্ড টেস্ট: `npm run build`
    *   লিন্ট টেস্ট: `npm run lint`
+
+---
+
+## 🖥️ Desktop Application (Tauri Integration)
+
+We have integrated **Tauri v2** to package **Office Chuti Tracker** as a native desktop application for Windows.
+
+### Prerequisites
+
+To develop or build the desktop app locally, you need:
+- **Rust**: Install from [rustup.rs](https://rustup.rs/).
+- **C++ Build Tools**: Install Microsoft Visual Studio with C++ desktop development workload (for Windows).
+
+### Development & Build Commands
+
+- **Run Dev Environment (Desktop Window)**:
+  ```bash
+  npm run tauri dev
+  ```
+- **Build Native Installers (`.msi` / `.exe`)**:
+  ```bash
+  npm run tauri build
+  ```
+
+### Automated GitHub Releases (CI/CD)
+
+An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.0.0`), GitHub Actions will:
+1. Export Next.js static files (`out/` directory).
+2. Set up Rust and compile the native Windows installers.
+3. Automatically attach the installers to a draft release on GitHub.
+

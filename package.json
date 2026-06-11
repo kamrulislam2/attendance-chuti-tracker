@@ -5,11 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:tauri": "node scripts/build-tauri.js",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
+    "@tauri-apps/api": "^2.11.0",
     "@types/web-push": "^3.6.4",
     "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "^1.16.0",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

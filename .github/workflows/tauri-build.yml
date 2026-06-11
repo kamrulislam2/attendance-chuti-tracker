@@ -1,0 +1,77 @@
+name: "Build & Release Tauri Desktop App"
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+          - platform: 'macos-latest'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend static assets
+        run: npm run build:tauri
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+
+      - name: Build desktop application
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Office Chuti Tracker v__VERSION__"
+          releaseBody: |
+            ### Office Chuti Tracker v__VERSION__ Desktop Release 🚀
+
+            Welcome to the official desktop release of **Office Chuti Tracker**!
+
+            This application allows team members to track and log office leave records, overtime, and government holiday preferences.
+
+            #### 🌟 Core Features:
+            - **Modern Visual Styling**: Packaged with a vibrant Orange (`#ea580d`) color system in light mode and sleek pure black in dark mode.
+            - **Simplified Onboarding**: Admins only need to specify a codename (username) to create a new staff profile. The default password is set to `1234` for onboarding, and staff configure their profiles upon first login.
+            - **Export Controls**: Outline-styled exports to Excel (emerald green theme) and PDF (red theme) formats.
+            - **Robust Modal Scrolling & Closing**: Modals scroll cleanly on all device formats and require explicit Cancel/Esc/Close interaction (clicking outside is disabled).
+            - **Offline Synchronization**: Instant caching and synchronization when network connectivity changes.
+
+            #### 📦 Installation:
+            - **Windows**: Download the `.msi` or `.exe` installer under the Assets section, run it, and follow the instructions.
+            - **macOS**: Download the `.dmg` or `.app` bundle, drag it to your Applications folder, and run it. (Note: On macOS, you may need to right-click and choose "Open" to bypass security warnings for unsigned apps).
+          releaseDraft: true
+          prerelease: false

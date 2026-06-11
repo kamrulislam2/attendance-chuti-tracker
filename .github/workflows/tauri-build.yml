@@ -18,7 +18,11 @@ jobs:
       matrix:
         include:
           - platform: 'windows-latest'
+            target: ''
           - platform: 'macos-latest'
+            target: 'x86_64-apple-darwin'
+          - platform: 'macos-latest'
+            target: 'aarch64-apple-darwin'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -33,6 +37,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -75,3 +81,4 @@ jobs:
             - **macOS**: Download the `.dmg` or `.app` bundle, drag it to your Applications folder, and run it. (Note: On macOS, you may need to right-click and choose "Open" to bypass security warnings for unsigned apps).
           releaseDraft: true
           prerelease: false
+          args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}

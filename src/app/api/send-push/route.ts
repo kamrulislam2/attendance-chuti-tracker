@@ -28,6 +28,22 @@ interface PushSubscriptionRow {
   sub_auth: string;
 }
 
+function getCorsHeaders(request: NextRequest) {
+  const origin = request.headers.get('origin') || '';
+  return {
+    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(request),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,7 +51,10 @@ export async function POST(request: NextRequest) {
 
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('[SendPush] Missing Supabase environment variables.');
-      return NextResponse.json({ error: 'Server configuration error: missing database credentials' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Server configuration error: missing database credentials' },
+        { status: 500, headers: getCorsHeaders(request) }
+      );
     }
 
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
@@ -45,7 +64,10 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       console.error('[SendPush] Missing Authorization header');
-      return NextResponse.json({ error: 'Unauthorized: Missing Authorization header' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized: Missing Authorization header' },
+        { status: 401, headers: getCorsHeaders(request) }
+      );
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -59,7 +81,10 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       console.error('[SendPush] Auth verification failed:', authError?.message || 'No user session');
-      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid token' },
+        { status: 401, headers: getCorsHeaders(request) }
+      );
     }
 
     // Fetch sender's role to check if admin/supervisor
@@ -77,7 +102,10 @@ export async function POST(request: NextRequest) {
       const lastRequestTime = rateLimitMap.get(user.id);
       if (lastRequestTime && (now - lastRequestTime < RATE_LIMIT_WINDOW_MS)) {
         console.warn(`[SendPush] Rate limit hit for user ${user.id}`);
-        return NextResponse.json({ error: 'Too Many Requests: Please wait 5 seconds between notification requests.' }, { status: 429 });
+        return NextResponse.json(
+          { error: 'Too Many Requests: Please wait 5 seconds between notification requests.' },
+          { status: 429, headers: getCorsHeaders(request) }
+        );
       }
       rateLimitMap.set(user.id, now);
     }
@@ -89,11 +117,17 @@ export async function POST(request: NextRequest) {
     console.log('[SendPush] Request body userIds:', userIds);
 
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return NextResponse.json({ error: 'Bad Request: Missing or invalid userIds array' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Bad Request: Missing or invalid userIds array' },
+        { status: 400, headers: getCorsHeaders(request) }
+      );
     }
 
     if (!title || !body) {
-      return NextResponse.json({ error: 'Bad Request: Missing title or body' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Bad Request: Missing title or body' },
+        { status: 400, headers: getCorsHeaders(request) }
+      );
     }
 
     // 3. Resolve special keywords like 'admins' or 'supervisors' using clean server client
@@ -129,7 +163,10 @@ export async function POST(request: NextRequest) {
     // If target list resolved to empty, return early
     if (targetUserIds.length === 0) {
       console.log('[SendPush] Resolved target list is empty. Aborting.');
-      return NextResponse.json({ success: true, sentCount: 0, message: 'Resolved targets are empty' });
+      return NextResponse.json(
+        { success: true, sentCount: 0, message: 'Resolved targets are empty' },
+        { headers: getCorsHeaders(request) }
+      );
     }
 
     // 4. Fetch active subscriptions using clean server client
@@ -139,14 +176,20 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error('[SendPush] Error fetching push subscriptions:', dbError);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Internal Server Error' },
+        { status: 500, headers: getCorsHeaders(request) }
+      );
     }
 
     console.log(`[SendPush] Found ${subscriptions?.length || 0} subscriptions in database.`);
 
     if (!subscriptions || subscriptions.length === 0) {
       console.log('[SendPush] No subscriptions found. Aborting.');
-      return NextResponse.json({ success: true, sentCount: 0, message: 'No active subscriptions found for target users' });
+      return NextResponse.json(
+        { success: true, sentCount: 0, message: 'No active subscriptions found for target users' },
+        { headers: getCorsHeaders(request) }
+      );
     }
 
     // 5. Send notifications
@@ -196,10 +239,13 @@ export async function POST(request: NextRequest) {
       success: true,
       sentCount: successfulSends,
       totalCount: subscriptions.length,
-    });
+    }, { headers: getCorsHeaders(request) });
 
   } catch (err) {
     console.error('[SendPush] Unexpected error in send-push API route:', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500, headers: getCorsHeaders(request) }
+    );
   }
 }

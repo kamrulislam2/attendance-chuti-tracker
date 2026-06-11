@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Lock, Mail, AlertCircle, Loader, Eye, EyeOff } from 'lucide-react';
+import { getApiUrl } from '@/utils/apiUrlHelper';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -70,7 +71,7 @@ export default function LoginPage() {
     let loginEmail = email.trim();
     if (!loginEmail.includes('@')) {
       try {
-        const res = await fetch('/api/resolve-email', {
+        const res = await fetch(getApiUrl('/api/resolve-email'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: loginEmail }),

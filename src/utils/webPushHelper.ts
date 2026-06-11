@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getApiUrl } from './apiUrlHelper';
 
 // Helper function to convert base64 VAPID key to Uint8Array
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -221,7 +222,7 @@ export async function sendPushNotification(params: {
       return false;
     }
 
-    const response = await fetch('/api/send-push', {
+    const response = await fetch(getApiUrl('/api/send-push'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

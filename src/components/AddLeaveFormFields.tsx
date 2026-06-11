@@ -86,6 +86,18 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
   const [pendingCategory, setPendingCategory] = React.useState('');
   const [customDaysInput, setCustomDaysInput] = React.useState('');
 
+  React.useEffect(() => {
+    if (!showBulkAdjPrompt) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowBulkAdjPrompt(false);
+        setPendingCategory('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showBulkAdjPrompt]);
+
   const handleToggleCategory = (cat: string) => {
     if (cat === 'None') {
       if (adjustment && adjustmentCategory === 'None') {
@@ -171,7 +183,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
     const remainingStr = formatMinsToHHMM(remainingMins);
 
     if (adjustment) {
-      shortLeaveAdjMsg = `✅ ${adjustedStr} hour adjusted, ${remainingStr} hour short leave হিসেবে কাউন্ট হবে।`;
+      shortLeaveAdjMsg = `✅ ${adjustedStr} hour adjusted, ${remainingStr} hour will be counted as short leave.`;
     } else {
       shortLeaveAdjMsg = `ℹ️ adjust with ${adjustedStr} hours`;
     }
@@ -186,7 +198,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
     const remainingStr = formatMinsToHHMM(remainingMins);
 
     if (adjustShortLeave) {
-      overtimeAdjMsg = `✅ ${adjustedStr} hour adjusted, ${remainingStr} hour overtime হিসেবে কাউন্ট হবে।`;
+      overtimeAdjMsg = `✅ ${adjustedStr} hour adjusted, ${remainingStr} hour will be counted as overtime.`;
     } else {
       overtimeAdjMsg = `ℹ️ adjust with ${adjustedStr} hours`;
     }
@@ -199,7 +211,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
       {/* Date & Leave Type side by side */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">তারিখ (Date)</label>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</label>
           <div className="flex gap-2 items-center mt-1">
             <DateInput
               required
@@ -211,8 +223,8 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               <button
                 type="button"
                 onClick={handleAddBulkDate}
-                className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all flex items-center justify-center cursor-pointer shrink-0 border border-blue-700 shadow-md"
-                title="আরও তারিখ যোগ করুন"
+                className="p-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-all flex items-center justify-center cursor-pointer shrink-0 border border-orange-700 shadow-md"
+                title="Add more dates"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -220,17 +232,17 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
           </div>
           {duplicateRecord && (
             <p className="text-red-500 font-semibold text-[10px] mt-1.5 leading-snug">
-              ⚠️ ডুপ্লিকেট! {formatDate(date)} তারিখে ইতিমধ্যে {duplicateRecord.leave_type === 'Full Leave' ? 'Full Leave (ফুল লিভ)' : duplicateRecord.leave_type === 'Short Leave' ? 'Short Leave (শর্ট লিভ)' : 'Overtime (ওভারটাইম)'} যোগ করা হয়েছে
+              ⚠️ Duplicate! {formatDate(date)} is already added as {duplicateRecord.leave_type === 'Full Leave' ? 'Full Leave' : duplicateRecord.leave_type === 'Short Leave' ? 'Short Leave' : 'Overtime'}
             </p>
           )}
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">ছুটির ধরন (Leave Type)</label>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Type</label>
           <select
             value={leaveType}
             onChange={(e) => setLeaveType(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
             <option value="Short Leave">Short Leave</option>
             <option value="Full Leave">Full Leave</option>
@@ -242,7 +254,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
       {/* Bulk Dates Input List */}
       {isFullLeave && bulkDates.length > 0 && (
         <div className="space-y-2.5 p-3 bg-slate-955/40 rounded-lg border border-slate-850/80 max-h-48 overflow-y-auto">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">অতিরিক্ত ছুটির তারিখসমূহ ({bulkDates.length} দিন)</label>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Additional Leave Dates ({bulkDates.length} {bulkDates.length === 1 ? 'day' : 'days'})</label>
           <div className="grid grid-cols-1 gap-2">
             {bulkDates.map((bulkDate, index) => {
               const bulkDup = bulkDate ? records.find(r => r.date === bulkDate) : null;
@@ -266,7 +278,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                         type="button"
                         onClick={() => handleUpdateBulkAdjustment(index, !bulkAdjustments[index])}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          bulkAdjustments[index] ? 'bg-blue-600' : 'bg-slate-800'
+                          bulkAdjustments[index] ? 'bg-orange-600' : 'bg-slate-800'
                         }`}
                       >
                         <span
@@ -281,14 +293,14 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                       type="button"
                       onClick={() => handleRemoveBulkDate(index)}
                       className="p-1.5 bg-red-955/60 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-lg transition-all flex items-center justify-center cursor-pointer shrink-0"
-                      title="বাদ দিন"
+                      title="Remove"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                   {bulkDup && (
                     <p className="text-red-500 font-semibold text-[9px] pl-6 leading-snug">
-                      ⚠️ ডুপ্লিকেট! {formatDate(bulkDate)} তারিখে ইতিমধ্যে {bulkDup.leave_type === 'Full Leave' ? 'Full Leave (ফুল লিভ)' : bulkDup.leave_type === 'Short Leave' ? 'Short Leave (শর্ট লিভ)' : 'Overtime (ওভারটাইম)'} যোগ করা হয়েছে
+                      ⚠️ Duplicate! {formatDate(bulkDate)} is already added as {bulkDup.leave_type === 'Full Leave' ? 'Full Leave' : bulkDup.leave_type === 'Short Leave' ? 'Short Leave' : 'Overtime'}
                     </p>
                   )}
                 </div>
@@ -304,20 +316,20 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
         {leaveType === 'Full Leave' && hasAnyFullLeaveToggle && (
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              ছুটি সমন্বয় (Leave Adjustment)
+              Leave Adjustment
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* General Adjustment Toggle - Render only if isAdmin === true */}
               {isAdmin && (
                 <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
                   <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Adjustment (সমন্বয় - বেতন/অন্যান্য)</span>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Adjustment (Salary/Other)</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleToggleCategory('None')}
                     className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'None' ? 'bg-blue-600' : 'bg-slate-800'
+                      adjustment && adjustmentCategory === 'None' ? 'bg-orange-600' : 'bg-slate-800'
                     }`}
                   >
                     <span
@@ -333,7 +345,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               {govtHolidayRemaining > 0 && (
                 <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
                   <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Govt Holiday (সরকারি সাধারণ ছুটি)</span>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Govt Holiday</span>
                   </div>
                   <button
                     type="button"
@@ -355,7 +367,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               {eidFitrRemaining > 0 && (
                 <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
                   <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Fitr (ঈদুল ফিতরের ছুটি)</span>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Fitr</span>
                   </div>
                   <button
                     type="button"
@@ -377,7 +389,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               {eidAdhaRemaining > 0 && (
                 <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
                   <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Adha (ঈদুল আজহার ছুটি)</span>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Adha</span>
                   </div>
                   <button
                     type="button"
@@ -403,14 +415,14 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
               <div>
-                <span className="block text-xs font-semibold text-slate-200 font-sans">ওভারটাইমের সাথে সমন্বয় (Adjust with Overtime)?</span>
-                <span className="block text-[10px] text-slate-450">Yes দিলে ওভারটাইম ব্যালেন্স থেকে সমন্বয় করা হবে</span>
+                <span className="block text-xs font-semibold text-slate-200 font-sans">Adjust with Overtime?</span>
+                <span className="block text-[10px] text-slate-450">If yes, it will be adjusted from overtime balance</span>
               </div>
               <button
                 type="button"
                 onClick={() => setAdjustment(!adjustment)}
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  adjustment ? 'bg-blue-600' : 'bg-slate-800'
+                  adjustment ? 'bg-orange-600' : 'bg-slate-800'
                 }`}
               >
                 <span
@@ -421,7 +433,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               </button>
             </div>
             {shortLeaveAdjMsg && (
-              <div className={`text-[11px] font-semibold px-1 font-sans ${adjustment ? 'text-blue-400' : 'text-slate-450'}`}>
+              <div className={`text-[11px] font-semibold px-1 font-sans ${adjustment ? 'text-orange-400' : 'text-slate-450'}`}>
                 {shortLeaveAdjMsg}
               </div>
             )}
@@ -433,8 +445,8 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
               <div>
-                <span className="block text-xs font-semibold text-slate-200 font-sans">শর্ট লিভের সাথে সমন্বয় (Adjust with Short Leave)?</span>
-                <span className="block text-[10px] text-slate-450">Yes দিলে শর্ট লিভ ব্যালেন্স থেকে সমন্বয় করা হবে</span>
+                <span className="block text-xs font-semibold text-slate-200 font-sans">Adjust with Short Leave?</span>
+                <span className="block text-[10px] text-slate-450">If yes, it will be adjusted from short leave balance</span>
               </div>
               <button
                 type="button"
@@ -464,37 +476,37 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন-ইন টাইম</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-in Time</label>
               <input
                 type="time"
                 required
                 value={signInTime}
                 onChange={(e) => setSignInTime(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন-আউট টাইম</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-out Time</label>
               <input
                 type="time"
                 required
                 value={signOutTime}
                 onChange={(e) => setSignOutTime(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {leaveType === 'Overtime' ? 'হিসাবকৃত ওভারটাইম আওয়ার (Overtime Hour)' : 'হিসাবকৃত ছুটির আওয়ার (Leave Hour)'}
+              {leaveType === 'Overtime' ? 'Calculated Overtime Hours' : 'Calculated Leave Hours'}
             </label>
             <input
               type="text"
               required
               value={leaveHour}
               onChange={(e) => setLeaveHour(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-blue-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-orange-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
         </div>
@@ -505,36 +517,44 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
 
       {/* Comment Box */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">মন্তব্য (Comment)</label>
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Comment</label>
         <textarea
           rows={2}
-          placeholder="ছুটির সংক্ষিপ্ত বিবরণ লিখুন..."
+          placeholder="Write a brief description..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
       </div>
 
       {/* Bulk Adjustment Prompt Modal */}
       {showBulkAdjPrompt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowBulkAdjPrompt(false);
+              setPendingCategory('');
+            }
+          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4"
+        >
           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-sm p-6 relative overflow-hidden font-sans">
-            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-orange-900/10 blur-[80px] pointer-events-none" />
             
             <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-              ছুটি অ্যাডজাস্টমেন্ট নির্ধারণ করুন
+              Configure Leave Adjustment
             </h4>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              আপনি মোট {bulkDates.length + 1} দিনের ছুটি আবেদন করছেন। এর মধ্যে কতদিনের ছুটি <strong>{pendingCategory === 'None' ? 'Adjustment' : pendingCategory === 'Govt Holiday' ? 'Govt Holiday' : pendingCategory === 'Eid-ul-Fitr' ? 'Eid-ul-Fitr' : 'Eid-ul-Adha'}</strong> হিসেবে অ্যাডজাস্ট করতে চান?
+              You are applying for a total of {bulkDates.length + 1} days of leave. Out of these, how many days should be adjusted as <strong>{pendingCategory === 'None' ? 'Adjustment' : pendingCategory}</strong>?
             </p>
 
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => handleConfirmBulkAdj(bulkDates.length + 1)}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all border border-blue-700 shadow-md"
+                className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all border border-orange-700 shadow-md"
               >
-                সব দিন অ্যাডজাস্ট করুন ({bulkDates.length + 1} দিন)
+                Adjust all days ({bulkDates.length + 1} days)
               </button>
 
               <div className="relative flex items-center gap-2 pt-2 border-t border-slate-800/80">
@@ -542,10 +562,10 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                   type="number"
                   min={1}
                   max={bulkDates.length + 1}
-                  placeholder="নির্দিষ্ট দিনের সংখ্যা লিখুন"
+                  placeholder="Enter number of days"
                   value={customDaysInput}
                   onChange={(e) => setCustomDaysInput(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="flex-1 px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
                 />
                 <button
                   type="button"
@@ -557,7 +577,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                   }}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all"
                 >
-                  নির্ধারণ করুন
+                  Apply
                 </button>
               </div>
             </div>
@@ -571,7 +591,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                 }}
                 className="text-xs text-slate-400 hover:text-white transition-all cursor-pointer"
               >
-                বাতিল করুন
+                Cancel
               </button>
             </div>
           </div>

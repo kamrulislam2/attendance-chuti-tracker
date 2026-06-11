@@ -11,7 +11,7 @@ export function PasswordMatchIndicator({ password, confirmPassword }: PasswordMa
     return (
       <div className="flex items-center gap-1.5 text-xs text-red-500 mt-1 font-medium">
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-        <span>পাসওয়ার্ড মেলেনি!</span>
+        <span>Passwords do not match!</span>
       </div>
     );
   }
@@ -19,14 +19,14 @@ export function PasswordMatchIndicator({ password, confirmPassword }: PasswordMa
     return (
       <div className="flex items-center gap-1.5 text-xs text-amber-500 mt-1 font-medium">
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-        <span>পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!</span>
+        <span>Password must be at least 4 characters!</span>
       </div>
     );
   }
   return (
     <div className="flex items-center gap-1.5 text-xs text-emerald-500 mt-1 font-medium">
       <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-      <span>পাসওয়ার্ড মিলেছে</span>
+      <span>Passwords match</span>
     </div>
   );
 }

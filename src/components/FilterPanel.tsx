@@ -11,7 +11,6 @@ interface FilterPanelProps {
   setFilterEndDate: (val: string) => void;
   selectedYear: string;
   allowOvertime?: boolean;
-  onExportCSV: () => void;
   onExportExcel: () => void;
   onExportPDF: () => void;
   onResetFilters: () => void;
@@ -26,7 +25,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   setFilterEndDate,
   selectedYear,
   allowOvertime,
-  onExportCSV,
   onExportExcel,
   onExportPDF,
   onResetFilters,
@@ -34,19 +32,19 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   return (
     <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
       <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
-        <SlidersHorizontal className="h-4 w-4 text-blue-500" /> স্টাফ ছুটির ফিল্টারিং প্যানেল
+        <SlidersHorizontal className="h-4 w-4 text-orange-500" /> Staff Leave Filter Panel
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Filter Leave Type */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">ছুটির ধরন</label>
+          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Leave Type</label>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
           >
-            <option value="all">সকল ক্যাটাগরি (All)</option>
+            <option value="all">All Categories</option>
             <option value="Short Leave">Short Leave</option>
             <option value="Full Leave">Full Leave</option>
             {allowOvertime && <option value="Overtime">Overtime</option>}
@@ -55,7 +53,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
         {/* Start Date */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শুরুর তারিখ</label>
+          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Start Date</label>
           <div className="mt-1">
             <DateInput
               min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
@@ -69,7 +67,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
         {/* End Date */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">শেষ তারিখ</label>
+          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">End Date</label>
           <div className="mt-1">
             <DateInput
               min={selectedYear === 'all' ? undefined : `${selectedYear}-01-01`}
@@ -84,16 +82,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         {/* Actions */}
         <div className="flex items-end gap-2">
           <button
-            onClick={onExportCSV}
-            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-            title="CSV Export"
-            type="button"
-          >
-            <Download className="h-4 w-4" /> CSV
-          </button>
-          <button
             onClick={onExportExcel}
-            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-500 dark:text-emerald-500 hover:bg-emerald-600/10 dark:hover:bg-emerald-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
             title="Excel Export"
             type="button"
           >
@@ -101,7 +91,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           </button>
           <button
             onClick={onExportPDF}
-            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-red-700 shadow-md"
+            className="flex-1 flex justify-center items-center gap-1.5 py-2 px-2.5 bg-transparent border border-red-600 text-red-600 dark:border-red-500 dark:text-red-500 hover:bg-red-600/10 dark:hover:bg-red-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
             title="PDF Export"
             type="button"
           >

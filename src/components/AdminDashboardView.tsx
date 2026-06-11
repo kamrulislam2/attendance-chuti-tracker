@@ -54,7 +54,6 @@ interface AdminDashboardViewProps {
   filterEndDate: string;
   setFilterEndDate: (val: string) => void;
   onResetFilters: () => void;
-  onExportIndividualCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportIndividualExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportIndividualPDF: (filtered: ChutiRecord[], searchTerm: string) => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
@@ -74,7 +73,6 @@ interface AdminDashboardViewProps {
   onEditProfileClick: (staff: Profile) => void;
   onDeleteUserClick: (staff: Profile) => void;
   onAddStaffClick: () => void;
-  onExportSummaryCSV: () => void;
   onExportSummaryExcel: () => void;
   onExportSummaryPDF: () => void;
   onAddLeaveClick: () => void;
@@ -82,7 +80,6 @@ interface AdminDashboardViewProps {
   onSaveGlobalSettings: (settings: GlobalSettings) => Promise<boolean>;
   onConvertShortLeaveToFullLeave: (userId: string, workingHours: number, shortMins: number) => void;
   holidayResponses: GovtHolidayResponse[];
-  onExportHolidayResponsesCSV: (responses: GovtHolidayResponse[]) => void;
   onExportHolidayResponsesExcel: (responses: GovtHolidayResponse[]) => void;
   onExportHolidayResponsesPDF: (responses: GovtHolidayResponse[]) => void;
 }
@@ -102,7 +99,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   filterEndDate,
   setFilterEndDate,
   onResetFilters,
-  onExportIndividualCSV,
   onExportIndividualExcel,
   onExportIndividualPDF,
   onToggleAdjustment,
@@ -118,7 +114,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onEditProfileClick,
   onDeleteUserClick,
   onAddStaffClick,
-  onExportSummaryCSV,
   onExportSummaryExcel,
   onExportSummaryPDF,
   onAddLeaveClick,
@@ -126,7 +121,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onSaveGlobalSettings,
   onConvertShortLeaveToFullLeave,
   holidayResponses,
-  onExportHolidayResponsesCSV,
   onExportHolidayResponsesExcel,
   onExportHolidayResponsesPDF,
 }) => {
@@ -212,7 +206,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     const maxDays = Math.floor(netShortMins / (workingHours * 60));
     const hoursText = (maxDays * workingHours).toFixed(1);
     
-    if (confirm(`আপনি কি ${hoursText} ঘণ্টা শর্ট লিভকে ${maxDays} দিন ফুল লিভে রূপান্তর করতে চান?\n(এটি স্টাফের শর্ট লিভ ব্যালেন্স থেকে বিয়োগ হবে এবং ফুল লিভের সাথে যোগ হবে)`)) {
+    if (confirm(`Do you want to convert ${hoursText} hours of short leave into ${maxDays} days of full leave?\n(This will be subtracted from the staff's short leave balance and added to their full leave)`)) {
       onConvertShortLeaveToFullLeave(staffProfile.id, workingHours, netShortMins);
     }
   };
@@ -249,27 +243,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {/* Card 1: Total Staff */}
           <StatCard
             icon={User}
-            iconBgClass="bg-purple-500/10"
-            iconColorClass="text-purple-400"
-            iconBorderClass="border-purple-500/20"
-            title="সর্বমোট স্টাফ সংখ্যা"
-            value={`${profilesList.length} জন`}
+            iconBgClass="bg-orange-500/10"
+            iconColorClass="text-orange-400"
+            iconBorderClass="border-orange-500/20"
+            title="Total Staff"
+            value={`${profilesList.length} ${profilesList.length === 1 ? 'person' : 'people'}`}
             className="w-full max-w-xs"
           />
 
           {/* Card 2: Office Allocated Leave */}
           <StatCard
             icon={Calendar}
-            iconBgClass="bg-blue-500/10"
-            iconColorClass="text-blue-400"
-            iconBorderClass="border-blue-500/20"
-            title="অফিস বরাদ্দকৃত ছুটি (ডিফল্ট)"
-            value={`${(globalSettings.office_leave_default ?? 14) + (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0)} দিন`}
+            iconBgClass="bg-orange-500/10"
+            iconColorClass="text-orange-400"
+            iconBorderClass="border-orange-500/20"
+            title="Allocated Office Leave (Default)"
+            value={`${(globalSettings.office_leave_default ?? 14) + (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0)} days`}
             action={
               <button
                 onClick={() => setShowOfficeModal(true)}
                 className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer border border-transparent hover:border-slate-700"
-                title="লিভ কোটা সেটিংস"
+                title="Leave Quota Settings"
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -283,13 +277,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             iconBgClass="bg-teal-500/10"
             iconColorClass="text-teal-400"
             iconBorderClass="border-teal-500/20"
-            title="সরকারি ছুটি"
-            value={`${globalSettings.govt_holidays?.length ?? 0} দিন`}
+            title="Govt Holiday"
+            value={`${globalSettings.govt_holidays?.length ?? 0} days`}
             action={
               <button
                 onClick={() => setShowGovtModal(true)}
                 className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer border border-transparent hover:border-slate-700"
-                title="সরকারি ছুটির তালিকা সম্পাদনা"
+                title="Edit Govt Holidays List"
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -307,8 +301,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setViewingStaffId(null)}
-                className="p-2.5 bg-slate-850 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
-                title="পিছনে যান"
+                className="p-2.5 bg-slate-855 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
+                title="Go Back"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -317,17 +311,17 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   {staffProfile?.full_name || 'Staff User'} ({staffProfile?.username ? staffProfile.username.toUpperCase() : ''})
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
                     staffProfile?.role === 'admin'
-                      ? 'bg-purple-950/60 border-purple-800 text-purple-300' 
+                      ? 'bg-orange-955/60 border-orange-800 text-orange-300' 
                       : staffProfile?.role === 'supervisor'
-                      ? 'bg-amber-950/60 border-amber-805 text-amber-300'
-                      : 'bg-blue-950/60 border-blue-805 text-blue-300'
+                      ? 'bg-amber-955/60 border-amber-805 text-amber-300'
+                      : 'bg-orange-955/60 border-orange-805 text-orange-300'
                   }`}>
                     {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                   </span>
                 </h2>
                 <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
-                  <div>কর্মঘণ্টা: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
-                  <div>ব্রেক টাইম: <strong className="text-white">{staffProfile?.break_time || 0} মিনিট</strong></div>
+                  <div>Working Hours: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
+                  <div>Break Time: <strong className="text-white">{staffProfile?.break_time || 0} mins</strong></div>
                 </div>
               </div>
             </div>
@@ -341,7 +335,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </button>
               <button
                 onClick={() => staffProfile && onEditProfileClick(staffProfile)}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-blue-900/10 border border-blue-700 flex items-center gap-1.5"
+                className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-orange-950/10 border border-orange-700 flex items-center gap-1.5"
               >
                 <Edit className="h-3.5 w-3.5" /> Edit Profile
               </button>
@@ -387,7 +381,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             filterEndDate={filterEndDate}
             setFilterEndDate={setFilterEndDate}
             onResetFilters={onResetFilters}
-            onExportCSV={onExportIndividualCSV}
             onExportExcel={onExportIndividualExcel}
             onExportPDF={onExportIndividualPDF}
             onToggleAdjustment={onToggleAdjustment}
@@ -400,8 +393,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             selectedYear={selectedYear}
             setSelectedYear={setSelectedYear}
             availableYears={availableYears}
-            title="ছুটির বিবরণী রেকর্ডসমূহ"
-            emptyMessage="এই স্টাফের জন্য কোনো ছুটির রেকর্ড পাওয়া যায়নি।"
+            title="Leave Records"
+            emptyMessage="No leave records found for this staff member."
           />
         </div>
       ) : (
@@ -413,12 +406,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               onClick={() => setActiveTab('staff_master')}
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'staff_master'
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40 border border-purple-500/20'
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-950/40 border border-orange-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
               }`}
             >
               <User className="h-4 w-4" />
-              <span>স্টাফ ছুটির মাস্টার ডাটাবেজ</span>
+              <span>Staff Leave Master Database</span>
             </button>
             <button
               onClick={() => setActiveTab('govt_responses')}
@@ -429,7 +422,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               }`}
             >
               <Calendar className="h-4 w-4" />
-              <span>সরকারি ছুটির রেসপন্স রিপোর্ট</span>
+              <span>Govt Holiday Response Report</span>
             </button>
           </div>
 
@@ -444,45 +437,37 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               setSelectedYear={setSelectedYear}
               availableYears={availableYears}
               onAddStaffClick={onAddStaffClick}
-              onExportCSV={onExportSummaryCSV}
               onExportExcel={onExportSummaryExcel}
               onExportPDF={onExportSummaryPDF}
               onViewDetails={setViewingStaffId}
             />
           ) : (
             /* ================= GOVT HOLIDAY RESPONSES TABLE REPORT ================= */
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-850 shadow-2xl rounded-2xl p-6 flex flex-col gap-4 animate-fade-in">
+            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-855 shadow-2xl rounded-2xl p-6 flex flex-col gap-4 animate-fade-in">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2">
                     <Calendar className="h-4.5 w-4.5 text-teal-400" />
-                    সরকারি ছুটির রেসপন্স রিপোর্ট
+                    Govt Holiday Response Report
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    সরকারি ছুটির বিপরীতে স্টাফদের পেমেন্ট বা রিজার্ভ পদের পছন্দ ও প্রতিক্রিয়াসমূহ
+                    Staff preferences and responses for government holidays (Paid vs Reserve)
                   </p>
                 </div>
                 
                 {/* Export buttons */}
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <button
-                    onClick={() => onExportHolidayResponsesCSV(filteredResponses)}
-                    disabled={filteredResponses.length === 0}
-                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all"
-                  >
-                    CSV Export
-                  </button>
-                  <button
                     onClick={() => onExportHolidayResponsesExcel(filteredResponses)}
                     disabled={filteredResponses.length === 0}
-                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all"
+                    className="px-3.5 py-1.5 bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-500 dark:text-emerald-500 hover:bg-emerald-600/10 dark:hover:bg-emerald-500/10 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
                   >
                     Excel Export
                   </button>
                   <button
                     onClick={() => onExportHolidayResponsesPDF(filteredResponses)}
                     disabled={filteredResponses.length === 0}
-                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all"
+                    className="px-3.5 py-1.5 bg-transparent border border-red-600 text-red-600 dark:border-red-500 dark:text-red-500 hover:bg-red-600/10 dark:hover:bg-red-500/10 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
                   >
                     PDF Export
                   </button>
@@ -492,11 +477,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               {/* Search Filters */}
               <div className="flex flex-col sm:flex-row gap-3 w-full bg-slate-905/40 p-3 rounded-xl border border-slate-850">
                 <div className="flex-1 relative">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">ছুটির নাম বা স্টাফের নাম (কোডনাম) দিয়ে সার্চ</label>
+                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Search by holiday name or staff name (codename)</label>
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="নাম বা কোডনাম সার্চ করুন..."
+                      placeholder="Search name or codename..."
                       value={holidaySearchQuery}
                       onChange={(e) => setHolidaySearchQuery(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-teal-500/50 transition-all placeholder-slate-500"
@@ -504,7 +489,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     {holidaySearchQuery && (
                       <button
                         onClick={() => setHolidaySearchQuery('')}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-350 transition-colors cursor-pointer text-sm font-semibold"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-355 transition-colors cursor-pointer text-sm font-semibold"
                         title="Clear search"
                       >
                         ✕
@@ -513,7 +498,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   </div>
                 </div>
                 <div className="w-full sm:w-48">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">ছুটির তারিখ দিয়ে ফিল্টার</label>
+                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Filter by holiday date</label>
                   <DateInput
                     value={holidaySearchDate}
                     onChange={(val) => setHolidaySearchDate(val)}
@@ -527,7 +512,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       setHolidaySearchDate('');
                     }}
                     className="flex items-center justify-center h-[32px] w-[32px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg cursor-pointer transition-all"
-                    title="রিসেট করুন"
+                    title="Reset"
                   >
                     <RotateCcw className="h-4 w-4" />
                   </button>
@@ -535,21 +520,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
 
               {/* Table Container */}
-              <div className="overflow-x-auto rounded-xl border border-slate-900 bg-slate-950/20">
+              <div className="overflow-x-auto rounded-xl border border-slate-900 bg-slate-955/20">
                 <table className="min-w-full divide-y divide-slate-900 text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950/60 text-slate-400 font-semibold uppercase tracking-wider">
+                  <thead className="bg-slate-955/60 text-slate-400 font-semibold uppercase tracking-wider">
                     <tr>
-                      <th className="px-4 py-3">ছুটির তারিখ</th>
-                      <th className="px-4 py-3">ছুটির নাম</th>
-                      <th className="px-4 py-3">স্টাফের নাম (কোডনাম)</th>
-                      <th className="px-4 py-3">পছন্দ/রেসপন্স</th>
-                      <th className="px-4 py-3 text-right">রেসপন্সের সময়</th>
+                      <th className="px-4 py-3">Holiday Date</th>
+                      <th className="px-4 py-3">Holiday Name</th>
+                      <th className="px-4 py-3">Staff Name (Codename)</th>
+                      <th className="px-4 py-3">Preference/Response</th>
+                      <th className="px-4 py-3 text-right">Response Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900 bg-slate-900/10">
                     {filteredResponses.length > 0 ? (
                       filteredResponses.map((resp) => {
-                        const fullName = resp.profiles?.full_name || 'স্টাফ';
+                        const fullName = resp.profiles?.full_name || 'Staff';
                         const codeName = resp.profiles?.username ? resp.profiles.username.toUpperCase() : 'N/A';
                         
                         return (
@@ -566,14 +551,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                                 resp.response === 'paid'
-                                  ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
-                                  : 'bg-teal-950/60 border-teal-800 text-teal-300'
+                                  ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
+                                  : 'bg-teal-955/60 border-teal-800 text-teal-300'
                               }`}>
-                                {resp.response === 'paid' ? 'Get Paid (পেমেন্ট)' : 'Reserve (রিজার্ভ)'}
+                                {resp.response === 'paid' ? 'Get Paid' : 'Reserve'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right text-slate-500">
-                              {resp.created_at ? new Date(resp.created_at).toLocaleString('bn-BD', { hour12: true }) : '-'}
+                              {resp.created_at ? new Date(resp.created_at).toLocaleString('en-US', { hour12: true }) : '-'}
                             </td>
                           </tr>
                         );
@@ -581,7 +566,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     ) : (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                          কোনো ছুটির রেসপন্স রেকর্ড পাওয়া যায়নি।
+                          No holiday response records found.
                         </td>
                       </tr>
                     )}

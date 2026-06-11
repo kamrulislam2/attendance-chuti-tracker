@@ -16,9 +16,9 @@ export const defaultGlobalSettings: GlobalSettings = {
 
 export const parseHolidayItem = (item: any): { date: string; name: string } => {
   if (item && typeof item === 'object' && item.date) {
-    return { date: item.date, name: item.name || 'সরকারি সাধারণ ছুটি' };
+    return { date: item.date, name: item.name || 'Government Holiday' };
   }
-  return { date: String(item), name: 'সরকারি সাধারণ ছুটি' };
+  return { date: String(item), name: 'Government Holiday' };
 };
 
 export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
@@ -283,14 +283,16 @@ export const calculateLeaveOrOvertime = (
 
 export const formatWorkingHours = (hours: number | string) => {
   const h = parseFloat(String(hours));
-  if (isNaN(h)) return '৯ ঘণ্টা ৩০ মিনিট';
-  if (h === 7.5) return '৭ ঘণ্টা ৩০ মিনিট';
-  if (h === 8) return '৮ ঘণ্টা';
-  if (h === 8.5) return '৮ ঘণ্টা ৩০ মিনিট';
-  if (h === 9) return '৯ ঘণ্টা';
-  if (h === 9.5) return '৯ ঘণ্টা ৩০ মিনিট';
-  if (h === 10) return '১০ ঘণ্টা';
-  return `${h} ঘণ্টা`;
+  if (isNaN(h)) return '9 hours 30 mins';
+  const wholeHours = Math.floor(h);
+  const fraction = h - wholeHours;
+  if (fraction === 0.5) {
+    return `${wholeHours} hours 30 mins`;
+  }
+  if (fraction === 0) {
+    return `${wholeHours} hours`;
+  }
+  return `${h} hours`;
 };
 
 // Time format to AM/PM style (e.g. 07:25 PM)

@@ -21,7 +21,14 @@
   --color-blue-300: var(--blue-300);
   --color-blue-400: var(--blue-400);
   --color-blue-500: var(--blue-500);
+  --color-blue-550: var(--blue-550);
+  --color-blue-600: var(--blue-600);
+  --color-blue-650: var(--blue-650);
+  --color-blue-700: var(--blue-700);
+  --color-blue-800: var(--blue-800);
+  --color-blue-900: var(--blue-900);
   --color-blue-950: var(--blue-950);
+  --color-blue-955: var(--blue-955);
 
   --color-emerald-300: var(--emerald-300);
   --color-emerald-400: var(--emerald-400);
@@ -33,6 +40,7 @@
   --color-amber-400: var(--amber-400);
   --color-amber-500: var(--amber-500);
   --color-amber-950: var(--amber-950);
+  --color-amber-955: var(--amber-955);
 
   --color-red-300: var(--red-300);
   --color-red-400: var(--red-400);
@@ -42,41 +50,62 @@
   --color-purple-300: var(--purple-300);
   --color-purple-400: var(--purple-400);
   --color-purple-500: var(--purple-500);
+  --color-purple-550: var(--purple-550);
+  --color-purple-600: var(--purple-600);
+  --color-purple-700: var(--purple-700);
+  --color-purple-800: var(--purple-800);
+  --color-purple-900: var(--purple-900);
   --color-purple-950: var(--purple-950);
+  --color-purple-955: var(--purple-955);
+
+  --color-blue-805: var(--blue-805);
 
   --color-violet-400: var(--violet-400);
+  --color-violet-500: var(--violet-500);
+  --color-violet-900: var(--violet-900);
 
   --color-indigo-300: var(--indigo-300);
   --color-indigo-400: var(--indigo-400);
+  --color-indigo-500: var(--indigo-500);
+  --color-indigo-600: var(--indigo-600);
+  --color-indigo-900: var(--indigo-900);
+  --color-indigo-955: var(--indigo-955);
 
   --color-cyan-400: var(--cyan-400);
 }
 
 :root {
-  /* Light Mode Palette - Light backgrounds, dark text */
-  --slate-955: #f8fafc; /* page background */
-  --slate-950: #f1f5f9; /* card container background */
+  /* Light Mode Palette - Light backgrounds, dark text with orange accents */
+  --slate-955: #fcfcfc; /* page background */
+  --slate-950: #f7f7f7; /* card container background */
   --slate-900: #ffffff; /* card background */
-  --slate-850: #e2e8f0; /* table/divider borders */
-  --slate-800: #cbd5e1; /* inputs/toggle borders */
-  --slate-700: #94a3b8; /* active/hover borders */
-  --slate-500: #5b6c80; /* medium gray - enhanced contrast */
-  --slate-450: #475569;
-  --slate-400: #475569; /* labels/muted text */
-  --slate-350: #475569; /* secondary table cell text - added for visibility */
-  --slate-300: #334155; /* secondary body text */
-  --slate-200: #1e293b; /* headings */
-  --slate-100: #0f172a; /* primary body text */
-  --slate-50: #020617;  /* extra dark text */
-  --slate-455: #334155; /* form labels - added for visibility */
+  --slate-850: #e5e5e5; /* table/divider borders */
+  --slate-800: #d4d4d4; /* inputs/toggle borders */
+  --slate-700: #a3a3a3; /* active/hover borders */
+  --slate-500: #525252; /* medium gray - enhanced contrast */
+  --slate-450: #404040;
+  --slate-400: #404040; /* labels/muted text */
+  --slate-350: #404040; /* secondary table cell text */
+  --slate-300: #262626; /* secondary body text */
+  --slate-200: #171717; /* headings */
+  --slate-100: #0a0a0a; /* primary body text */
+  --slate-50: #000000;  /* extra dark text */
+  --slate-455: #262626; /* form labels */
 
-  /* Blue colors */
-  --blue-300: #1d4ed8;
-  --blue-400: #2563eb;
-  --blue-500: #1e40af;
-  --blue-950: #eff6ff;
+  /* Orange/Coral main theme colors replacing Blue */
+  --blue-300: #ea580d; /* Brand orange text */
+  --blue-400: #ea580d; /* Main theme color */
+  --blue-500: #c2410c; /* Darker orange hover */
+  --blue-550: #c2410c; /* Focus ring */
+  --blue-600: #ea580d; /* Primary button bg */
+  --blue-650: #c2410c; /* Darker button bg */
+  --blue-700: #9a3412; /* Border accents */
+  --blue-800: #7c2d12; /* Deep border */
+  --blue-900: #431407; /* Deep bg accents */
+  --blue-950: #fff7ed; /* Light orange background */
+  --blue-955: #fff7ed; /* Light orange bg variant */
 
-  /* Emerald colors */
+  /* Emerald colors (for approvals / positive stats) */
   --emerald-300: #047857;
   --emerald-400: #059669;
   --emerald-450: #059669;
@@ -88,6 +117,7 @@
   --amber-400: #d97706;
   --amber-500: #92400e;
   --amber-950: #fffbeb;
+  --amber-955: #fffbeb;
 
   /* Red colors */
   --red-300: #b91c1c;
@@ -95,69 +125,103 @@
   --red-500: #991b1b;
   --red-950: #fef2f2;
 
-  /* Purple / Violet / Indigo / Cyan */
-  --purple-300: #6d28d9;
-  --purple-400: #7c3aed;
-  --purple-500: #581c87;
-  --purple-950: #faf5ff;
-  --violet-400: #7c3aed;
-  --indigo-300: #4338ca;
-  --indigo-400: #4f46e5;
-  --cyan-400: #0891b2;
+  /* Purple / Violet / Indigo / Cyan (All mapped to Orange/Amber for brand consistency) */
+  --purple-300: #ea580d;
+  --purple-400: #f97316;
+  --purple-500: #c2410c;
+  --purple-550: #c2410c;
+  --purple-600: #ea580d;
+  --purple-700: #9a3412;
+  --purple-800: #7c2d12;
+  --purple-900: #431407;
+  --purple-950: #fff7ed;
+  --purple-955: #fff7ed;
+  --blue-805: #7c2d12;
+  --violet-400: #f97316;
+  --violet-500: #c2410c;
+  --violet-900: #431407;
+  --indigo-300: #ea580d;
+  --indigo-400: #ea580d;
+  --indigo-500: #c2410c;
+  --indigo-600: #ea580d;
+  --indigo-900: #431407;
+  --indigo-955: #fff7ed;
+  --cyan-400: #fdba74;
 }
 
 .dark {
-  /* Dark Mode Palette - Original dark navy/deep blue colors */
-  --slate-955: #020617;
-  --slate-950: #030712;
-  --slate-900: #0f172a;
-  --slate-850: #1e293b;
-  --slate-800: #334155;
-  --slate-700: #475569;
-  --slate-500: #64748b;
-  --slate-450: #64748b;
-  --slate-400: #94a3b8;
-  --slate-350: #94a3b8;
-  --slate-300: #cbd5e1;
-  --slate-200: #e2e8f0;
-  --slate-100: #f1f5f9;
-  --slate-50: #f8fafc;
-  --slate-455: #94a3b8;
+  /* Dark Mode Palette - Pure black background and neutral dark grey components */
+  --slate-955: #000000; /* Pure black background */
+  --slate-950: #050505; /* Card container background */
+  --slate-900: #0a0a0a; /* Card background */
+  --slate-850: #171717; /* Table/divider borders */
+  --slate-800: #262626; /* Inputs/toggle borders */
+  --slate-700: #404040;
+  --slate-500: #737373;
+  --slate-450: #737373;
+  --slate-400: #a3a3a3;
+  --slate-350: #a3a3a3;
+  --slate-300: #d4d4d4;
+  --slate-200: #e5e5e5;
+  --slate-100: #f5f5f5;
+  --slate-50: #fafafa;
+  --slate-455: #a3a3a3;
 
-  /* Blue colors */
-  --blue-300: #90c5ff;
-  --blue-400: #54a2ff;
-  --blue-500: #3080ff;
-  --blue-950: #162456;
+  /* Orange/Coral main theme colors replacing Blue */
+  --blue-300: #fed7aa; /* Light orange text */
+  --blue-400: #f97316; /* Bright orange */
+  --blue-500: #ea580d; /* Brand orange accent */
+  --blue-550: #ea580d; /* Focus ring */
+  --blue-600: #ea580d; /* Primary button bg */
+  --blue-650: #c2410c; /* Darker button bg */
+  --blue-700: #c2410c; /* Border accents */
+  --blue-800: #9a3412; /* Deep border */
+  --blue-900: #7c2d12; /* Deep bg accents */
+  --blue-950: #431407; /* Deep orange/brown background */
+  --blue-955: #431407; /* Deep orange bg variant */
 
   /* Emerald colors */
-  --emerald-300: #5ee9b5;
-  --emerald-400: #00d294;
+  --emerald-300: #34d399;
+  --emerald-400: #10b981;
   --emerald-450: #34d399;
-  --emerald-500: #00bb7f;
-  --emerald-950: #002c22;
+  --emerald-500: #059669;
+  --emerald-950: #062f22;
 
   /* Amber colors */
-  --amber-300: #ffd236;
-  --amber-400: #fcbb00;
-  --amber-500: #f99c00;
-  --amber-950: #461901;
+  --amber-300: #fcd34d;
+  --amber-400: #f59e0b;
+  --amber-500: #d97706;
+  --amber-950: #451a03;
+  --amber-955: #451a03;
 
   /* Red colors */
-  --red-300: #ffa3a3;
-  --red-400: #ff6568;
-  --red-500: #fb2c36;
-  --red-950: #460809;
+  --red-300: #fca5a5;
+  --red-400: #ef4444;
+  --red-500: #dc2626;
+  --red-950: #450a0a;
 
-  /* Purple / Violet / Indigo / Cyan */
-  --purple-300: #d9b3ff;
-  --purple-400: #c07eff;
-  --purple-500: #ac4bff;
-  --purple-950: #3c0366;
-  --violet-400: #a685ff;
-  --indigo-300: #a4b3ff;
-  --indigo-400: #7d87ff;
-  --cyan-400: #00d2ef;
+  /* Purple / Violet / Indigo / All mapped to Orange/Amber */
+  --purple-300: #fdba74;
+  --purple-400: #f97316;
+  --purple-500: #ea580d;
+  --purple-550: #ea580d;
+  --purple-600: #ea580d;
+  --purple-700: #c2410c;
+  --purple-800: #9a3412;
+  --purple-900: #7c2d12;
+  --purple-950: #431407;
+  --purple-955: #431407;
+  --blue-805: #9a3412;
+  --violet-400: #f97316;
+  --violet-500: #ea580d;
+  --violet-900: #7c2d12;
+  --indigo-300: #ffedd5;
+  --indigo-400: #fdba74;
+  --indigo-500: #ea580d;
+  --indigo-600: #ea580d;
+  --indigo-900: #7c2d12;
+  --indigo-955: #431407;
+  --cyan-400: #f97316;
 }
 
 body {
@@ -247,12 +311,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   background-color: rgba(15, 23, 42, 0.4) !important;
 }
 :root:not(.dark) .bg-purple-950\/45 {
-  background-color: rgba(147, 51, 234, 0.08) !important;
-  border-color: rgba(147, 51, 234, 0.2) !important;
+  background-color: rgba(234, 88, 13, 0.08) !important;
+  border-color: rgba(234, 88, 13, 0.2) !important;
 }
 :root:not(.dark) .bg-blue-950\/20 {
-  background-color: rgba(37, 99, 235, 0.06) !important;
-  border-color: rgba(37, 99, 235, 0.15) !important;
+  background-color: rgba(234, 88, 13, 0.06) !important;
+  border-color: rgba(234, 88, 13, 0.15) !important;
 }
 :root:not(.dark) .bg-amber-950\/50 {
   background-color: rgba(217, 119, 6, 0.08) !important;
@@ -281,22 +345,22 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 600;
 }
 
-/* Ensure text in the purple admin mode card is highly readable in light mode */
+/* Ensure text in the admin mode card is highly readable in light mode */
 :root:not(.dark) .admin-mode-banner .text-white {
-  color: #581c87 !important; /* Premium dark purple */
+  color: #9a3412 !important; /* Brand dark orange */
   font-weight: 700;
 }
 :root:not(.dark) .admin-mode-banner .text-slate-400 {
-  color: #3b0764 !important; /* Dark purple/slate */
+  color: #7c2d12 !important; /* Deep orange */
   font-weight: 500;
 }
-/* Ensure text in the blue push notification card is highly readable in light mode */
+/* Ensure text in the push notification card is highly readable in light mode */
 :root:not(.dark) .push-notification-banner .text-white {
-  color: #1e40af !important; /* Premium dark blue */
+  color: #9a3412 !important; /* Brand dark orange */
   font-weight: 700;
 }
 :root:not(.dark) .push-notification-banner .text-slate-400 {
-  color: #1d4ed8 !important; /* Dark blue/slate */
+  color: #c2410c !important; /* Medium orange */
   font-weight: 500;
 }
 :root:not(.dark) .bg-slate-950\/20 {
@@ -325,7 +389,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* Stat card text on light backgrounds */
 :root:not(.dark) .text-blue-300 {
-  color: #1d4ed8 !important;
+  color: #c2410c !important;
 }
 :root:not(.dark) .text-emerald-300 {
   color: #047857 !important;
@@ -337,10 +401,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: #b91c1c !important;
 }
 :root:not(.dark) .text-purple-300 {
-  color: #6d28d9 !important;
+  color: #c2410c !important;
 }
 :root:not(.dark) .text-indigo-300 {
-  color: #4338ca !important;
+  color: #c2410c !important;
 }
 
 /* Table headers and cells readability in light mode */
@@ -367,7 +431,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 /* Ensure labels/meta text on blue/colored stat cards remain visible */
 :root:not(.dark) [class*="bg-blue-950"] .text-slate-300,
 :root:not(.dark) [class*="bg-blue-950"] .text-slate-400 {
-  color: #1e40af !important;
+  color: #9a3412 !important;
   font-weight: 600;
 }
 :root:not(.dark) [class*="bg-emerald-950"] .text-slate-300,
@@ -394,7 +458,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* Fix notification section heading on colored backgrounds */
 :root:not(.dark) [class*="bg-blue-950/"] .text-white {
-  color: #1e40af !important;
+  color: #9a3412 !important;
   font-weight: 700;
 }
 :root:not(.dark) [class*="bg-amber-950/"] .text-white {
@@ -410,7 +474,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 700;
 }
 :root:not(.dark) [class*="bg-purple-950/"] .text-white {
-  color: #581c87 !important;
+  color: #9a3412 !important;
   font-weight: 700;
 }
 
@@ -425,10 +489,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: #dc2626 !important;
 }
 :root:not(.dark) .text-blue-400 {
-  color: #2563eb !important;
+  color: #ea580d !important;
 }
 :root:not(.dark) .text-purple-400 {
-  color: #7c3aed !important;
+  color: #ea580d !important;
 }
 
 /* Header text in light mode - ensure full contrast */
@@ -456,7 +520,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: #991b1b !important;
 }
 :root:not(.dark) [class*="bg-blue-"] .text-blue-300 {
-  color: #1e40af !important;
+  color: #9a3412 !important;
 }
 
 /* Profile settings modal - labels and values clearly readable */

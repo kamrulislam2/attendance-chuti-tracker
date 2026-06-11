@@ -328,6 +328,7 @@ export default function Dashboard() {
     showWelcomePopup,
     setShowWelcomePopup,
     showFirstTimePasswordModal,
+    showOnboardingModal,
     firstTimePassword,
     setFirstTimePassword,
     firstTimeConfirmPassword,
@@ -465,13 +466,10 @@ export default function Dashboard() {
   });
 
   const {
-    handleExportIndividualCSV,
     handleExportIndividualExcel,
     handleExportIndividualPDF,
-    handleExportSummaryCSV,
     handleExportSummaryExcel,
     handleExportSummaryPDF,
-    handleExportHolidayResponsesCSV,
     handleExportHolidayResponsesExcel,
     handleExportHolidayResponsesPDF,
   } = exportOps;
@@ -552,11 +550,11 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center relative overflow-hidden">
-        <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-blue-900/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-violet-900/10 blur-[120px] pointer-events-none" />
+        <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
         <div className="flex flex-col items-center gap-3 z-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-          <span className="text-slate-400 text-xs font-semibold tracking-wider">লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+          <span className="text-slate-400 text-xs font-semibold tracking-wider">Loading, please wait...</span>
         </div>
       </div>
     );
@@ -565,8 +563,8 @@ export default function Dashboard() {
   return (
     <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
       {/* Glow backgrounds */}
-      <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-blue-900/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-violet-900/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
 
       {/* 1. Header Bar */}
       <Navbar
@@ -620,7 +618,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full z-10 flex-1 flex flex-col gap-6">
         
         {/* ================= STAFF VIEW ================= */}
-        {profile?.has_changed_password !== false && (profile?.role === 'admin' || profile?.is_setup_completed !== false) && (profile?.role !== 'admin' || adminActiveTab === 'user') && (
+        {profile?.has_changed_password !== false && !!profile?.is_setup_completed && (profile?.role !== 'admin' || adminActiveTab === 'user') && (
           <UserDashboardView
             profile={profile}
             userStats={userStats}
@@ -640,7 +638,6 @@ export default function Dashboard() {
             filterEndDate={filterEndDate}
             setFilterEndDate={setFilterEndDate}
             onResetFilters={() => handleResetFilters(setFilterType, setFilterStartDate, setFilterEndDate)}
-            onExportCSV={(filtered, term) => handleExportIndividualCSV(sessionUser?.id || '', filtered, term)}
             onExportExcel={(filtered, term) => handleExportIndividualExcel(sessionUser?.id || '', filtered, term)}
             onExportPDF={(filtered, term) => handleExportIndividualPDF(sessionUser?.id || '', filtered, term)}
             onAddLeaveClick={handleOpenAddLeaveModal}
@@ -655,7 +652,7 @@ export default function Dashboard() {
         )}
 
         {/* ================= ADMIN VIEW ================= */}
-        {profile?.has_changed_password !== false && profile?.role === 'admin' && adminActiveTab === 'admin' && (
+        {profile?.has_changed_password !== false && !!profile?.is_setup_completed && profile?.role === 'admin' && adminActiveTab === 'admin' && (
           <AdminDashboardView
             profilesList={profilesList}
             viewingStaffId={viewingStaffId}
@@ -671,7 +668,6 @@ export default function Dashboard() {
             filterEndDate={filterEndDate}
             setFilterEndDate={setFilterEndDate}
             onResetFilters={() => handleResetFilters(setFilterType, setFilterStartDate, setFilterEndDate)}
-            onExportIndividualCSV={(filtered, term) => handleExportIndividualCSV(viewingStaffId || '', filtered, term)}
             onExportIndividualExcel={(filtered, term) => handleExportIndividualExcel(viewingStaffId || '', filtered, term)}
             onExportIndividualPDF={(filtered, term) => handleExportIndividualPDF(viewingStaffId || '', filtered, term)}
             onToggleAdjustment={handleToggleAdjustmentClick}
@@ -690,7 +686,6 @@ export default function Dashboard() {
             onEditProfileClick={handleOpenProfileSettingsForStaff}
             onDeleteUserClick={handleOpenDeleteUserModal}
             onAddStaffClick={() => setShowCreateUserModal(true)}
-            onExportSummaryCSV={handleExportSummaryCSV}
             onExportSummaryExcel={handleExportSummaryExcel}
             onExportSummaryPDF={handleExportSummaryPDF}
             onAddLeaveClick={() => setShowAdminAddLeaveModal(true)}
@@ -698,7 +693,6 @@ export default function Dashboard() {
             onSaveGlobalSettings={handleSaveGlobalSettings}
             onConvertShortLeaveToFullLeave={handleConvertShortLeaveToFullLeave}
             holidayResponses={holidayResponses}
-            onExportHolidayResponsesCSV={handleExportHolidayResponsesCSV}
             onExportHolidayResponsesExcel={handleExportHolidayResponsesExcel}
             onExportHolidayResponsesPDF={handleExportHolidayResponsesPDF}
           />
@@ -711,6 +705,7 @@ export default function Dashboard() {
         showWelcomePopup={showWelcomePopup}
         setShowWelcomePopup={setShowWelcomePopup}
         showFirstTimePasswordModal={showFirstTimePasswordModal}
+        showOnboardingModal={showOnboardingModal}
         firstTimePasswordError={firstTimePasswordError || null}
         firstTimePassword={firstTimePassword}
         setFirstTimePassword={setFirstTimePassword}

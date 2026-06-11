@@ -7,6 +7,8 @@ import { ChutiRecord } from '@/utils/offlineSync';
 import { getCleanComment } from '@/utils/dashboardHelpers';
 import { ChutiFormFields } from '../ChutiFormFields';
 
+import { Modal } from '../Modal';
+
 interface UserRevisionModalProps {
   showUserRevisionModal: boolean;
   setShowUserRevisionModal: (val: boolean) => void;
@@ -58,25 +60,19 @@ export function UserRevisionModal({
   profile,
   submitting,
 }: UserRevisionModalProps) {
-  if (!showUserRevisionModal || !revisionRecord) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
-      <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
-        <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-amber-900/10 blur-[80px] pointer-events-none" />
-        
-        <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Edit className="h-5 w-5 text-amber-500" /> ছুটির তথ্য সংশোধন ও পুনর্সাবমিট
-          </h3>
-          <button 
-            onClick={() => setShowUserRevisionModal(false)}
-            className="text-slate-450 hover:text-white text-sm cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
- 
+    <Modal
+      isOpen={showUserRevisionModal && revisionRecord !== null}
+      onClose={() => {
+        setShowUserRevisionModal(false);
+        setRevisionRecord(null);
+      }}
+      title="Revise and Resubmit Leave Details"
+      icon={<Edit className="h-5 w-5 text-amber-500" />}
+      glowClass="bg-amber-900/10"
+      maxWidthClass="max-w-md"
+    >
+      {revisionRecord && (
         <form onSubmit={handleUserSubmitRevision} className="space-y-4">
           <ChutiFormFields
             date={revisionDate}
@@ -101,9 +97,9 @@ export function UserRevisionModal({
           {revisionRecord.comment && (
             <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-xs leading-relaxed">
               <div className="font-semibold flex items-center gap-1.5 mb-1">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> রিভিশন নির্দেশনা (Supervisor/Admin Remark):
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Revision Instructions (Supervisor/Admin Remark):
               </div>
-              <p className="text-slate-350">{getCleanComment(revisionRecord.comment)}</p>
+              <p className="text-slate-355">{getCleanComment(revisionRecord.comment)}</p>
             </div>
           )}
 
@@ -114,21 +110,21 @@ export function UserRevisionModal({
                 setShowUserRevisionModal(false);
                 setRevisionRecord(null);
               }}
-              className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+              className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
             >
               {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-              {submitting ? 'সাবমিট হচ্ছে...' : 'পুনরায় সাবমিট করুন'}
+              {submitting ? 'Submitting...' : 'Resubmit'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

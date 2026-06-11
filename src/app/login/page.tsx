@@ -103,7 +103,7 @@ export default function LoginPage() {
 
       if (authError) {
         setError(authError.message === 'Invalid login credentials' 
-          ? 'ভুল কোডনেম বা ভুল পাসওয়ার্ড দেওয়া হয়েছে...' 
+          ? 'Invalid codename or password...' 
           : authError.message);
         setLoading(false);
         return;
@@ -117,23 +117,23 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch {
-      setError('লগইন করার সময় একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+      setError('An error occurred during login. Please try again.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-950 relative overflow-hidden">
+    <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-955 relative overflow-hidden">
       {/* Background gradients */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/20 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-violet-900/20 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-amber-600/10 blur-[120px] pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <h2 className="mt-6 text-center text-3xl font-extrabold tracking-tight text-white bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
-          ছুটি ট্রেকার
+        <h2 className="mt-6 text-center text-3xl font-extrabold tracking-tight text-white bg-clip-text bg-gradient-to-r from-orange-400 to-amber-450">
+          Chuti
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-400">
-          লগইন করে আপনার ছুটির এন্ট্রি সম্পন্ন করুন
+        <p className="mt-2 text-center text-sm text-slate-400 font-medium">
+          Sign in to track and manage your leaves
         </p>
       </div>
 
@@ -141,17 +141,17 @@ export default function LoginPage() {
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 py-8 px-4 shadow-2xl rounded-2xl sm:px-10">
           <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <div className="rounded-lg bg-red-950/50 border border-red-800/50 p-4 flex items-start gap-3">
+              <div className="rounded-lg bg-red-955/50 border border-red-800/50 p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-                <div className="text-sm text-red-200">{error}</div>
+                <div className="text-sm text-red-200 font-medium">{error}</div>
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
-                কোডনেম (Codename)
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-350 uppercase tracking-wider">
+                Codename
               </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="mt-1.5 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-slate-500" aria-hidden="true" />
                 </div>
@@ -160,22 +160,22 @@ export default function LoginPage() {
                   name="email"
                   type="text"
                   required
-                  placeholder="যেমন: KI1024"
+                  placeholder="e.g., KI1024"
                   value={email}
                   onChange={(e) => {
                     const val = e.target.value;
                     setEmail(val.includes('@') ? val : val.toUpperCase());
                   }}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm transition-all font-sans"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300">
-                পাসওয়ার্ড (Password)
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-350 uppercase tracking-wider">
+                Password
               </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="mt-1.5 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-500" aria-hidden="true" />
                 </div>
@@ -187,7 +187,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-2.5 bg-slate-950/80 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                  className="block w-full pl-10 pr-10 py-2.5 bg-slate-955/85 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm transition-all font-sans"
                 />
                 <button
                   type="button"
@@ -207,14 +207,14 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <Loader className="animate-spin h-5 w-5 text-white" /> Loading...
                   </span>
                 ) : (
-                  'লগইন করুন'
+                  'Login'
                 )}
               </button>
             </div>

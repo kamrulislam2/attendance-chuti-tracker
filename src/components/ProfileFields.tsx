@@ -35,61 +35,61 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
     <>
       <div>
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          সম্পূর্ণ নাম (Full Name)
+          Full Name
         </label>
         <input
           type="text"
           required
-          placeholder="যেমন: কামরুল হাসান"
+          placeholder="e.g., Kamrul Islam"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           disabled={disabled}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
 
       <div>
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          জব রোল (Job Role)
+          Job Role
         </label>
         <input
           type="text"
           required
-          placeholder="যেমন: IT Officer"
+          placeholder="e.g., IT Officer"
           value={jobRole}
           onChange={(e) => setJobRole(e.target.value)}
           disabled={disabled}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            দৈনিক কর্মঘণ্টা
+            Daily Working Hours
           </label>
           <select
             required
             value={workingHours}
             onChange={(e) => setWorkingHours(e.target.value)}
             disabled={disabled}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="" disabled hidden>
-              নির্বাচন করুন
+              Select Hours
             </option>
-            <option value="7.5">৭ ঘণ্টা ৩০ মিনিট</option>
-            <option value="8.0">৮ ঘণ্টা</option>
-            <option value="8.5">৮ ঘণ্টা ৩০ মিনিট</option>
-            <option value="9.0">৯ ঘণ্টা</option>
-            <option value="9.5">৯ ঘণ্টা ৩০ মিনিট</option>
-            <option value="10.0">১০ ঘণ্টা</option>
+            <option value="7.5">7 Hours 30 Mins</option>
+            <option value="8.0">8 Hours</option>
+            <option value="8.5">8 Hours 30 Mins</option>
+            <option value="9.0">9 Hours</option>
+            <option value="9.5">9 Hours 30 Mins</option>
+            <option value="10.0">10 Hours</option>
           </select>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            ব্রেক (মিনিট)
+            Break (Minutes)
           </label>
           <input
             type="number"
@@ -98,7 +98,7 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
             value={breakTime}
             onChange={(e) => setBreakTime(e.target.value)}
             disabled={disabled}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
       </div>
@@ -106,7 +106,7 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            ডিফল্ট সাইন-ইন টাইম
+            Default Sign-In Time
           </label>
           <input
             type="time"
@@ -114,12 +114,12 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
             value={signInTime}
             onChange={(e) => setSignInTime(e.target.value)}
             disabled={disabled}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            ডিফল্ট সাইন-আউট টাইম
+            Default Sign-Out Time
           </label>
           <input
             type="time"
@@ -127,7 +127,7 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
             value={signOutTime}
             onChange={(e) => setSignOutTime(e.target.value)}
             disabled={disabled}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
       </div>

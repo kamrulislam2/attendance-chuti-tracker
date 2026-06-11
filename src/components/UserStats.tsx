@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, History, Info } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { formatDate, HalfYearlyOfficeLeaveStats } from '@/utils/dashboardHelpers';
@@ -51,23 +51,37 @@ export const UserStats: React.FC<UserStatsProps> = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showOfficeDetailsModal, setShowOfficeDetailsModal] = useState(false);
 
+  // ESC key handler for inline modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showHistoryModal) setShowHistoryModal(false);
+        if (showOfficeDetailsModal) setShowOfficeDetailsModal(false);
+      }
+    };
+    if (showHistoryModal || showOfficeDetailsModal) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showHistoryModal, showOfficeDetailsModal]);
+
   // Office leave display determinations based on half-yearly split
   const showOfficeCard = eligibleOfficeLeave !== false && officeLeaveStats;
   const showGovtCard = eligibleGovtHoliday !== false && govtHolidayStats;
 
-  let officeRemainingDisplay = officeLeaveStats ? `${officeLeaveStats.remaining} দিন` : '0 দিন';
-  const officeTotalDisplay = officeLeaveStats ? `${officeLeaveStats.total} দিন` : '0 দিন';
-  let officeSubtitle = officeLeaveStats ? `মোট বরাদ্দ: ${officeLeaveStats.total} দিন (ভোগকৃত: ${officeLeaveStats.taken} দিন)` : '';
+  let officeRemainingDisplay = officeLeaveStats ? `${officeLeaveStats.remaining} days` : '0 days';
+  const officeTotalDisplay = officeLeaveStats ? `${officeLeaveStats.total} days` : '0 days';
+  let officeSubtitle = officeLeaveStats ? `Total Allocated: ${officeLeaveStats.total} days (Taken: ${officeLeaveStats.taken} days)` : '';
 
   if (halfYearlyStats) {
     const isH1 = halfYearlyStats.currentHalf === 1;
     officeRemainingDisplay = isH1 
-      ? `${halfYearlyStats.h1Remaining} দিন` 
-      : `${halfYearlyStats.h2Remaining} দিন`;
+      ? `${halfYearlyStats.h1Remaining} days` 
+      : `${halfYearlyStats.h2Remaining} days`;
     
     officeSubtitle = isH1
-      ? `H1 (জান-জুন) বরাদ্দ: ${halfYearlyStats.h1Total} দিন | ভোগকৃত: ${halfYearlyStats.h1Taken} দিন`
-      : `H2 (জুল-ডিসে) বরাদ্দ: 7 দিন + ${halfYearlyStats.carryForward} দিন ক্যারিওভার | ভোগকৃত: ${halfYearlyStats.h2Taken} দিন`;
+      ? `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Total} days | Taken: ${halfYearlyStats.h1Taken} days`
+      : `H2 (Jul-Dec) Allocated: 7 days + ${halfYearlyStats.carryForward} days Carryover | Taken: ${halfYearlyStats.h2Taken} days`;
   }
 
   return (
@@ -76,18 +90,18 @@ export const UserStats: React.FC<UserStatsProps> = ({
       {showOfficeCard && officeLeaveStats && (
         <StatCard
           icon={Calendar}
-          iconBgClass="bg-indigo-500/10"
-          iconColorClass="text-indigo-400"
-          iconBorderClass="border-indigo-500/20"
-          title={halfYearlyStats ? `অফিস বরাদ্দকৃত ছুটি (অবশিষ্ট - H${halfYearlyStats.currentHalf})` : "অফিস বরাদ্দকৃত ছুটি (অবশিষ্ট)"}
+          iconBgClass="bg-orange-500/10"
+          iconColorClass="text-orange-400"
+          iconBorderClass="border-orange-500/20"
+          title={halfYearlyStats ? `Allocated Office Leave (Remaining - H${halfYearlyStats.currentHalf})` : "Allocated Office Leave (Remaining)"}
           value={officeRemainingDisplay}
           subtitle={officeSubtitle}
           action={halfYearlyStats ? (
             <button
               type="button"
               onClick={() => setShowOfficeDetailsModal(true)}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-slate-700 rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center shrink-0"
-              title="অর্ধবার্ষিক ছুটির হিসাব"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center shrink-0"
+              title="Half-Yearly Leave Account"
             >
               <Info className="h-3.5 w-3.5" />
             </button>
@@ -102,15 +116,15 @@ export const UserStats: React.FC<UserStatsProps> = ({
           iconBgClass="bg-teal-500/10"
           iconColorClass="text-teal-400"
           iconBorderClass="border-teal-500/20"
-          title="সরকারি ছুটি (রিজার্ভ)"
-          value={`${govtHolidayStats.remaining} দিন`}
-          subtitle={`মোট সরকারি ছুটি: ${govtHolidayStats.total} দিন | পেমেন্ট: ${govtHolidayStats.paid} দিন | রিজার্ভ: ${govtHolidayStats.reserved} দিন | ভোগকৃত: ${govtHolidayStats.taken} দিন`}
+          title="Govt Holiday (Reserve)"
+          value={`${govtHolidayStats.remaining} days`}
+          subtitle={`Total Govt Holiday: ${govtHolidayStats.total} days | Paid: ${govtHolidayStats.paid} days | Reserve: ${govtHolidayStats.reserved} days | Taken: ${govtHolidayStats.taken} days`}
           action={respondedHolidays && respondedHolidays.length > 0 ? (
             <button
               type="button"
               onClick={() => setShowHistoryModal(true)}
               className="p-1.5 bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center shrink-0"
-              title="সরকারি ছুটির রেসপন্স ইতিহাস"
+              title="Govt Holiday Response History"
             >
               <History className="h-3.5 w-3.5" />
             </button>
@@ -121,18 +135,18 @@ export const UserStats: React.FC<UserStatsProps> = ({
       {/* Short Leave */}
       <StatCard
         icon={Clock}
-        iconBgClass="bg-blue-500/10"
-        iconColorClass="text-blue-400"
-        iconBorderClass="border-blue-500/20"
-        title="মোট শর্ট লিভ (Unadjusted)"
-        value={`${stats.shortHours} ঘণ্টা`}
-        subtitle={convertedHours > 0 ? `কনভার্ট করা হয়েছে: ${convertedHours} ঘণ্টা` : undefined}
+        iconBgClass="bg-orange-500/10"
+        iconColorClass="text-orange-400"
+        iconBorderClass="border-orange-500/20"
+        title="Total Short Leave (Unadjusted)"
+        value={`${stats.shortHours} hrs`}
+        subtitle={convertedHours > 0 ? `Converted: ${convertedHours} hrs` : undefined}
         action={onConvertToFullLeave && hasConvertibleHours ? (
           <button
             type="button"
             onClick={onConvertToFullLeave}
-            className="px-2 py-1 bg-blue-600 hover:bg-blue-550 text-white rounded text-[10px] font-bold cursor-pointer transition-all border border-blue-700 shadow-sm flex items-center justify-center shrink-0"
-            title="ফুল লিভে রূপান্তর করুন"
+            className="px-2 py-1 bg-orange-600 hover:bg-orange-550 text-white rounded text-[10px] font-bold cursor-pointer transition-all border border-orange-700 shadow-sm flex items-center justify-center shrink-0"
+            title="Convert to Full Leave"
           >
             Add to Full Leave
           </button>
@@ -142,12 +156,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
       {/* Full Leave */}
       <StatCard
         icon={Calendar}
-        iconBgClass="bg-violet-500/10"
-        iconColorClass="text-violet-400"
-        iconBorderClass="border-violet-500/20"
-        title="মোট ফুল লিভ"
-        value={`${stats.fullLeaves} দিন`}
-        subtitle={convertedDays > 0 ? `শর্ট লিভ থেকে যুক্ত: +${convertedDays} দিন` : undefined}
+        iconBgClass="bg-orange-500/10"
+        iconColorClass="text-orange-400"
+        iconBorderClass="border-orange-500/20"
+        title="Total Full Leave"
+        value={`${stats.fullLeaves} days`}
+        subtitle={convertedDays > 0 ? `Added from Short Leave: +${convertedDays} days` : undefined}
       />
 
       {/* Overtime */}
@@ -157,8 +171,8 @@ export const UserStats: React.FC<UserStatsProps> = ({
           iconBgClass="bg-emerald-500/10"
           iconColorClass="text-emerald-400"
           iconBorderClass="border-emerald-500/20"
-          title="ওভারটাইম (Unadjusted)"
-          value={`${stats.overtimeHours} ঘণ্টা`}
+          title="Overtime (Unadjusted)"
+          value={`${stats.overtimeHours} hrs`}
         />
       )}
 
@@ -170,7 +184,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <History className="h-4 w-4 text-teal-400" /> সরকারি ছুটির রেসপন্স ইতিহাস
+                <History className="h-4 w-4 text-teal-400" /> Govt Holiday Response History
               </h3>
               <button 
                 onClick={() => setShowHistoryModal(false)}
@@ -183,12 +197,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
             <div className="max-h-[300px] overflow-y-auto pr-1">
               {respondedHolidays && respondedHolidays.length > 0 ? (
                 <div className="border border-slate-850 rounded-xl overflow-hidden bg-slate-955/40">
-                  <table className="w-full text-xs text-slate-350">
+                  <table className="w-full text-xs text-slate-355">
                     <thead>
                       <tr className="bg-slate-900/60 border-b border-slate-850 text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
-                        <th className="py-2 px-3 text-left">তারিখ</th>
-                        <th className="py-2 px-3 text-left">ছুটির নাম</th>
-                        <th className="py-2 px-3 text-right">রেসপন্স</th>
+                        <th className="py-2 px-3 text-left">Date</th>
+                        <th className="py-2 px-3 text-left">Holiday Name</th>
+                        <th className="py-2 px-3 text-right">Response</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850">
@@ -212,7 +226,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
                 </div>
               ) : (
                 <p className="text-center py-6 text-xs text-slate-500 font-medium">
-                  কোনো সরকারি ছুটির রেসপন্স রেকর্ড নেই।
+                  No govt holiday response records.
                 </p>
               )}
             </div>
@@ -223,7 +237,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
                 onClick={() => setShowHistoryModal(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
               >
-                বন্ধ করুন
+                Close
               </button>
             </div>
           </div>
@@ -234,11 +248,11 @@ export const UserStats: React.FC<UserStatsProps> = ({
       {showOfficeDetailsModal && halfYearlyStats && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
-            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-900/10 blur-[80px] pointer-events-none" />
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-orange-900/10 blur-[80px] pointer-events-none" />
             
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-400" /> অর্ধবার্ষিক অফিস ছুটির বিবরণী
+                <Calendar className="h-4 w-4 text-orange-400" /> Half-Yearly Office Leave Details
               </h3>
               <button 
                 onClick={() => setShowOfficeDetailsModal(false)}
@@ -251,54 +265,54 @@ export const UserStats: React.FC<UserStatsProps> = ({
             <div className="space-y-4">
               {/* H1 Section */}
               <div className="bg-slate-955/40 border border-slate-850 p-4 rounded-xl">
-                <h4 className="text-xs font-bold text-indigo-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
-                  ১ম অর্ধবার্ষিক (জানুয়ারি - জুন)
+                <h4 className="text-xs font-bold text-orange-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
+                  1st Half (January - June)
                 </h4>
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">বরাদ্দ</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Total} দিন</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Allocated</span>
+                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Total} days</span>
                   </div>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">ভোগকৃত</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Taken} দিন</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
+                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Taken} days</span>
                   </div>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">অবশিষ্ট</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Remaining</span>
                     <span className={`font-bold font-mono ${halfYearlyStats.h1Remaining < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {halfYearlyStats.h1Remaining} দিন
+                      {halfYearlyStats.h1Remaining} days
                     </span>
                   </div>
                 </div>
                 {halfYearlyStats.h1Remaining < 0 && (
                   <p className="text-[10px] text-red-400 mt-2">
-                    ⚠️ ১ম অর্ধবার্ষিকে অতিরিক্ত ছুটি নেওয়া হয়েছে, যা বেতন থেকে কাটা যেতে পারে।
+                    ⚠️ Extra leave was taken in the 1st half, which may be deducted from salary.
                   </p>
                 )}
               </div>
 
               {/* H2 Section */}
               <div className="bg-slate-955/40 border border-slate-850 p-4 rounded-xl">
-                <h4 className="text-xs font-bold text-indigo-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
-                  ২য় অর্ধবার্ষিক (জুলাই - ডিসেম্বর)
+                <h4 className="text-xs font-bold text-orange-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
+                  2nd Half (July - December)
                 </h4>
                 <div className="grid grid-cols-4 gap-2 text-center text-xs">
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">ভিত্তি</span>
-                    <span className="text-slate-200 font-bold font-mono">7 দিন</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Base</span>
+                    <span className="text-slate-200 font-bold font-mono">7 days</span>
                   </div>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">ক্যারিওভার</span>
-                    <span className="text-slate-200 font-bold font-mono">+{halfYearlyStats.carryForward} দিন</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
+                    <span className="text-slate-200 font-bold font-mono">+{halfYearlyStats.carryForward} days</span>
                   </div>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">ভোগকৃত</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h2Taken} দিন</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
+                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h2Taken} days</span>
                   </div>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">অবশিষ্ট</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Remaining</span>
                     <span className={`font-bold font-mono ${halfYearlyStats.h2Remaining < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {halfYearlyStats.h2Remaining} দিন
+                      {halfYearlyStats.h2Remaining} days
                     </span>
                   </div>
                 </div>
@@ -311,7 +325,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
                 onClick={() => setShowOfficeDetailsModal(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
               >
-                বন্ধ করুন
+                Close
               </button>
             </div>
           </div>

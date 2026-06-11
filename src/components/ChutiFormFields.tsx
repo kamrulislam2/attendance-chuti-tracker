@@ -47,7 +47,7 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
     <>
       <div>
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          তারিখ
+          Date
         </label>
         <div className="mt-1">
           <DateInput
@@ -61,12 +61,12 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
 
       <div>
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          ছুটির ধরন
+          Leave Type
         </label>
         <select
           value={leaveType}
           onChange={(e) => setLeaveType(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="Short Leave">Short Leave</option>
           <option value="Full Leave">Full Leave</option>
@@ -81,41 +81,41 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-                শুরুর সময়
+                Start Time
               </label>
               <input
                 type="time"
                 required
                 value={signInTime}
                 onChange={(e) => setSignInTime(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-                শেষের সময়
+                End Time
               </label>
               <input
                 type="time"
                 required
                 value={signOutTime}
                 onChange={(e) => setSignOutTime(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-              {leaveType === 'Overtime' ? 'মোট ওভারটাইম সময়' : 'মোট লিভ সময়'}
+              {leaveType === 'Overtime' ? 'Total Overtime Duration' : 'Total Leave Duration'}
             </label>
             <input
               type="text"
               required
-              placeholder="যেমন: 02:30"
+              placeholder="e.g., 02:30"
               value={leaveHour}
               onChange={(e) => setLeaveHour(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-850 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-850 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
             />
           </div>
         </>
@@ -126,10 +126,10 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
           <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
             <div>
               <span className="block text-xs font-medium text-white font-semibold">
-                অ্যাডজাস্টমেন্ট (Adjustment)
+                Adjustment
               </span>
               <span className="block text-[10px] text-slate-400">
-                Yes দিলে মোট ছুটিতে যোগ হবে না
+                If checked, this will not add to total leaves
               </span>
             </div>
             <button
@@ -142,7 +142,7 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
                 }
               }}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                adjustment ? 'bg-blue-600' : 'bg-slate-800'
+                adjustment ? 'bg-orange-600' : 'bg-slate-800'
               }`}
             >
               <span
@@ -160,7 +160,7 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
                   Adjust with Short Leave?
                 </span>
                 <span className="block text-[10px] text-slate-400">
-                  Yes দিলে শর্ট লিভ থেকে বিয়োগ হবে
+                  If checked, this will deduct from short leave balance
                 </span>
               </div>
               <button
@@ -183,13 +183,13 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
 
       <div>
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          মন্তব্য/কারণ
+          Remarks / Reason
         </label>
         <textarea
-          placeholder="ছুটির সংক্ষিপ্ত বিবরণ লিখুন..."
+          placeholder="Write a brief description of the leave..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"
+          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 h-20 resize-none"
         />
       </div>
     </>

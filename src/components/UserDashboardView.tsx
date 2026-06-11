@@ -41,7 +41,6 @@ interface UserDashboardViewProps {
   filterEndDate: string;
   setFilterEndDate: (val: string) => void;
   onResetFilters: () => void;
-  onExportCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportPDF: (filtered: ChutiRecord[], searchTerm: string) => void;
   onAddLeaveClick: () => void;
@@ -70,7 +69,6 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   filterEndDate,
   setFilterEndDate,
   onResetFilters,
-  onExportCSV,
   onExportExcel,
   onExportPDF,
   onAddLeaveClick,
@@ -162,7 +160,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     const maxDays = Math.floor(netShortMins / (workingHours * 60));
     const hoursText = (maxDays * workingHours).toFixed(1);
     
-    if (confirm(`আপনি কি ${hoursText} ঘণ্টা শর্ট লিভকে ${maxDays} দিন ফুল লিভে রূপান্তর করতে চান?\n(এটি আপনার শর্ট লিভ ব্যালেন্স থেকে বিয়োগ হবে এবং ফুল লিভের সাথে যোগ হবে)`)) {
+    if (confirm(`Do you want to convert ${hoursText} hours of short leave to ${maxDays} days of full leave?\n(This will deduct from your short leave balance and add to your full leave)`)) {
       onConvertShortLeaveToFullLeave(profile.id, workingHours, netShortMins);
     }
   };
@@ -179,9 +177,9 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
               <Calendar className="h-5 w-5 text-amber-500" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">সরকারি ছুটির পছন্দ নির্বাচন পেন্ডিং রয়েছে 🔔</h4>
+              <h4 className="text-sm font-bold text-white">Government Holiday Preferences Pending 🔔</h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                নিম্নলিখিত সরকারি ছুটির দিনগুলোতে আপনি কী করতে চান তা নির্বাচন করুন। আপনি চাইলে পেমেন্ট নিতে পারেন অথবা ছুটি রিজার্ভ রাখতে পারেন:
+                Please select what you would like to do for the following government holidays. You can either get paid or reserve the leave:
               </p>
               <div className="flex flex-wrap gap-2 mt-2.5">
                 {pendingHolidays.map((holiday, idx) => (
@@ -267,7 +265,6 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         filterEndDate={filterEndDate}
         setFilterEndDate={setFilterEndDate}
         onResetFilters={onResetFilters}
-        onExportCSV={onExportCSV}
         onExportExcel={onExportExcel}
         onExportPDF={onExportPDF}
         onAddLeaveClick={onAddLeaveClick}
@@ -277,8 +274,8 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         formatDate={formatDate}
         formatTimeToAMPM={formatTimeToAMPM}
         getCleanComment={getCleanComment}
-        title="আমার বাৎসরিক ছুটির রেকর্ডসমূহ"
-        emptyMessage="কোনো ছুটির রেকর্ড পাওয়া যায়নি। নতুন এন্ট্রি সাবমিট করুন।"
+        title="My Annual Leave Records"
+        emptyMessage="No leave records found. Submit a new entry."
         showPendingBadge={true}
       />
     </div>

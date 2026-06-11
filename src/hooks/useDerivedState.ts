@@ -205,16 +205,16 @@ export function useDerivedState({
               id: `govt-holiday-choice-${holiday.date}`,
               type: 'govt_holiday_choice',
               timestamp: response.created_at || new Date(holiday.date).toISOString(),
-              title: 'সরকারি ছুটি রিজার্ভ করা হয়েছে 📥',
-              body: `${holiday.name} (${formatDate(holiday.date)}) সরকারি ছুটির দিনটি আপনার রিজার্ভ ব্যালেন্সে যোগ করা হয়েছে।`
+              title: 'Govt Holiday Reserved 📥',
+              body: `${holiday.name} (${formatDate(holiday.date)}) government holiday has been added to your reserve balance.`
             });
           } else {
             list.push({
               id: `govt-holiday-choice-${holiday.date}`,
               type: 'govt_holiday_choice',
               timestamp: response.created_at || new Date(holiday.date).toISOString(),
-              title: 'সরকারি ছুটির পেমেন্ট অনুমোদন 🎉',
-              body: `${holiday.name} (${formatDate(holiday.date)}) সরকারি ছুটির পেমেন্টটি আপনার সেলারির সাথে পরিশোধ করার জন্য অনুমোদন করা হয়েছে।`
+              title: 'Govt Holiday Payment Approved 🎉',
+              body: `${holiday.name} (${formatDate(holiday.date)}) government holiday payment has been approved to be paid with your salary.`
             });
           }
         } else if (profile.allow_reserve !== false) {
@@ -223,8 +223,8 @@ export function useDerivedState({
             id: `govt-holiday-prompt-${holiday.date}`,
             type: 'govt_holiday_prompt',
             timestamp: new Date(holiday.date).toISOString(),
-            title: 'সরকারি ছুটির পছন্দ নির্বাচন করুন 🔔',
-            body: `${holiday.name} (${formatDate(holiday.date)}) এই সরকারি ছুটির দিনটি আপনি কী করতে চান?`,
+            title: 'Select Govt Holiday Preference 🔔',
+            body: `What would you like to do for this government holiday: ${holiday.name} (${formatDate(holiday.date)})?`,
             holidayDate: holiday.date,
             holidayName: holiday.name
           });
@@ -235,11 +235,11 @@ export function useDerivedState({
     // For Admin / Supervisor: inject all staff holiday responses as notifications
     if (initialFetchDone && (profile.role === 'admin' || profile.role === 'supervisor')) {
       holidayResponses.forEach((r: any) => {
-        const staffName = r.profiles?.full_name || 'স্টাফ';
+        const staffName = r.profiles?.full_name || 'Staff';
         const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
-        const title = r.response === 'reserve' ? 'সরকারি ছুটি রিজার্ভের অনুরোধ 🔔' : 'সরকারি ছুটির পেমেন্টের অনুরোধ 🔔';
+        const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
         const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
-          r.response === 'reserve' ? 'ছুটি রিজার্ভ করার জন্য আগ্রহ জানিয়েছে।' : 'ছুটির পেমেন্ট নেয়ার জন্য আগ্রহ জানিয়েছে।'
+          r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
         }`;
         
         list.push({
@@ -276,8 +276,8 @@ export function useDerivedState({
             record: r,
             type: 'revision',
             timestamp: r.created_at || new Date().toISOString(),
-            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${r.leave_type} আবেদনটি সংশোধনের জন্য পাঠানো হয়েছে।`
+            title: 'Leave Revision Request ⚠️',
+            body: `Your ${r.leave_type} application has been sent back for revision.`
           });
         }
       }

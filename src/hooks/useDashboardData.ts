@@ -158,13 +158,13 @@ export const useDashboardData = () => {
       
     if (error) {
       console.error('Error saving global settings:', error);
-      setMessage({ type: 'error', text: 'সেটিংস সেভ করতে ব্যর্থ হয়েছে: ' + error.message });
+      setMessage({ type: 'error', text: 'Failed to save settings: ' + error.message });
       setLoading(false);
       return false;
     }
     
     setGlobalSettings(newSettings);
-    setMessage({ type: 'success', text: 'লিভ কোটা সেটিংস সফলভাবে আপডেট করা হয়েছে!' });
+    setMessage({ type: 'success', text: 'Leave quota settings successfully updated!' });
     setLoading(false);
     fetchRecords();
 
@@ -199,8 +199,8 @@ export const useDashboardData = () => {
 
           sendPushNotification({
             userIds: reserveFalseIds,
-            title: 'সরকারি ছুটির পেমেন্ট অনুমোদন 🎉',
-            body: `${h.name} (${formatDate(h.date)}) Govt Holiday paymentটি আপনার সেলারির সাথে পেমেন্ট করার জন্য অনুমোদন করা হয়েছে।`,
+            title: 'Govt Holiday Payment Approved 🎉',
+            body: `${h.name} (${formatDate(h.date)}) Govt Holiday payment has been approved to be paid with your salary.`,
             url: '/'
           }).catch(err => console.error('Error sending push notification to paid users:', err));
         }
@@ -208,8 +208,8 @@ export const useDashboardData = () => {
         if (reserveTrueIds.length > 0) {
           sendPushNotification({
             userIds: reserveTrueIds,
-            title: 'সরকারি ছুটির পছন্দ নির্বাচন করুন 🔔',
-            body: `${h.name} (${formatDate(h.date)}) এই সরকারি ছুটির দিনটি আপনি কী করতে চান?`,
+            title: 'Select Govt Holiday Preference 🔔',
+            body: `What would you like to do for this government holiday: ${h.name} (${formatDate(h.date)})?`,
             url: '/'
           }).catch(err => console.error('Error sending push notification to reserve-enabled users:', err));
         }
@@ -236,18 +236,18 @@ export const useDashboardData = () => {
       
     if (error) {
       console.error('Error saving holiday response:', error);
-      setMessage({ type: 'error', text: 'রেসপন্স সেভ করতে ব্যর্থ হয়েছে: ' + error.message });
+      setMessage({ type: 'error', text: 'Failed to save response: ' + error.message });
       setLoading(false);
       return false;
     }
     
     // Trigger push notification to admins
-    const staffName = profile?.full_name || 'স্টাফ';
+    const staffName = profile?.full_name || 'Staff';
     const staffCode = profile?.username ? profile.username.toUpperCase() : 'N/A';
-    const titleText = 'সরকারি ছুটির রেসপন্স রিপোর্ট 🔔';
+    const titleText = 'Govt Holiday Response Report 🔔';
     const bodyText = response === 'reserve'
-      ? `${staffName} (${staffCode}) ${holidayName} (${formatDate(holidayDate)}) chuti reserve korar jonno agroho janiyeche.`
-      : `${staffName} (${staffCode}) ${holidayName} (${formatDate(holidayDate)}) chutir payment neyar jonno agroho janiyeche.`;
+      ? `${staffName} (${staffCode}) has requested to reserve the leave for ${holidayName} (${formatDate(holidayDate)}).`
+      : `${staffName} (${staffCode}) has requested to get paid for ${holidayName} (${formatDate(holidayDate)}).`;
 
     sendPushNotification({
       userIds: ['admins'],
@@ -256,7 +256,7 @@ export const useDashboardData = () => {
       url: '/'
     }).catch(err => console.error('Error sending push notification to admins for holiday choice:', err));
 
-    setMessage({ type: 'success', text: 'আপনার পছন্দটি সফলভাবে সংরক্ষিত হয়েছে!' });
+    setMessage({ type: 'success', text: 'Your preference has been successfully saved!' });
     setLoading(false);
     fetchRecords();
     return true;
@@ -354,7 +354,7 @@ export const useDashboardData = () => {
     if (!navigator.onLine) return;
     const res = await syncOfflineData();
     if (res.syncedCount > 0) {
-      setMessage({ type: 'success', text: `${res.syncedCount}টি অফলাইন ডাটা সফলভাবে ক্লাউডে সেভ করা হয়েছে!` });
+      setMessage({ type: 'success', text: `${res.syncedCount} offline records successfully saved to cloud!` });
       checkOfflineQueue();
       fetchRecords();
     }
@@ -373,12 +373,12 @@ export const useDashboardData = () => {
       setIsOnline(navigator.onLine);
       const handleOnline = () => {
         setIsOnline(true);
-        setMessage({ type: 'success', text: 'আপনি পুনরায় অনলাইনের সাথে যুক্ত হয়েছেন।' });
+        setMessage({ type: 'success', text: 'You are back online.' });
         triggerAutoSync();
       };
       const handleOffline = () => {
         setIsOnline(false);
-        setMessage({ type: 'error', text: 'আপনার ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে। আপনি অফলাইন মোডে আছেন।' });
+        setMessage({ type: 'error', text: 'Internet disconnected. You are in offline mode.' });
       };
 
       window.addEventListener('online', handleOnline);
@@ -430,7 +430,7 @@ export const useDashboardData = () => {
             return;
           }
           if (payload.eventType === 'UPDATE' && payload.new && payload.new.id === sessionUser.id) {
-            setProfile(payload.new as Profile);
+            setProfile(prev => prev ? { ...prev, ...payload.new } : (payload.new as Profile));
           }
           fetchRecords();
         }
@@ -530,7 +530,7 @@ export const useDashboardData = () => {
   // Manual Sync Button Handler
   const handleManualSync = async () => {
     if (!isOnline) {
-      setMessage({ type: 'error', text: 'আপনি এখনো অফলাইনে আছেন! ইন্টারনেট কানেক্ট করুন।' });
+      setMessage({ type: 'error', text: 'You are still offline! Please connect to the internet.' });
       return;
     }
     setLoading(true);
@@ -538,11 +538,11 @@ export const useDashboardData = () => {
     setLoading(false);
     
     if (res.success) {
-      setMessage({ type: 'success', text: `${res.syncedCount}টি অফলাইন রেকর্ড সিঙ্ক করা হয়েছে!` });
+      setMessage({ type: 'success', text: `${res.syncedCount} offline records synced!` });
       checkOfflineQueue();
       fetchRecords();
     } else {
-      setMessage({ type: 'error', text: res.error || 'সিঙ্ক করতে ব্যর্থ হয়েছে।' });
+      setMessage({ type: 'error', text: res.error || 'Sync failed.' });
     }
   };
 

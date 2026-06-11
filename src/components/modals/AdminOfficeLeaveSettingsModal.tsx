@@ -48,45 +48,45 @@ export function AdminOfficeLeaveSettingsModal({
     <Modal
       isOpen={showModal}
       onClose={() => setShowModal(false)}
-      title="অফিস বরাদ্দকৃত ছুটি সেটিংস"
-      icon={<Calendar className="h-5 w-5 text-blue-500" />}
+      title="Office Allocated Leave Settings"
+      icon={<Calendar className="h-5 w-5 text-orange-500" />}
       maxWidthClass="max-w-md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs font-medium">
         <div>
-          <label className="block text-slate-400 font-semibold mb-1">ডিফল্ট অফিস ছুটি (দিন)</label>
+          <label className="block text-slate-400 font-semibold mb-1">Default Office Leave (Days)</label>
           <input
             type="number"
             min="0"
             required
             value={officeLeaveDefault}
             onChange={(e) => setOfficeLeaveDefault(Number(e.target.value))}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
           />
-          <span className="text-[10px] text-slate-500 mt-1 block">প্রতিটি স্টাফের জন্য প্রাথমিক বাৎসরিক ডিফল্ট ছুটি (যেমন: 14 দিন)</span>
+          <span className="text-[10px] text-slate-500 mt-1 block">Default annual leaves allocated to each staff initially (e.g., 14 Days)</span>
         </div>
 
         <div>
-          <label className="block text-slate-400 font-semibold mb-1">ঈদুল ফিতরের ছুটি (দিন)</label>
+          <label className="block text-slate-400 font-semibold mb-1">Eid-ul-Fitr Leave (Days)</label>
           <input
             type="number"
             min="0"
             required
             value={eidFitrLeave}
             onChange={(e) => setEidFitrLeave(Number(e.target.value))}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
           />
         </div>
 
         <div>
-          <label className="block text-slate-400 font-semibold mb-1">ঈদুল আজহার ছুটি (দিন)</label>
+          <label className="block text-slate-400 font-semibold mb-1">Eid-ul-Adha Leave (Days)</label>
           <input
             type="number"
             min="0"
             required
             value={eidAdhaLeave}
             onChange={(e) => setEidAdhaLeave(Number(e.target.value))}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
           />
         </div>
 
@@ -94,17 +94,17 @@ export function AdminOfficeLeaveSettingsModal({
           <button
             type="button"
             onClick={() => setShowModal(false)}
-            className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+            className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
           >
-            বাতিল
+            Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
           >
             {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-            সেভ করুন
+            Save Settings
           </button>
         </div>
       </form>

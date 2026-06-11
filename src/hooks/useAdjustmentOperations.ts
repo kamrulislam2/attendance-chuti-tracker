@@ -83,8 +83,8 @@ export const useAdjustmentOperations = ({
       if (isAdmin) {
         const newNotification = createNotification(
           'cancelled',
-          'ছুটি সমন্বয় বাতিল ⚠️',
-          `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`
+          'Leave Adjustment Cancelled ⚠️',
+          `Your adjustment for ${leaveLabel} on date ${dateTimeStr} has been cancelled.`
         );
 
         updates = { 
@@ -123,19 +123,19 @@ export const useAdjustmentOperations = ({
 
         if (isAdmin) {
           if (record?.user_id) {
-            const actionLabel = 'ছুটি সমন্বয়';
+            const actionLabel = 'Leave Adjustment';
             sendPushNotification({
               userIds: [record.user_id],
-              title: `${actionLabel} বাতিল ⚠️`,
-              body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয়টি বাতিল করা হয়েছে।`,
+              title: `${actionLabel} Cancelled ⚠️`,
+              body: `Your adjustment for ${leaveLabel} on date ${dateTimeStr} has been cancelled.`,
               url: '/'
             }).catch(err => console.error('Error sending cancel push:', err));
           }
         } else {
           sendPushNotification({
             userIds: ['admins'],
-            title: 'ছুটি সমন্বয় বাতিল অনুরোধ 🔄',
-            body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি (${record.leave_type}) ছুটির সমন্বয় বাতিল অনুরোধ করেছেন (${formatDate(record.date)})।`,
+            title: 'Leave Adjustment Cancellation Request 🔄',
+            body: `${profile?.full_name || profile?.username || 'Staff'} has requested to cancel leave adjustment for (${record.leave_type}) on date ${formatDate(record.date)}.`,
             url: '/'
           }).catch(err => console.error('Error triggering cancel adjustment request push:', err));
         }
@@ -144,11 +144,11 @@ export const useAdjustmentOperations = ({
       setMessage({ 
         type: 'success', 
         text: isAdmin 
-          ? 'ছুটি সমন্বয় সফলভাবে বাতিল করা হয়েছে।' 
-          : 'সমন্বয় বাতিলের অনুরোধ সফলভাবে পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় রয়েছে।' 
+          ? 'Leave adjustment successfully cancelled.' 
+          : 'Adjustment cancellation request successfully sent and is pending approval.' 
       });
     } catch (err) {
-      setMessage({ type: 'error', text: (err as Error).message || 'সমন্বয় বাতিল করতে সমস্যা হয়েছে।' });
+      setMessage({ type: 'error', text: (err as Error).message || 'Failed to cancel adjustment.' });
     } finally {
       setShowCancelAdjustmentModal(false);
       setCancelAdjustmentRecord(null);
@@ -172,7 +172,7 @@ export const useAdjustmentOperations = ({
         } else {
           const timeRegex = /^([0-9]{1,2}):([0-5][0-9])$/;
           if (!timeRegex.test(partialAdjustmentTime)) {
-            setMessage({ type: 'error', text: 'সঠিক সময় ফরম্যাট ব্যবহার করুন (যেমন: ০২:৩০)।' });
+            setMessage({ type: 'error', text: 'Please use correct time format (e.g. 02:30).' });
             setSubmitting(false);
             return;
           }
@@ -189,7 +189,7 @@ export const useAdjustmentOperations = ({
       const existingNotifications = getExistingNotifications(record);
 
       if (isAdmin) {
-        const actionLabel = 'ছুটি সমন্বয়';
+        const actionLabel = 'Leave Adjustment';
         const leaveLabel = getDetailedLeaveLabel(record);
         const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
         const dateTimeStr = isShortOrOvertime
@@ -198,8 +198,8 @@ export const useAdjustmentOperations = ({
 
         const newNotification = createNotification(
           'adjusted',
-          `${actionLabel} সম্পন্ন ✅`,
-          `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`
+          `${actionLabel} Completed ✅`,
+          `Your ${leaveLabel} adjustment for date ${dateTimeStr} has been completed.`
         );
 
         updates = {
@@ -237,12 +237,12 @@ export const useAdjustmentOperations = ({
       if (!isAdmin) {
         sendPushNotification({
           userIds: ['admins'],
-          title: 'ছুটি সমন্বয় অনুরোধ 🔄',
-          body: `${profile?.full_name || profile?.username || 'স্টাফ'} একটি (${record.leave_type}) ছুটির সমন্বয় অনুরোধ করেছেন (${formatDate(record.date)})।`,
+          title: 'Leave Adjustment Request 🔄',
+          body: `${profile?.full_name || profile?.username || 'Staff'} has requested leave adjustment for (${record.leave_type}) on date ${formatDate(record.date)}.`,
           url: '/'
         }).catch(err => console.error('Error triggering push notification for adjustment:', err));
       } else if (record?.user_id) {
-        const actionLabel = 'ছুটি সমন্বয়';
+        const actionLabel = 'Leave Adjustment';
         const leaveLabel = getDetailedLeaveLabel(record);
         const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
         const dateTimeStr = isShortOrOvertime
@@ -251,8 +251,8 @@ export const useAdjustmentOperations = ({
 
         sendPushNotification({
           userIds: [record.user_id],
-          title: `${actionLabel} সম্পন্ন ✅`,
-          body: `আপনার ${dateTimeStr} তারিখের ${leaveLabel} সমন্বয় করা হয়েছে।`,
+          title: `${actionLabel} Completed ✅`,
+          body: `Your ${leaveLabel} adjustment for date ${dateTimeStr} has been completed.`,
           url: '/'
         }).catch(err => console.error('Error sending adjustment push to user:', err));
       }
@@ -260,11 +260,11 @@ export const useAdjustmentOperations = ({
       setMessage({ 
         type: 'success', 
         text: isAdmin
-          ? 'ছুটি সমন্বয় সফলভাবে সম্পন্ন করা হয়েছে।'
-          : 'সমন্বয় অনুরোধ সফলভাবে পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় রয়েছে।'
+          ? 'Leave adjustment successfully completed.'
+          : 'Adjustment request successfully sent and is pending approval.'
       });
     } catch (err) {
-      setMessage({ type: 'error', text: (err as Error).message || 'সমন্বয় করতে সমস্যা হয়েছে।' });
+      setMessage({ type: 'error', text: (err as Error).message || 'An error occurred while processing adjustment.' });
     } finally {
       setShowAdjustmentModal(false);
       setAdjustmentRecord(null);
@@ -306,28 +306,28 @@ export const useAdjustmentOperations = ({
         }
       }
 
-      const adminName = profile?.full_name ? `অ্যাডমিন ${profile.full_name}` : 'অ্যাডমিন';
+      const adminName = profile?.full_name ? `Admin ${profile.full_name}` : 'Admin';
       const leaveLabel = getDetailedLeaveLabel(record);
       const isShortOrOvertime = record.leave_type === 'Short Leave' || record.leave_type === 'Overtime';
       const dateTimeStr = isShortOrOvertime
         ? `${formatDate(record.date)} (${formatTimeToAMPM(record.sign_in_time)} - ${formatTimeToAMPM(record.sign_out_time)})`
         : formatDate(record.date);
 
-      const requestTypeLabel = isCancelRequest ? 'সমন্বয় বাতিল' : 'সমন্বয়';
+      const requestTypeLabel = isCancelRequest ? 'adjustment cancellation' : 'adjustment';
 
       const bodyText = approve 
-        ? `${adminName} আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি অনুমোদন করেছেন।`
-        : `আপনার ${dateTimeStr} তারিখের ${leaveLabel} ${requestTypeLabel} আবেদনটি প্রত্যাখ্যান করা হয়েছে।`;
+        ? `${adminName} approved your ${requestTypeLabel} request for ${leaveLabel} on date ${dateTimeStr}.`
+        : `Your ${requestTypeLabel} request for ${leaveLabel} on date ${dateTimeStr} has been rejected.`;
 
       const existingNotifications = getExistingNotifications(record);
 
       const titleLabel = isCancelRequest 
-        ? 'ছুটি সমন্বয় বাতিল' 
-        : 'ছুটি সমন্বয়';
+        ? 'Leave Adjustment Cancellation' 
+        : 'Leave Adjustment';
 
       const newNotification = createNotification(
         approve ? 'approved' : 'rejected',
-        `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+        `${titleLabel} ${approve ? 'Approved ✅' : 'Rejected ❌'}`,
         bodyText
       );
 
@@ -349,7 +349,7 @@ export const useAdjustmentOperations = ({
       if (record?.user_id) {
         sendPushNotification({
           userIds: [record.user_id],
-          title: `${titleLabel} ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
+          title: `${titleLabel} ${approve ? 'Approved ✅' : 'Rejected ❌'}`,
           body: bodyText,
           url: '/'
         }).catch(err => console.error('Error sending adjustment response push:', err));
@@ -372,10 +372,10 @@ export const useAdjustmentOperations = ({
         updateLocalState();
       }
 
-      setMessage({ type: 'success', text: approve ? 'সমন্বয় অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
+      setMessage({ type: 'success', text: approve ? 'Adjustment approved.' : 'Request rejected.' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(record.id); return s; });
-      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to complete action: ' + (err as Error).message });
     }
   };
 

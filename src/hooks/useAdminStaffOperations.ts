@@ -51,6 +51,7 @@ export const useAdminStaffOperations = ({
 
   // --- First-time password setup states ---
   const [showFirstTimePasswordModal, setShowFirstTimePasswordModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [firstTimePassword, setFirstTimePassword] = useState('');
   const [firstTimeConfirmPassword, setFirstTimeConfirmPassword] = useState('');
   const [firstTimePasswordSubmitting, setFirstTimePasswordSubmitting] = useState(false);
@@ -71,8 +72,8 @@ export const useAdminStaffOperations = ({
   // --- Add New Staff Account states ---
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
-  const [newStaffPassword, setNewStaffPassword] = useState('');
-  const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('1234');
+  const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('1234');
   const [newStaffUsername, setNewStaffUsername] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('user');
   const [newStaffFullName, setNewStaffFullName] = useState('');
@@ -82,11 +83,11 @@ export const useAdminStaffOperations = ({
   const [creatingUser, setCreatingUser] = useState(false);
 
   // New staff details and eligibility states
-  const [newStaffJobRole, setNewStaffJobRole] = useState('IT Officer');
-  const [newStaffWorkingHours, setNewStaffWorkingHours] = useState('9.5');
-  const [newStaffBreakTime, setNewStaffBreakTime] = useState('10');
-  const [newStaffSignInTime, setNewStaffSignInTime] = useState('13:00');
-  const [newStaffSignOutTime, setNewStaffSignOutTime] = useState('22:30');
+  const [newStaffJobRole, setNewStaffJobRole] = useState('');
+  const [newStaffWorkingHours, setNewStaffWorkingHours] = useState('');
+  const [newStaffBreakTime, setNewStaffBreakTime] = useState('');
+  const [newStaffSignInTime, setNewStaffSignInTime] = useState('');
+  const [newStaffSignOutTime, setNewStaffSignOutTime] = useState('');
   const [newStaffEligibleOfficeLeave, setNewStaffEligibleOfficeLeave] = useState(true);
   const [newStaffEligibleGovtHoliday, setNewStaffEligibleGovtHoliday] = useState(true);
 
@@ -143,9 +144,20 @@ export const useAdminStaffOperations = ({
       setEditMaxFullLeaves(String(profile.max_full_leaves ?? 15));
       setEditEligibleOfficeLeave(profile.eligible_office_leave !== false);
       setEditEligibleGovtHoliday(profile.eligible_govt_holiday !== false);
+      setEditUsername((profile.username || '').toUpperCase());
+      setEditNeedsApproval(profile.needs_supervisor_approval !== false);
+      setEditAllowReserve(profile.allow_reserve === true);
+      setEditAllowOvertime(profile.allow_overtime === true);
       
       if (profile.has_changed_password === false) {
         setShowFirstTimePasswordModal(true);
+        setShowOnboardingModal(false);
+      } else if (!profile.is_setup_completed) {
+        setShowFirstTimePasswordModal(false);
+        setShowOnboardingModal(true);
+      } else {
+        setShowFirstTimePasswordModal(false);
+        setShowOnboardingModal(false);
       }
     }
   }, [profile]);
@@ -236,7 +248,7 @@ export const useAdminStaffOperations = ({
 
         if (error) throw error;
 
-        setMessage({ type: 'success', text: 'স্টাফ প্রোফাইল সফলভাবে আপডেট করা হয়েছে!' });
+        setMessage({ type: 'success', text: 'Staff profile successfully updated!' });
         setShowProfileSettingsModal(false);
         setEditingStaffProfileId(null);
         fetchRecords();
@@ -267,8 +279,8 @@ export const useAdminStaffOperations = ({
 
         if (error) throw error;
 
-        setProfile(updatedProfile as Profile);
-        setMessage({ type: 'success', text: 'আপনার প্রোফাইল সফলভাবে আপডেট করা হয়েছে!' });
+        setProfile(prev => prev ? { ...prev, ...updatedProfile } : (updatedProfile as Profile));
+        setMessage({ type: 'success', text: 'Your profile successfully updated!' });
         setShowProfileSettingsModal(false);
       } else {
         if (!profile?.has_edited_profile) {
@@ -291,9 +303,9 @@ export const useAdminStaffOperations = ({
 
           if (error) throw error;
 
-          setProfile(updatedProfile as Profile);
+          setProfile(prev => prev ? { ...prev, ...updatedProfile } : (updatedProfile as Profile));
           setIsEditRequestMode(false);
-          setMessage({ type: 'success', text: 'আপনার প্রোফাইল সফলভাবে আপডেট করা হয়েছে!' });
+          setMessage({ type: 'success', text: 'Your profile successfully updated!' });
           setShowProfileSettingsModal(false);
         } else {
           const updates = {
@@ -317,21 +329,21 @@ export const useAdminStaffOperations = ({
 
           sendPushNotification({
             userIds: ['admins'],
-            title: 'প্রোফাইল পরিবর্তন অনুরোধ 👤',
-            body: `${profile?.full_name || profile?.username || 'স্টাফ'} তাঁর প্রোফাইল তথ্য পরিবর্তনের অনুরোধ জানিয়েছেন।`,
+            title: 'Profile Change Request 👤',
+            body: `${profile?.full_name || profile?.username || 'Staff'} has requested a profile information change.`,
             url: '/'
           }).catch(err => console.error('Error triggering push notification for profile change:', err));
 
-          setProfile(updatedProfile as Profile);
+          setProfile(prev => prev ? { ...prev, ...updatedProfile } : (updatedProfile as Profile));
           setIsEditRequestMode(false);
-          setMessage({ type: 'success', text: 'প্রোফাইল পরিবর্তনের অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।' });
+          setMessage({ type: 'success', text: 'Profile change request has been sent to the admin.' });
           setShowProfileSettingsModal(false);
         }
       }
     } catch (err) {
-      let errorMsg = (err as Error).message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে।';
+      let errorMsg = (err as Error).message || 'Request failed.';
       if ((err as { code?: string }).code === '23505' || errorMsg.toLowerCase().includes('duplicate') || errorMsg.toLowerCase().includes('unique')) {
-        errorMsg = 'এই কোডনেমটি ইতিমধ্যে ব্যবহার করা হচ্ছে! অন্য একটি কোডনেম ব্যবহার করুন।';
+        errorMsg = 'This codename is already in use! Please use a different codename.';
       }
       setMessage({ type: 'error', text: errorMsg });
     } finally {
@@ -355,6 +367,7 @@ export const useAdminStaffOperations = ({
         default_sign_in: setupSignInTime,
         default_sign_out: setupSignOutTime,
         is_setup_completed: true,
+        has_edited_profile: true,
       };
 
       const { data: updatedProfile, error } = await supabase
@@ -366,20 +379,21 @@ export const useAdminStaffOperations = ({
 
       if (error) throw error;
 
-      setProfile(updatedProfile as Profile);
+      setProfile(prev => prev ? { ...prev, ...updatedProfile } : (updatedProfile as Profile));
       setEditFullName(updatedProfile.full_name || '');
       setEditWorkingHours(Number(updatedProfile.working_hours || 9.5).toFixed(1));
       setEditBreakTime(String(updatedProfile.break_time || 0));
       setEditJobRole(updatedProfile.job_role || '');
 
+      setShowOnboardingModal(false);
       setShowWelcomePopup(true);
       setTimeout(() => {
         setShowWelcomePopup(false);
       }, 10000);
 
-      setMessage({ type: 'success', text: 'আপনার প্রোফাইল সেটআপ সফলভাবে সম্পন্ন হয়েছে!' });
+      setMessage({ type: 'success', text: 'Your profile setup has been successfully completed!' });
     } catch (err) {
-      setSetupError((err as Error).message || 'সেটআপ আপডেট করতে সমস্যা হয়েছে।');
+      setSetupError((err as Error).message || 'Failed to update setup.');
     } finally {
       setSetupSubmitting(false);
     }
@@ -390,11 +404,11 @@ export const useAdminStaffOperations = ({
     e.preventDefault();
     if (!sessionUser || !profile) return;
     if (firstTimePassword !== firstTimeConfirmPassword) {
-      setFirstTimePasswordError('পাসওয়ার্ড মেলেনি!');
+      setFirstTimePasswordError('Passwords do not match!');
       return;
     }
     if (firstTimePassword.length < 4) {
-      setFirstTimePasswordError('পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!');
+      setFirstTimePasswordError('Password must be at least 4 characters long!');
       return;
     }
 
@@ -409,11 +423,8 @@ export const useAdminStaffOperations = ({
 
       const updates: Record<string, unknown> = {
         has_changed_password: true,
+        is_setup_completed: false,
       };
-
-      if (profile.role !== 'admin') {
-        updates.is_setup_completed = false;
-      }
 
       const { data: updatedProfile, error: profileError } = await supabase
         .from('profiles')
@@ -424,28 +435,28 @@ export const useAdminStaffOperations = ({
 
       if (profileError) throw profileError;
 
-      setProfile(updatedProfile as Profile);
-      setEditFullName(updatedProfile.full_name || '');
-      setEditWorkingHours(Number(updatedProfile.working_hours || 9.5).toFixed(1));
-      setEditBreakTime(String(updatedProfile.break_time || 0));
-      setEditJobRole(updatedProfile.job_role || '');
-      setProfileSignInTime(updatedProfile.default_sign_in || '09:30');
-      setProfileSignOutTime(updatedProfile.default_sign_out || '19:00');
+      const mergedProfile = { ...profile, ...updatedProfile } as Profile;
+      setProfile(prev => prev ? { ...prev, ...updatedProfile } : (updatedProfile as Profile));
+      setEditFullName(mergedProfile.full_name || '');
+      setEditWorkingHours(Number(mergedProfile.working_hours || 9.5).toFixed(1));
+      setEditBreakTime(String(mergedProfile.break_time || 0));
+      setEditJobRole(mergedProfile.job_role || '');
+      setProfileSignInTime(mergedProfile.default_sign_in || '09:30');
+      setProfileSignOutTime(mergedProfile.default_sign_out || '19:00');
+
+      console.log('--- handleFirstTimeSetupSubmit ---', {
+        updatedProfile,
+        needsProfileSetup: true
+      });
 
       setShowFirstTimePasswordModal(false);
       localStorage.removeItem(`first_time_modal_start_time_${sessionUser.id}`);
       
-      const needsProfileSetup = updatedProfile.role !== 'admin' && !updatedProfile.is_setup_completed;
-      if (!needsProfileSetup) {
-        setShowWelcomePopup(true);
-        setTimeout(() => {
-          setShowWelcomePopup(false);
-        }, 10000);
-      }
+      setShowOnboardingModal(true);
       
-      setMessage({ type: 'success', text: 'পাসওয়ার্ড পরিবর্তন সফল হয়েছে!' });
+      setMessage({ type: 'success', text: 'Password change successful!' });
     } catch (err) {
-      setFirstTimePasswordError((err as Error).message || 'পাসওয়ার্ড আপডেট করতে সমস্যা হয়েছে।');
+      setFirstTimePasswordError((err as Error).message || 'Failed to update password.');
     } finally {
       setFirstTimePasswordSubmitting(false);
     }
@@ -453,8 +464,8 @@ export const useAdminStaffOperations = ({
 
   // Create User Account (Admin feature)
   const handleCreateNewUser = async () => {
-    if (!newStaffUsername || !newStaffPassword || !newStaffFullName) {
-      setMessage({ type: 'error', text: 'সমস্ত ফিল্ড পূরণ করুন!' });
+    if (!newStaffUsername) {
+      setMessage({ type: 'error', text: 'Please fill in the codename!' });
       return;
     }
     setCreatingUser(true);
@@ -462,10 +473,10 @@ export const useAdminStaffOperations = ({
       const derivedEmail = `${newStaffUsername.toLowerCase().trim()}@office.local`;
       const { data: newUserId, error } = await supabase.rpc('create_new_user', {
         p_email: derivedEmail,
-        p_password: newStaffPassword,
+        p_password: newStaffPassword || '1234',
         p_username: newStaffUsername.toUpperCase(),
         p_role: newStaffRole,
-        p_full_name: newStaffFullName,
+        p_full_name: '', // Blank
         p_needs_supervisor_approval: newStaffNeedsApproval,
         p_allow_reserve: newStaffAllowReserve,
         p_allow_overtime: newStaffAllowOvertime,
@@ -476,11 +487,11 @@ export const useAdminStaffOperations = ({
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
-            job_role: newStaffJobRole,
-            working_hours: parseFloat(newStaffWorkingHours) || 9.5,
-            break_time: parseInt(newStaffBreakTime) || 10,
-            default_sign_in: newStaffSignInTime || '13:00',
-            default_sign_out: newStaffSignOutTime || '22:30',
+            job_role: null,
+            working_hours: null,
+            break_time: null,
+            default_sign_in: null,
+            default_sign_out: null,
             eligible_office_leave: newStaffEligibleOfficeLeave,
             eligible_govt_holiday: newStaffEligibleGovtHoliday,
           })
@@ -490,10 +501,10 @@ export const useAdminStaffOperations = ({
         }
       }
       
-      setMessage({ type: 'success', text: `নতুন স্টাফ "${newStaffFullName}" সফলভাবে তৈরি করা হয়েছে!` });
+      setMessage({ type: 'success', text: `New staff "${newStaffUsername.toUpperCase()}" successfully created with default password "1234"!` });
       setShowCreateUserModal(false);
-      setNewStaffPassword('');
-      setNewStaffConfirmPassword('');
+      setNewStaffPassword('1234');
+      setNewStaffConfirmPassword('1234');
       setNewStaffUsername('');
       setNewStaffRole('user');
       setNewStaffFullName('');
@@ -501,18 +512,18 @@ export const useAdminStaffOperations = ({
       setNewStaffAllowReserve(false);
       setNewStaffAllowOvertime(false);
       
-      // Reset additional fields
-      setNewStaffJobRole('IT Officer');
-      setNewStaffWorkingHours('9.5');
-      setNewStaffBreakTime('10');
-      setNewStaffSignInTime('13:00');
-      setNewStaffSignOutTime('22:30');
+      // Reset additional fields to empty strings
+      setNewStaffJobRole('');
+      setNewStaffWorkingHours('');
+      setNewStaffBreakTime('');
+      setNewStaffSignInTime('');
+      setNewStaffSignOutTime('');
       setNewStaffEligibleOfficeLeave(true);
       setNewStaffEligibleGovtHoliday(true);
       
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: 'ইউজার তৈরি করতে ব্যর্থ: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to create user: ' + (err as Error).message });
     } finally {
       setCreatingUser(false);
     }
@@ -522,15 +533,15 @@ export const useAdminStaffOperations = ({
   const handleUpdateCredentials = async () => {
     if (!credTargetUserId) return;
     if (!credNewUsername && !credNewPassword) {
-      setMessage({ type: 'error', text: 'কমপক্ষে কোডনেম অথবা পাসওয়ার্ড দিন!' });
+      setMessage({ type: 'error', text: 'Please provide at least a codename or password!' });
       return;
     }
     if (credNewPassword && credNewPassword !== credConfirmPassword) {
-      setMessage({ type: 'error', text: 'পাসওয়ার্ড মেলেনি!' });
+      setMessage({ type: 'error', text: 'Passwords do not match!' });
       return;
     }
     if (credNewPassword && credNewPassword.length < 4) {
-      setMessage({ type: 'error', text: 'পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে!' });
+      setMessage({ type: 'error', text: 'Password must be at least 4 characters long!' });
       return;
     }
     setUpdatingCredentials(true);
@@ -542,7 +553,7 @@ export const useAdminStaffOperations = ({
       });
       if (error) throw error;
 
-      setMessage({ type: 'success', text: 'ক্রিডেনশিয়াল সফলভাবে আপডেট করা হয়েছে!' });
+      setMessage({ type: 'success', text: 'Credentials successfully updated!' });
       setShowCredentialsModal(false);
       setCredTargetUserId(null);
       setCredNewUsername('');
@@ -550,7 +561,7 @@ export const useAdminStaffOperations = ({
       setCredConfirmPassword('');
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: 'ক্রিডেনশিয়াল আপডেট করতে ব্যর্থ: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to update credentials: ' + (err as Error).message });
     } finally {
       setUpdatingCredentials(false);
     }
@@ -560,7 +571,7 @@ export const useAdminStaffOperations = ({
   const handleDeleteUser = async () => {
     if (!deleteTargetUser) return;
     if (deleteTargetUser.role === 'admin') {
-      setMessage({ type: 'error', text: 'অ্যাডমিন প্রোফাইল ডিলিট করা সম্ভব নয়!' });
+      setMessage({ type: 'error', text: 'Admin profile cannot be deleted!' });
       return;
     }
     setDeletingUser(true);
@@ -570,13 +581,13 @@ export const useAdminStaffOperations = ({
       });
       if (error) throw error;
 
-      setMessage({ type: 'success', text: `স্টাফ "${deleteTargetUser.full_name || deleteTargetUser.username}" সফলভাবে মুছে ফেলা হয়েছে!` });
+      setMessage({ type: 'success', text: `Staff "${deleteTargetUser.full_name || deleteTargetUser.username}" successfully deleted!` });
       setShowDeleteUserModal(false);
       setDeleteTargetUser(null);
       setViewingStaffId(null);
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: 'ইউজার মুছে ফেলতে ব্যর্থ: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to delete user: ' + (err as Error).message });
     } finally {
       setDeletingUser(false);
     }
@@ -591,7 +602,7 @@ export const useAdminStaffOperations = ({
       let updates: Record<string, unknown> = {};
       if (approve) {
         const targetProfile = profilesList.find(p => p.id === profileId);
-        if (!targetProfile) throw new Error('প্রোফাইল খুঁজে পাওয়া যায়নি।');
+        if (!targetProfile) throw new Error('Profile not found.');
 
         updates = {
           full_name: targetProfile.requested_full_name || targetProfile.full_name,
@@ -629,8 +640,8 @@ export const useAdminStaffOperations = ({
 
       sendPushNotification({
         userIds: [profileId],
-        title: `প্রোফাইল পরিবর্তন ${approve ? 'অনুমোদিত ✅' : 'প্রত্যাখ্যাত ❌'}`,
-        body: `আপনার প্রোফাইল তথ্য পরিবর্তনের অনুরোধটি অ্যাডমিন ${approve ? 'অনুমোদন' : 'প্রত্যাখ্যান'} করেছেন।`,
+        title: `Profile Change ${approve ? 'Approved ✅' : 'Rejected ❌'}`,
+        body: `Your profile change request has been ${approve ? 'approved' : 'rejected'} by the admin.`,
         url: '/'
       }).catch(err => console.error('Error sending profile change push:', err));
       
@@ -703,12 +714,12 @@ export const useAdminStaffOperations = ({
         updateLocalState();
       }
 
-      setMessage({ type: 'success', text: approve ? 'প্রোফাইল পরিবর্তন অনুমোদন করা হয়েছে।' : 'অনুরোধ প্রত্যাখ্যান করা হয়েছে।' });
+      setMessage({ type: 'success', text: approve ? 'Profile change request approved.' : 'Request rejected.' });
     } catch (err) {
       if (setApprovingIds) {
         setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
       }
-      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to complete action: ' + (err as Error).message });
     }
   };
 
@@ -717,14 +728,14 @@ export const useAdminStaffOperations = ({
     if (shortMins <= 0 || workingHours <= 0) return;
     const workingMins = workingHours * 60;
     if (shortMins < workingMins) {
-      setMessage({ type: 'error', text: 'শর্ট লিভের পরিমাণ দৈনিক কর্মঘণ্টার চেয়ে কম!' });
+      setMessage({ type: 'error', text: 'Short leave amount is less than daily working hours!' });
       return;
     }
     
     setProfileSubmitting(true);
     try {
       const staff = profilesList.find(p => p.id === targetUserId) || (profile && profile.id === targetUserId ? profile : null);
-      if (!staff) throw new Error('স্টাফ খুঁজে পাওয়া যায়নি');
+      if (!staff) throw new Error('Staff not found');
       
       const currentDays = staff.converted_short_leaves_days || 0;
       const currentHours = staff.converted_short_leaves_hours || 0;
@@ -744,9 +755,9 @@ export const useAdminStaffOperations = ({
         const reserveCount = userResps ? userResps.length : 0;
         if (reserveCount > 0) {
           const choice = prompt(
-            `কনভার্ট করা ${daysToConvert} দিন ছুটি কোন ক্যাটাগরি থেকে অ্যাডজাস্ট করতে চান?\n\n` +
-            `১ লিখতে '1' লিখুন: অফিস বরাদ্দকৃত ছুটি (Office Leave)\n` +
-            `২ লিখতে '2' লিখুন: সরকারি রিজার্ভ ছুটি (Reserve Holiday)`,
+            `Which category do you want to adjust the converted ${daysToConvert} days of leave from?\n\n` +
+            `Enter '1' for: Office Leave\n` +
+            `Enter '2' for: Reserved Govt Holiday`,
             "1"
           );
           if (choice === '2') {
@@ -801,11 +812,11 @@ export const useAdminStaffOperations = ({
       
       setMessage({ 
         type: 'success', 
-        text: `সফলভাবে ${hoursToConvert} ঘণ্টা শর্ট লিভ ${daysToConvert} দিন ফুল লিভে কনভার্ট করা হয়েছে এবং ${adjustCategory === 'Govt Holiday' ? 'সরকারি রিজার্ভ' : 'অফিস বরাদ্দকৃত'} ছুটির সাথে অ্যাডজাস্ট করা হয়েছে!` 
+        text: `Successfully converted ${hoursToConvert} hours of short leave to ${daysToConvert} days of full leave, and adjusted with ${adjustCategory === 'Govt Holiday' ? 'Reserved Govt Holiday' : 'Allocated Office Leave'}!` 
       });
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: 'কনভার্ট করতে ব্যর্থ: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to convert: ' + (err as Error).message });
     } finally {
       setProfileSubmitting(false);
     }
@@ -814,6 +825,9 @@ export const useAdminStaffOperations = ({
   return {
     showWelcomePopup,
     setShowWelcomePopup,
+
+    showOnboardingModal,
+    setShowOnboardingModal,
 
     showFirstTimePasswordModal,
     setShowFirstTimePasswordModal,

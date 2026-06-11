@@ -14,7 +14,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Bulk Full Leave Entry & Single-Action Approval**: Dynamically submit up to 10 dates for Full Leave simultaneously using a "+" button in the interface. Prevents duplicate selection and inserts distinct database rows under a shared `bulk_id`. In the supervisor and admin dashboards, the request is grouped into a **single, unified action row** (displaying all dates as a comma-separated list), allowing the supervisor or admin to approve, reject, or request revision for the entire bulk package in one click.
 *   **Leave Adjustment**: Request adjustments (e.g., using accumulated overtime or reserve holidays to offset short leaves).
 *   **Personal Filtering Panel**: Filter personal records by category, year (with year-locked calendars), or custom date ranges.
-*   **Excel/CSV Exports**: Export filtered personal leave and attendance histories directly to Excel or CSV.
+*   **Excel Exports**: Export filtered personal leave and attendance histories directly to Excel.
 *   **Realtime Sync**: Seamlessly syncs updates with the administrative database in real time.
 
 ### 👥 Supervisor Panel
@@ -24,10 +24,10 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 ### 🔑 Admin Dashboard
 *   **Comprehensive Staff List**: A master table displaying every staff member's unadjusted leave and overtime counts.
 *   **User Account Control**: Create, update, or delete staff credentials, passwords, and roles directly from the interface.
-*   **Holiday Response Report & Export**: A dedicated administrative panel to search, filter by date/name, and export employee holiday choices (Paid vs. Reserve) to Excel, CSV, and PDF for salary integrations.
+*   **Holiday Response Report & Export**: A dedicated administrative panel to search, filter by date/name, and export employee holiday choices (Paid vs. Reserve) to Excel and PDF for salary integrations.
 *   **Settings Overrides**: Customize individual rules per user, such as enabling/disabling overtime (`allow_overtime`), reserve holidays (`allow_reserve`), or supervisor approval bypass (`needs_supervisor_approval`).
 *   **Quick Adjustments**: Perform instant, direct leave adjustments for any user, bypassing normal multi-level approval workflows.
-*   **Master Data Export**: Export the entire company’s leave summary database to CSV/Excel in one click.
+*   **Master Data Export**: Export the entire company’s leave summary database to Excel in one click.
 
 ### 📶 Offline-First & Realtime Features (PWA)
 *   **Service Worker (`sw.js`)**: Caches static assets for offline startup and updates. Handles GET requests only to prevent cache poisoning.
@@ -168,7 +168,7 @@ npm run build
 *   **বাল্ক ফুল লিভ এন্ট্রি ও একক অনুমোদন**: "Full Leave" সিলেক্ট করলে প্লাস (+) আইকন বোতামের সাহায্যে এক ক্লিকে সর্বোচ্চ ১০টি অতিরিক্ত তারিখ যোগ করার সুবিধা। ডুপ্লিকেট তারিখ নির্বাচন রোধের লাইভ সতর্কতা এবং প্রতিটি তারিখের আলাদা রেকর্ড একটি কমন `bulk_id` সহ ডাটাবেজে সংরক্ষিত হওয়ার সুবিধা। এছাড়া, সুপারভাইজার এবং অ্যাডমিনের এপ্রুভাল প্যানেলে এটিকে একক রিকোয়েস্ট (কমা দিয়ে তারিখগুলো সাজিয়ে) হিসেবে দেখাবে এবং মাত্র **এক ক্লিকে সম্পূর্ণ বাল্ক প্যাকেজটি অ্যাপ্রুভ বা রিভিশনে পাঠানো যাবে**।
 *   **ছুটি সমন্বয় (Adjustment)**: কাজের অতিরিক্ত ঘণ্টা (Overtime) বা জমে থাকা রিজার্ভ ডে দিয়ে শর্ট লিভ অ্যাডজাস্ট করার রিকোয়েস্ট পাঠানো।
 *   **ব্যক্তিগত ফিল্টারিং প্যানেল**: বছর-লকড ক্যালেন্ডার এবং ক্যাটাগরি দিয়ে নিজের ছুটির রেকর্ড ফিল্টার করা।
-*   **এক্সপোর্ট সুবিধা**: ফিল্টার করা সমস্ত ডেটা এক ক্লিকে Excel বা CSV ফরম্যাটে ডাউনলোড করার সুবিধা।
+*   **এক্সপোর্ট সুবিধা**: ফিল্টার করা সমস্ত ডেটা এক ক্লিকে Excel ফরম্যাটে ডাউনলোড করার সুবিধা।
 *   **রিয়েল-টাইম সিঙ্ক**: এডমিন প্যানেল এবং ইউজারের ড্যাশবোর্ডের মধ্যে ইনস্ট্যান্ট ডেটা সিঙ্ক্রোনাইজেশন।
 
 ### 👥 সুপারভাইজার (Supervisor) প্যানেল
@@ -178,10 +178,10 @@ npm run build
 ### 🔑 এডমিন (Admin) ড্যাশবোর্ড
 *   **মাস্টার সামারি টেবিল**: প্রতিষ্ঠানের সকল স্টাফদের মোট ছুটির হিসাব ও ব্যালেন্স এক নজরে দেখার মাস্টার প্যানেল।
 *   **ইউজার অ্যাকাউন্ট কন্ট্রোল**: নতুন স্টাফ তৈরি করা, পাসওয়ার্ড রিসেট বা কোডনেম আপডেট করার সরাসরি প্যানেল।
-*   **সরকারি ছুটির রেসপন্স রিপোর্ট ও এক্সপোর্ট**: কর্মকর্তাদের পেমেন্ট বা রিজার্ভ করার সিদ্ধান্তগুলো সহজে অনুসন্ধান করার জন্য সার্চ ফিল্টার প্যানেল এবং এক ক্লিকে Excel, CSV ও PDF ফরম্যাটে রিপোর্ট ডাউনলোড করার প্যানেল।
+*   **সরকারি ছুটির রেসপন্স রিপোর্ট ও এক্সপোর্ট**: কর্মকর্তাদের পেমেন্ট বা রিজার্ভ করার সিদ্ধান্তগুলো সহজে অনুসন্ধান করার জন্য সার্চ ফিল্টার প্যানেল এবং এক ক্লিকে Excel ও PDF ফরম্যাটে রিপোর্ট ডাউনলোড করার প্যানেল।
 *   **আইন কানুন কাস্টমাইজেশন**: কর্মকর্তা অনুযায়ী রুলস পরিবর্তন করা (যেমন: ওভারটাইম অন/অফ করা, রিজার্ভ ডে অ্যাক্সেস বা সুপারভাইজার অ্যাপ্রুভাল বাধ্যতামূলক করা)।
 *   **কুইক অ্যাডজাস্টমেন্ট**: এডমিন প্যানেল থেকে সরাসরি যেকোনো ইউজারের ছুটি ইনস্ট্যান্ট অ্যাডজাস্ট করে দেওয়া (কোনো প্রকার পেন্ডিং অ্যাপ্রুভালের প্রয়োজন ছাড়া)।
-*   **মাস্টার ডেটা এক্সপোর্ট**: প্রতিষ্ঠানের সকল কর্মকর্তাদের ছুটির সামগ্রিক ডেটাবেজ এক ক্লিকে Excel/CSV-তে ডাউনলোড করা।
+*   **মাস্টার ডেটা এক্সপোর্ট**: প্রতিষ্ঠানের সকল কর্মকর্তাদের ছুটির সামগ্রিক ডেটাবেজ এক ক্লিকে Excel-এ ডাউনলোড করা।
 
 ### 📶 অফলাইন-ফার্স্ট ও রিয়েল-টাইম প্রযুক্তি (PWA)
 *   **সার্ভিস ওয়ার্কার (`sw.js`)**: অফলাইনেও অ্যাপটি লোড হতে সাহায্য করে। এতে ক্যাশ পয়জনিং রুখতে কেবল GET রিকোয়েস্ট ক্যাশ করা হয়।

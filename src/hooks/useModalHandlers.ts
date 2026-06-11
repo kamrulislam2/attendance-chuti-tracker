@@ -174,25 +174,14 @@ export function useModalHandlers({
   }, [setAdminEditRecord, setAdminEditDate, setAdminEditLeaveType, setAdminEditAdjustment, setAdminEditAdjustShortLeave, setAdminEditSignInTime, setAdminEditSignOutTime, setAdminEditLeaveHour, setAdminEditComment, setShowAdminEditModal]);
 
   // Open Profile Settings for self (from Navbar)
+  // Form fields are NOT reset here — they persist across drawer open/close.
+  // Initial values come from the useEffect in useAdminStaffOperations that syncs on profile load.
+  // Only a page reload or successful save resets them.
   const handleOpenProfileSettingsForSelf = useCallback(() => {
     setEditingStaffProfileId(null);
-    setEditUsername(profile?.username || '');
     setIsCodenameEditable(false);
     setShowProfileSettingsModal(true);
-    setIsEditRequestMode(false);
-    setEditFullName(profile?.full_name || '');
-    setEditWorkingHours(profile?.working_hours ? Number(profile.working_hours).toFixed(1) : '');
-    setProfileSignInTime(profile?.default_sign_in || '');
-    setProfileSignOutTime(profile?.default_sign_out || '');
-    setEditBreakTime(profile?.break_time !== null && profile?.break_time !== undefined ? String(profile.break_time) : '');
-    setEditJobRole(profile?.job_role || '');
-    setEditNeedsApproval(profile?.needs_supervisor_approval !== false);
-    setEditAllowReserve(profile?.allow_reserve === true);
-    setEditAllowOvertime(profile?.allow_overtime === true);
-    setEditMaxFullLeaves(String(profile?.max_full_leaves ?? 15));
-    setEditEligibleOfficeLeave(profile?.eligible_office_leave !== false);
-    setEditEligibleGovtHoliday(profile?.eligible_govt_holiday !== false);
-  }, [profile, setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setShowProfileSettingsModal, setIsEditRequestMode, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditEligibleOfficeLeave, setEditEligibleGovtHoliday]);
+  }, [setEditingStaffProfileId, setIsCodenameEditable, setShowProfileSettingsModal]);
 
   // Open Profile Settings for a specific staff member (admin)
   const handleOpenProfileSettingsForStaff = useCallback((staff: Profile) => {

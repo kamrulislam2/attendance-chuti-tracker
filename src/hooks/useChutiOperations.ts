@@ -177,7 +177,7 @@ export const useChutiOperations = ({
 
   const handleAddBulkDate = () => {
     if (bulkDates.length + 1 >= 10) {
-      setMessage({ type: 'error', text: 'সর্বোচ্চ ১০ দিন পর্যন্ত ছুটি একসাথে আবেদন করতে পারবেন!' });
+      setMessage({ type: 'error', text: 'You can apply for a maximum of 10 days of leave at once!' });
       return;
     }
     setBulkDates(prev => [...prev, '']);
@@ -186,7 +186,7 @@ export const useChutiOperations = ({
 
   const handleUpdateBulkDate = (index: number, val: string) => {
     if (val === date || bulkDates.some((d, idx) => idx !== index && d === val)) {
-      setMessage({ type: 'error', text: 'এই তারিখটি ইতিমধ্যে নির্বাচন করা হয়েছে!' });
+      setMessage({ type: 'error', text: 'This date has already been selected!' });
       return;
     }
     setBulkDates(prev => prev.map((d, idx) => idx === index ? val : d));
@@ -222,7 +222,7 @@ export const useChutiOperations = ({
     const allDates = datesWithAdjustment.map(item => item.date);
 
     if (allDates.length === 0) {
-      setMessage({ type: 'error', text: 'অনুতত একটি তারিখ নির্বাচন করুন!' });
+      setMessage({ type: 'error', text: 'Please select at least one date!' });
       setSubmitting(false);
       return;
     }
@@ -330,7 +330,7 @@ export const useChutiOperations = ({
 
     if (offlineDuplicates.length > 0) {
       const dupStrings = offlineDuplicates.map(d => formatDate(d)).join(', ');
-      setMessage({ type: 'error', text: `এই তারিখগুলোতে অলরেডি এন্ট্রি অফলাইনে জমা রয়েছে: ${dupStrings}` });
+      setMessage({ type: 'error', text: `Entries for these dates are already saved offline: ${dupStrings}` });
       setSubmitting(false);
       return;
     }
@@ -350,7 +350,7 @@ export const useChutiOperations = ({
         }
         setMessage({ 
           type: 'success', 
-          text: 'ইন্টারনেট কানেকশন নেই। ডাটাগুলো অফলাইনে সংরক্ষিত হয়েছে। ইন্টারনেট ফিরে আসলে অটো সিঙ্ক হবে।' 
+          text: 'No internet connection. Data has been saved offline. It will sync automatically once online.' 
         });
         checkOfflineQueue();
         setUserRecords(prev => [...addedTempRecords, ...prev]);
@@ -362,7 +362,7 @@ export const useChutiOperations = ({
         setBulkAdjustments([]);
         setShowAddLeaveModal(false);
       } catch {
-        setMessage({ type: 'error', text: 'অফলাইনে ডাটা সেভ করার সময় সমস্যা হয়েছে।' });
+        setMessage({ type: 'error', text: 'An error occurred while saving data offline.' });
       }
       setSubmitting(false);
       return;
@@ -379,7 +379,7 @@ export const useChutiOperations = ({
 
       if (existing && existing.length > 0) {
         const dupStrings = existing.map((e) => formatDate(e.date)).join(', ');
-        setMessage({ type: 'error', text: `এই তারিখগুলোতে অলরেডি ডাটা সাবমিট করা হয়েছে: ${dupStrings}` });
+        setMessage({ type: 'error', text: `Data has already been submitted for these dates: ${dupStrings}` });
         setSubmitting(false);
         return;
       }
@@ -397,12 +397,12 @@ export const useChutiOperations = ({
 
       sendPushNotification({
         userIds: targetRoles,
-        title: 'নতুন ছুটির আবেদন 🔔',
-        body: `${profile?.full_name || profile?.username || 'স্টাফ'} ${leaveType}-এর আবেদন করেছেন (তারিখ: ${formattedDates})`,
+        title: 'New Leave Request 🔔',
+        body: `${profile?.full_name || profile?.username || 'Staff'} has applied for ${leaveType} (Dates: ${formattedDates})`,
         url: '/'
       }).catch(err => console.error('Error triggering push notification:', err));
 
-      setMessage({ type: 'success', text: 'আপনার ছুটির তথ্য সফলভাবে সাবমিট করা হয়েছে!' });
+      setMessage({ type: 'success', text: 'Your leave application has been successfully submitted!' });
       fetchRecords();
 
       setComment('');
@@ -413,7 +413,7 @@ export const useChutiOperations = ({
       setSelectedSupervisors([]);
       setShowAddLeaveModal(false);
     } catch (err) {
-      setMessage({ type: 'error', text: (err as Error).message || 'ডাটা সাবমিট করার সময় ত্রুটি ঘটেছে।' });
+      setMessage({ type: 'error', text: (err as Error).message || 'An error occurred while submitting the data.' });
     } finally {
       setSubmitting(false);
     }
@@ -434,7 +434,7 @@ export const useChutiOperations = ({
         }
         setUserRecords(prev => prev.filter(r => r.id !== record.id));
         checkOfflineQueue();
-        setMessage({ type: 'success', text: 'অফলাইন রেকর্ডটি সফলভাবে ডিলিট করা হয়েছে।' });
+        setMessage({ type: 'success', text: 'Offline record successfully deleted.' });
         return;
       }
 
@@ -444,7 +444,7 @@ export const useChutiOperations = ({
           setUserRecords(prev => prev.filter(r => r.id !== record.id));
           setAdminRecords(prev => prev.filter(r => r.id !== record.id));
           checkOfflineQueue();
-          setMessage({ type: 'success', text: 'অফলাইনে রেকর্ডটি ডিলিট করার অনুরোধ জমা হয়েছে। অনলাইনে এলে সিঙ্ক হবে।' });
+          setMessage({ type: 'success', text: 'Deletion request saved offline. It will sync once online.' });
         }
         return;
       }
@@ -453,16 +453,16 @@ export const useChutiOperations = ({
       if (error) throw error;
       
       if (!data || data.length === 0) {
-        throw new Error('রেকর্ডটি ডিলিট করার অনুমতি নেই অথবা রেকর্ডটি ডেটাবেজে খুঁজে পাওয়া যায়নি।');
+        throw new Error('You do not have permission to delete this record or it was not found in the database.');
       }
       
       setUserRecords(prev => prev.filter(r => r.id !== record.id));
       setAdminRecords(prev => prev.filter(r => r.id !== record.id));
       
-      setMessage({ type: 'success', text: 'রেকর্ডটি সফলভাবে ডিলিট করা হয়েছে।' });
+      setMessage({ type: 'success', text: 'Record successfully deleted.' });
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: (err as Error).message || 'রেকর্ডটি ডিলিট করতে সমস্যা হয়েছে।' });
+      setMessage({ type: 'error', text: (err as Error).message || 'An error occurred while deleting the record.' });
     } finally {
       setDeletingRecord(false);
       setShowDeleteModal(false);
@@ -508,8 +508,8 @@ export const useChutiOperations = ({
       const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
       sendPushNotification({
         userIds: targetRoles,
-        title: 'সংশোধিত ছুটির আবেদন 🔔',
-        body: `${profile?.full_name || profile?.username || 'স্টাফ'} ছুটির আবেদন সংশোধন করে পুনরায় পাঠিয়েছেন (${formatDate(revisionDate)})`,
+        title: 'Revised Leave Request 🔔',
+        body: `${profile?.full_name || profile?.username || 'Staff'} has revised and resubmitted their leave application (${formatDate(revisionDate)})`,
         url: '/'
       }).catch(err => console.error('Error triggering push notification for revision:', err));
 
@@ -518,11 +518,11 @@ export const useChutiOperations = ({
       setMessage({ 
         type: 'success', 
         text: bypassSupervisor 
-          ? 'সংশোধিত তথ্য অ্যাডমিনের কাছে পুনরায় পাঠানো হয়েছে।' 
-          : 'সংশোধিত তথ্য সুপারভাইজারের কাছে পুনরায় পাঠানো হয়েছে।' 
+          ? 'Revised information has been sent to the admin.' 
+          : 'Revised information has been sent to the supervisor.' 
       });
     } catch (err) {
-      setMessage({ type: 'error', text: 'রিভিশন সাবমিট করতে সমস্যা হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'An error occurred while submitting revision: ' + (err as Error).message });
     } finally {
       setSubmitting(false);
     }
@@ -539,8 +539,8 @@ export const useChutiOperations = ({
       
       const newNotification = createNotification(
         'edited',
-        'ছুটির তথ্য সংশোধিত ✏️',
-        `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`
+        'Leave Info Edited ✏️',
+        `Admin has edited your leave details for date (${formatDate(adminEditDate)}).`
       );
       const existingNotifications = getExistingNotifications(adminEditRecord);
 
@@ -575,8 +575,8 @@ export const useChutiOperations = ({
       if (adminEditRecord?.user_id) {
         sendPushNotification({
           userIds: [adminEditRecord.user_id],
-          title: 'ছুটির তথ্য সংশোধিত ✏️',
-          body: `অ্যাডমিন আপনার (${formatDate(adminEditDate)}) তারিখের ছুটির তথ্য সংশোধন করেছেন।`,
+          title: 'Leave Info Edited ✏️',
+          body: `Admin has edited your leave details for date (${formatDate(adminEditDate)}).`,
           url: '/'
         }).catch(err => console.error('Error sending admin edit push:', err));
       }
@@ -585,10 +585,10 @@ export const useChutiOperations = ({
       setShowAdminEditModal(false);
       setMessage({ 
         type: 'success', 
-        text: 'ছুটির তথ্য সফলভাবে আপডেট করা হয়েছে।' 
+        text: 'Leave info successfully updated.' 
       });
     } catch (err) {
-      setMessage({ type: 'error', text: 'এডিট করতে সমস্যা হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'An error occurred while editing: ' + (err as Error).message });
     } finally {
       setSubmitting(false);
     }
@@ -600,7 +600,7 @@ export const useChutiOperations = ({
     if (!chutiId) return;
     const reasonText = revisionPromptText.trim();
     if (!reasonText) {
-      setMessage({ type: 'error', text: 'সংশোধনের জন্য পাঠানোর পূর্বে কারণ/মন্তব্য লেখা আবশ্যক!' });
+      setMessage({ type: 'error', text: 'Reason/Comment is required before sending for revision!' });
       return;
     }
     
@@ -619,7 +619,7 @@ export const useChutiOperations = ({
         if (target) targets = [target];
       }
 
-      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
+      if (targets.length === 0) throw new Error('Record not found.');
 
       const user_id = targets[0].user_id;
       const leave_type = targets[0].leave_type;
@@ -634,8 +634,8 @@ export const useChutiOperations = ({
 
           const newNotification = createNotification(
             'revision',
-            'ছুটি সংশোধনের অনুরোধ ⚠️',
-            `আপনার ${t.leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+            'Leave Revision Request ⚠️',
+            `Your ${t.leave_type} request was sent for revision by supervisor (Date: ${formatDate(t.date)}). Reason: ${reasonText}`
           );
           const existingNotifications = getExistingNotifications(t);
 
@@ -662,15 +662,15 @@ export const useChutiOperations = ({
         if (user_id) {
           sendPushNotification({
             userIds: [user_id],
-            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${leave_type} আবেদনটি সুপারভাইজার সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formattedDates})। কারণ: ${reasonText}`,
+            title: 'Leave Revision Request ⚠️',
+            body: `Your ${leave_type} request was sent for revision by supervisor (Date: ${formattedDates}). Reason: ${reasonText}`,
             url: '/'
           }).catch(err => console.error('Error sending push:', err));
         }
 
         setMessage({ 
           type: 'success', 
-          text: 'ছুটি সংশোধনের জন্য ইউজারের কাছে ফেরত পাঠানো হয়েছে।' 
+          text: 'Leave request has been returned to the user for revision.' 
         });
       } else {
         const updatedCommentPrefix = `${profile?.username || 'Admin'} Revision: ${reasonText}`;
@@ -681,8 +681,8 @@ export const useChutiOperations = ({
 
           const newNotification = createNotification(
             'revision',
-            'ছুটি সংশোধনের অনুরোধ ⚠️',
-            `আপনার ${t.leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formatDate(t.date)})। কারণ: ${reasonText}`
+            'Leave Revision Request ⚠️',
+            `Your ${t.leave_type} request was sent for revision by admin (Date: ${formatDate(t.date)}). Reason: ${reasonText}`
           );
           const existingNotifications = getExistingNotifications(t);
 
@@ -710,15 +710,15 @@ export const useChutiOperations = ({
         if (user_id) {
           sendPushNotification({
             userIds: [user_id],
-            title: 'ছুটি সংশোধনের অনুরোধ ⚠️',
-            body: `আপনার ${leave_type} আবেদনটি অ্যাডমিন সংশোধনের জন্য পাঠিয়েছেন (তারিখ: ${formattedDates})। কারণ: ${reasonText}`,
+            title: 'Leave Revision Request ⚠️',
+            body: `Your ${leave_type} request was sent for revision by admin (Date: ${formattedDates}). Reason: ${reasonText}`,
             url: '/'
           }).catch(err => console.error('Error sending push:', err));
         }
 
         setMessage({ 
           type: 'success', 
-          text: 'ছুটির তথ্য সংশোধনের জন্য ইউজারের কাছে ফেরত পাঠানো হয়েছে।' 
+          text: 'Leave request has been returned to the user for revision.' 
         });
       }
       setShowRevisionPromptModal(false);
@@ -726,7 +726,7 @@ export const useChutiOperations = ({
       setRevisionPromptText('');
       fetchRecords();
     } catch (err) {
-      setMessage({ type: 'error', text: 'অ্যাকশন সম্পন্ন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to complete action: ' + (err as Error).message });
     } finally {
       setSubmittingRevision(false);
       setReviewingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
@@ -757,9 +757,9 @@ export const useChutiOperations = ({
         if (target) targets = [target];
       }
 
-      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
+      if (targets.length === 0) throw new Error('Record not found.');
 
-      const supervisorName = profile?.full_name ? `সুপারভাইজার ${profile.full_name}` : 'সুপারভাইজার';
+      const supervisorName = profile?.full_name ? `Supervisor ${profile.full_name}` : 'Supervisor';
       const supervisorUsername = profile?.username || 'Supervisor';
       const user_id = targets[0].user_id;
       const leave_type = targets[0].leave_type;
@@ -786,8 +786,8 @@ export const useChutiOperations = ({
       // Trigger Web Push Notification to Admins
       sendPushNotification({
         userIds: ['admins'],
-        title: 'সুপারভাইজার অনুমোদিত আবেদন 🔔',
-        body: `${supervisorName} ${targets[0].profiles?.username ? `@${targets[0].profiles.username.toUpperCase()}` : 'স্টাফ'}-এর (${leave_type}) আবেদনটি অনুমোদন করেছেন (তারিখ: ${formattedDates})`,
+        title: 'Supervisor Approved Request 🔔',
+        body: `${supervisorName} approved the (${leave_type}) request of ${targets[0].profiles?.username ? `@${targets[0].profiles.username.toUpperCase()}` : 'Staff'} (Dates: ${formattedDates})`,
         url: '/'
       }).catch(err => console.error('Error triggering push notification for supervisor approval:', err));
 
@@ -815,10 +815,10 @@ export const useChutiOperations = ({
         updateLocalState();
       }, 1500);
 
-      setMessage({ type: 'success', text: 'ছুটির আবেদনটি সুপারভাইজার সফলভাবে অনুমোদন করেছেন।' });
+      setMessage({ type: 'success', text: 'The leave request has been successfully approved by the supervisor.' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      setMessage({ type: 'error', text: 'অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to approve: ' + (err as Error).message });
     }
   };
 
@@ -846,9 +846,9 @@ export const useChutiOperations = ({
         if (target) targets = [target];
       }
 
-      if (targets.length === 0) throw new Error('রেকর্ড খুঁজে পাওয়া যায়নি।');
+      if (targets.length === 0) throw new Error('Record not found.');
 
-      const adminName = profile?.full_name ? `অ্যাডমিন ${profile.full_name}` : 'অ্যাডমিন';
+      const adminName = profile?.full_name ? `Admin ${profile.full_name}` : 'Admin';
       const adminUsername = profile?.username || 'Admin';
       const user_id = targets[0].user_id;
       const leave_type = targets[0].leave_type;
@@ -861,8 +861,8 @@ export const useChutiOperations = ({
 
         const newNotification = createNotification(
           'approved',
-          'ছুটির আবেদন অনুমোদিত ✅',
-          `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
+          'Leave Request Approved ✅',
+          `Admin approved your ${t.leave_type} request for date (${formatDate(t.date)}).`
         );
         const existingNotifications = getExistingNotifications(t);
 
@@ -886,8 +886,8 @@ export const useChutiOperations = ({
       if (user_id) {
         sendPushNotification({
           userIds: [user_id],
-          title: 'ছুটির আবেদন অনুমোদিত ✅',
-          body: `অ্যাডমিন আপনার ${leave_type} আবেদনটি অনুমোদন করেছেন (তারিখ: ${formattedDates})।`,
+          title: 'Leave Request Approved ✅',
+          body: `Admin approved your ${leave_type} request (Dates: ${formattedDates}).`,
           url: '/'
         }).catch(err => console.error('Error sending push to staff:', err));
       }
@@ -900,8 +900,8 @@ export const useChutiOperations = ({
 
           const newNotification = createNotification(
             'approved',
-            'ছুটির আবেদন অনুমোদিত ✅',
-            `অ্যাডমিন আপনার (${formatDate(t.date)}) তারিখের ${t.leave_type} আবেদনটি অনুমোদন করেছেন।`
+            'Leave Request Approved ✅',
+            `Admin approved your ${t.leave_type} request for date (${formatDate(t.date)}).`
           );
           const existingNotifications = getExistingNotifications(t);
 
@@ -927,10 +927,10 @@ export const useChutiOperations = ({
         updateLocalState();
       }, 1500);
 
-      setMessage({ type: 'success', text: 'ছুটির আবেদনটি অ্যাডমিন সফলভাবে অনুমোদন করেছেন।' });
+      setMessage({ type: 'success', text: 'The leave request has been successfully approved by the admin.' });
     } catch (err) {
       setApprovingIds(prev => { const s = new Set(prev); s.delete(chutiId); return s; });
-      setMessage({ type: 'error', text: 'অনুমোদন করতে ব্যর্থ হয়েছে: ' + (err as Error).message });
+      setMessage({ type: 'error', text: 'Failed to approve: ' + (err as Error).message });
     }
   };
 

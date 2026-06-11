@@ -37,7 +37,6 @@ interface StaffMasterTableProps {
   setSelectedYear: (val: string) => void;
   availableYears: string[];
   onAddStaffClick: () => void;
-  onExportCSV: () => void;
   onExportExcel: () => void;
   onExportPDF: () => void;
   onViewDetails: (id: string) => void;
@@ -52,7 +51,6 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
   setSelectedYear,
   availableYears,
   onAddStaffClick,
-  onExportCSV,
   onExportExcel,
   onExportPDF,
   onViewDetails,
@@ -61,7 +59,7 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
     <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
       <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <User className="h-5 w-5 text-purple-500" /> স্টাফ ছুটির মাস্টার ডাটাবেজ
+          <User className="h-5 w-5 text-orange-500" /> Staff Leave Master Database
         </h3>
 
         {/* Search Input */}
@@ -71,10 +69,10 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
           </div>
           <input
             type="text"
-            placeholder="নাম বা কোডনেম দিয়ে খুঁজুন..."
+            placeholder="Search by name or codename..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-10 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs transition-all dark:bg-slate-950/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
+            className="w-full pl-9 pr-10 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
           />
           {searchQuery && (
             <button
@@ -91,32 +89,26 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
         <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <button
             onClick={onAddStaffClick}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white border border-purple-800 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-md"
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-orange-600 text-orange-600 dark:border-orange-500 dark:text-orange-500 hover:bg-orange-600/10 dark:hover:bg-orange-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             <Plus className="h-3.5 w-3.5" /> Add Staff
           </button>
           <button
-            onClick={onExportCSV}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-emerald-700 shadow-md"
-          >
-            <Download className="h-3.5 w-3.5" /> CSV
-          </button>
-          <button
             onClick={onExportExcel}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-500 dark:text-emerald-500 hover:bg-emerald-600/10 dark:hover:bg-emerald-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             <Download className="h-3.5 w-3.5" /> Excel
           </button>
           <button
             onClick={onExportPDF}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-red-700 shadow-md"
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-red-600 text-red-600 dark:border-red-500 dark:text-red-500 hover:bg-red-600/10 dark:hover:bg-red-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             <Download className="h-3.5 w-3.5" /> PDF
           </button>
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-md"
+            className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer shadow-md"
           >
             <option value="all" className="bg-slate-900 text-white">All</option>
             {availableYears.map(y => (
@@ -131,19 +123,19 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
       <div className="overflow-x-auto">
         {profilesList.length === 0 ? (
           <div className="py-12 text-center text-slate-500 text-sm">
-            কোনো স্টাফ প্রোফাইল পাওয়া যায়নি।
+            No staff profiles found.
           </div>
         ) : (
           <table className="min-w-full divide-y divide-slate-800">
-            <thead className="bg-slate-950/60">
+            <thead className="bg-slate-955/60">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">স্টাফ নাম</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">কোডনেম</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">রোল</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ফুল লিভ (Unadjusted)</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">শর্ট লিভ (Unadjusted)</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম (Unadjusted)</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">স্টাফ বিস্তারিত</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Staff Name</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Codename</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Leave (Unadjusted)</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Short Leave (Unadjusted)</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime (Unadjusted)</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-850 bg-slate-900/20">
@@ -168,18 +160,18 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                        {stats.full} দিন
+                        {stats.full} days
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                        {stats.short} ঘণ্টা
+                        {stats.short} hrs
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
-                        {p.allow_overtime ? `${stats.overtime} ঘণ্টা` : '-'}
+                        {p.allow_overtime ? `${stats.overtime} hrs` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => onViewDetails(p.id)}
-                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold cursor-pointer border border-purple-700 transition-all"
+                          className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer border border-orange-700 transition-all"
                         >
                           View Details
                         </button>

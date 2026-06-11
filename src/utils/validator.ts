@@ -19,7 +19,7 @@ const parseNum = (val: string | number | undefined, defaultVal: number = 0): num
 };
 
 export const validator = {
-  // ছুটির ফর্ম ভ্যালিডেশন
+  // Leave Form Validation
   validateLeaveForm: (data: {
     date?: string;
     leaveType?: string;
@@ -31,27 +31,27 @@ export const validator = {
     const errors: string[] = [];
 
     if (!data.date) {
-      errors.push('তারিখ নির্বাচন করুন।');
+      errors.push('Please select a date.');
     } else {
       // Date format validation (YYYY-MM-DD)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-        errors.push('সঠিক তারিখ ফরম্যাট ব্যবহার করুন (YYYY-MM-DD)।');
+        errors.push('Please use the correct date format (YYYY-MM-DD).');
       }
       // Date should not be in future
       const selectedDate = new Date(data.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (selectedDate > today) {
-        errors.push('ভবিষ্যতের তারিখ নির্বাচন করা যায় না।');
+        errors.push('Future dates cannot be selected.');
       }
     }
 
     if (!data.leaveType) {
-      errors.push('ছুটির ধরন নির্বাচন করুন।');
+      errors.push('Please select a leave type.');
     } else {
       const validTypes = ['Full Leave', 'Short Leave', 'Overtime'];
       if (!validTypes.includes(data.leaveType)) {
-        errors.push('অবৈধ ছুটির ধরন।');
+        errors.push('Invalid leave type.');
       }
     }
 
@@ -61,15 +61,15 @@ export const validator = {
       data.leaveType === 'Overtime'
     ) {
       if (!data.signInTime) {
-        errors.push('সাইন-ইন সময় নির্বাচন করুন।');
+        errors.push('Please select a sign-in time.');
       } else if (!/^\d{2}:\d{2}$/.test(data.signInTime)) {
-        errors.push('সাইন-ইন সময় সঠিক ফরম্যাটে দিন (HH:MM)।');
+        errors.push('Please specify sign-in time in the correct format (HH:MM).');
       }
 
       if (!data.signOutTime) {
-        errors.push('সাইন-আউট সময় নির্বাচন করুন।');
+        errors.push('Please select a sign-out time.');
       } else if (!/^\d{2}:\d{2}$/.test(data.signOutTime)) {
-        errors.push('সাইন-আউট সময় সঠিক ফরম্যাটে দিন (HH:MM)।');
+        errors.push('Please specify sign-out time in the correct format (HH:MM).');
       }
 
       // Check if sign out time is after sign in time
@@ -80,7 +80,7 @@ export const validator = {
         const outMins = outH * 60 + outM;
 
         if (outMins <= inMins) {
-          errors.push('সাইন-আউট সময় সাইন-ইন সময়ের চেয়ে বড় হতে হবে।');
+          errors.push('Sign-out time must be after sign-in time.');
         }
       }
     }
@@ -91,7 +91,7 @@ export const validator = {
     };
   },
 
-  // প্রোফাইল ফর্ম ভ্যালিডেশন
+  // Profile Form Validation
   validateProfileForm: (data: {
     fullName?: string;
     jobRole?: string;
@@ -103,33 +103,33 @@ export const validator = {
     const errors: string[] = [];
 
     if (!data.fullName || data.fullName.trim() === '') {
-      errors.push('পূর্ণ নাম দিন।');
+      errors.push('Please enter a full name.');
     } else if (data.fullName.length < 2) {
-      errors.push('নাম কমপক্ষে ২ অক্ষরের হতে হবে।');
+      errors.push('Name must be at least 2 characters.');
     } else if (data.fullName.length > 100) {
-      errors.push('নাম সর্বোচ্চ ১০০ অক্ষরের হতে পারে।');
+      errors.push('Name cannot exceed 100 characters.');
     }
 
     if (!data.jobRole || data.jobRole.trim() === '') {
-      errors.push('চাকরির পদবি দিন।');
+      errors.push('Please enter a job role.');
     }
 
     const workingHrs = parseNum(data.workingHours);
     if (isNaN(workingHrs) || workingHrs < 1 || workingHrs > 24) {
-      errors.push('কর্মঘণ্টা ১ থেকে ২৪ ঘণ্টার মধ্যে হতে হবে।');
+      errors.push('Working hours must be between 1 and 24 hours.');
     }
 
     const breakHrs = parseNum(data.breakTime);
     if (isNaN(breakHrs) || breakHrs < 0 || breakHrs > 480) {
-      errors.push('বিরতি ০ থেকে ৪৮০ মিনিটের মধ্যে হতে হবে।');
+      errors.push('Break time must be between 0 and 480 minutes.');
     }
 
     if (data.signInTime && !/^\d{2}:\d{2}$/.test(data.signInTime)) {
-      errors.push('সাইন-ইন সময় সঠিক ফরম্যাটে দিন (HH:MM)।');
+      errors.push('Please specify sign-in time in the correct format (HH:MM).');
     }
 
     if (data.signOutTime && !/^\d{2}:\d{2}$/.test(data.signOutTime)) {
-      errors.push('সাইন-আউট সময় সঠিক ফরম্যাটে দিন (HH:MM)।');
+      errors.push('Please specify sign-out time in the correct format (HH:MM).');
     }
 
     return {
@@ -138,7 +138,7 @@ export const validator = {
     };
   },
 
-  // ব্যবহারকারী তৈরির ফর্ম ভ্যালিডেশন
+  // User Creation Validation
   validateCreateUserForm: (data: {
     email?: string;
     password?: string;
@@ -150,33 +150,33 @@ export const validator = {
     const errors: string[] = [];
 
     if (!data.email || data.email.trim() === '') {
-      errors.push('ইমেইল দিন।');
+      errors.push('Please enter an email.');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.push('বৈধ ইমেইল দিন।');
+      errors.push('Please enter a valid email address.');
     }
 
     if (!data.password || data.password.length === 0) {
-      errors.push('পাসওয়ার্ড দিন।');
+      errors.push('Please enter a password.');
     } else if (data.password.length < 4) {
-      errors.push('পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে।');
+      errors.push('Password must be at least 4 characters.');
     }
 
     if (data.password !== data.confirmPassword) {
-      errors.push('পাসওয়ার্ড মেলেনি।');
+      errors.push('Passwords do not match.');
     }
 
     if (!data.username || data.username.trim() === '') {
-      errors.push('ব্যবহারকারী নাম দিন।');
+      errors.push('Please enter a username.');
     } else if (!/^[a-zA-Z0-9_-]+$/.test(data.username)) {
-      errors.push('ব্যবহারকারী নাম শুধুমাত্র অক্ষর, সংখ্যা, - এবং _ ধারণ করতে পারে।');
+      errors.push('Username can only contain letters, numbers, hyphens, and underscores.');
     }
 
     if (!data.fullName || data.fullName.trim() === '') {
-      errors.push('পূর্ণ নাম দিন।');
+      errors.push('Please enter a full name.');
     }
 
     if (!data.role || !['admin', 'user', 'supervisor'].includes(data.role)) {
-      errors.push('সঠিক ভূমিকা নির্বাচন করুন।');
+      errors.push('Please select a valid role.');
     }
 
     return {
@@ -185,16 +185,16 @@ export const validator = {
     };
   },
 
-  // সাধারণ পাসওয়ার্ড ভ্যালিডেশন
+  // Password Strength Validation
   validatePassword: (password: string): ValidationResult => {
     const errors: string[] = [];
 
     if (!password) {
-      errors.push('পাসওয়ার্ড দিন।');
+      errors.push('Please enter a password.');
     } else if (password.length < 4) {
-      errors.push('পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে।');
+      errors.push('Password must be at least 4 characters.');
     } else if (password.length > 128) {
-      errors.push('পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে পারে।');
+      errors.push('Password cannot exceed 128 characters.');
     }
 
     return {
@@ -203,18 +203,18 @@ export const validator = {
     };
   },
 
-  // সাধারণ username ভ্যালিডেশন
+  // Username Syntax Validation
   validateUsername: (username: string): ValidationResult => {
     const errors: string[] = [];
 
     if (!username || username.trim() === '') {
-      errors.push('ব্যবহারকারী নাম দিন।');
+      errors.push('Please enter a username.');
     } else if (username.length < 2) {
-      errors.push('ব্যবহারকারী নাম কমপক্ষে ২ অক্ষরের হতে হবে।');
+      errors.push('Username must be at least 2 characters.');
     } else if (username.length > 50) {
-      errors.push('ব্যবহারকারী নাম সর্বোচ্চ ৫০ অক্ষরের হতে পারে।');
+      errors.push('Username cannot exceed 50 characters.');
     } else if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-      errors.push('ব্যবহারকারী নাম শুধুমাত্র অক্ষর, সংখ্যা, - এবং _ ধারণ করতে পারে।');
+      errors.push('Username can only contain letters, numbers, hyphens, and underscores.');
     }
 
     return {
@@ -223,21 +223,21 @@ export const validator = {
     };
   },
 
-  // সময় ফরম্যাট ভ্যালিডেশন
+  // Time String Format Validation
   validateTimeFormat: (timeStr: string): ValidationResult => {
     const errors: string[] = [];
 
     if (!timeStr) {
-      errors.push('সময় দিন।');
+      errors.push('Please enter a time.');
     } else if (!/^\d{2}:\d{2}$/.test(timeStr)) {
-      errors.push('সঠিক সময় ফরম্যাট ব্যবহার করুন (HH:MM)।');
+      errors.push('Please use the correct time format (HH:MM).');
     } else {
       const [hours, minutes] = timeStr.split(':').map(Number);
       if (hours < 0 || hours > 23) {
-        errors.push('ঘণ্টা ০-২৩ এর মধ্যে হতে হবে।');
+        errors.push('Hours must be between 0 and 23.');
       }
       if (minutes < 0 || minutes > 59) {
-        errors.push('মিনিট ০-৫৯ এর মধ্যে হতে হবে।');
+        errors.push('Minutes must be between 0 and 59.');
       }
     }
 
@@ -247,19 +247,19 @@ export const validator = {
     };
   },
 
-  // তারিখ ফরম্যাট ভ্যালিডেশন
+  // Date String Format Validation
   validateDateFormat: (dateStr: string): ValidationResult => {
     const errors: string[] = [];
 
     if (!dateStr) {
-      errors.push('তারিখ দিন।');
+      errors.push('Please enter a date.');
     } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      errors.push('সঠিক তারিখ ফরম্যাট ব্যবহার করুন (YYYY-MM-DD)।');
+      errors.push('Please use the correct date format (YYYY-MM-DD).');
     } else {
       try {
         new Date(dateStr);
       } catch {
-        errors.push('অবৈধ তারিখ।');
+        errors.push('Invalid date.');
       }
     }
 

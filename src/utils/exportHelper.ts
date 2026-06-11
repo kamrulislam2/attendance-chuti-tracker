@@ -52,112 +52,6 @@ const escapeHtml = (unsafeStr: unknown): string => {
 };
 
 export const exportHelper = {
-  // Export individual staff report as CSV
-  exportIndividualCSV: (
-    userId: string,
-    recordsToExport: ChutiRecord[],
-    staffProfile: Profile | null,
-    sessionUser: SupabaseUser | null,
-    profile: Profile | null,
-    filters: {
-      selectedYear?: string;
-      filterType?: string;
-      filterStartDate?: string;
-      filterEndDate?: string;
-      searchTerm?: string;
-    },
-    onSuccess: () => void,
-    onError: (msg: string) => void
-  ) => {
-    const activeProfile = staffProfile || (userId === sessionUser?.id ? profile : null);
-    if (recordsToExport.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
-
-    const showOvertime = activeProfile?.allow_overtime === true;
-
-    const headers = ['Date', 'Leave Type', 'Adjustment Status', 'Sign In Time', 'Sign Out Time', 'Leave Hour'];
-    if (showOvertime) headers.push('Overtime');
-    headers.push('Comment', 'Status');
-
-    const rows = recordsToExport.map(record => {
-      let adjustmentVal = 'No';
-      if (record.adjustment) {
-        adjustmentVal = 'Yes';
-      } else if (record.adjusted_hour) {
-        const adjHourStr = record.adjusted_hour.toString().split('.')[0].substring(0, 5);
-        adjustmentVal = `Partial (${adjHourStr})`;
-      }
-
-      const signInStr = record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_in_time);
-      const signOutStr = record.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(record.sign_out_time);
-      const leaveHourStr = record.leave_type === 'Full Leave' || record.leave_type === 'Overtime' ? '-' : (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-');
-
-      const row = [
-        `="${formatDate(record.date)}"`, // force Excel to treat date as text
-        record.leave_type,
-        adjustmentVal,
-        signInStr,
-        signOutStr,
-        leaveHourStr
-      ];
-
-      if (showOvertime) {
-        const overtimeStr = record.leave_type === 'Overtime' ? (record.leave_hour ? record.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-';
-        row.push(overtimeStr);
-      }
-
-
-
-      row.push(
-        `="${(getCleanComment(record.comment) || '').replace(/"/g, '""')}"`,
-        record.status || ''
-      );
-
-      return row;
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-
-    let filename = `leave_report_${(activeProfile?.username || 'user').toUpperCase()}`;
-    if (filters.selectedYear && filters.selectedYear !== 'all') {
-      filename += `_year_${filters.selectedYear}`;
-    }
-    if (filters.filterType && filters.filterType !== 'all') {
-      filename += `_type_${filters.filterType.replace(/\s+/g, '_')}`;
-    }
-    if (filters.filterStartDate && filters.filterEndDate) {
-      filename += `_${filters.filterStartDate}_to_${filters.filterEndDate}`;
-    } else if (filters.filterStartDate) {
-      filename += `_from_${filters.filterStartDate}`;
-    } else if (filters.filterEndDate) {
-      filename += `_until_${filters.filterEndDate}`;
-    }
-    if (filters.searchTerm && filters.searchTerm.trim()) {
-      // sanitize search term for filename
-      const cleanSearch = filters.searchTerm.trim().replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, '_');
-      filename += `_search_${cleanSearch}`;
-    }
-    if (
-      (!filters.selectedYear || filters.selectedYear === 'all') &&
-      (!filters.filterType || filters.filterType === 'all') &&
-      !filters.filterStartDate &&
-      !filters.filterEndDate &&
-      (!filters.searchTerm || !filters.searchTerm.trim())
-    ) {
-      filename += `_${new Date().toISOString().split('T')[0]}`;
-    }
-    filename += '.csv';
-
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
-  },
 
   // Export individual staff report as Excel (HTML format)
   exportIndividualExcel: (
@@ -178,33 +72,33 @@ export const exportHelper = {
   ) => {
     const activeProfile = staffProfile || (userId === sessionUser?.id ? profile : null);
     if (recordsToExport.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
     const showOvertime = activeProfile?.allow_overtime === true;
 
     let headersHtml = `
-      <th>তারিখ</th>
-      <th>ধরন</th>
+      <th>Date</th>
+      <th>Type</th>
       <th>Adjustment</th>
-      <th>সাইন ইন/আউট</th>
-      <th>লিভ আওয়ার</th>
+      <th>Sign In/Out</th>
+      <th>Leave Hour</th>
     `;
-    if (showOvertime) headersHtml += `<th>ওভারটাইম</th>`;
+    if (showOvertime) headersHtml += `<th>Overtime</th>`;
     headersHtml += `
-      <th>মন্তব্য</th>
-      <th>অবস্থা</th>
+      <th>Comment</th>
+      <th>Status</th>
     `;
 
     let rowsHtml = '';
     recordsToExport.forEach(r => {
-      let adjustmentVal = 'না';
+      let adjustmentVal = 'No';
       if (r.adjustment) {
-        adjustmentVal = 'হ্যাঁ';
+        adjustmentVal = 'Yes';
       } else if (r.adjusted_hour) {
         const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
-        adjustmentVal = `আংশিক (${adjHourStr})`;
+        adjustmentVal = `Partial (${adjHourStr})`;
       }
 
       const signInStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
@@ -238,7 +132,7 @@ export const exportHelper = {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
-        <h3>ছুটির বিস্তারিত রিপোর্ট: ${escapeHtml(activeProfile?.full_name)} (${escapeHtml((activeProfile?.username || '').toUpperCase())})</h3>
+        <h3>Detailed Leave Report: ${escapeHtml(activeProfile?.full_name)} (${escapeHtml((activeProfile?.username || '').toUpperCase())})</h3>
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
@@ -293,76 +187,6 @@ export const exportHelper = {
     onSuccess();
   },
 
-  // Export summary report for all staff as CSV
-  exportSummaryCSV: (
-    staffProfiles: Profile[],
-    getUserSummaryStats: (id: string) => { full: number; short: string; overtime: string },
-    filters: {
-      selectedYear?: string;
-      filterType?: string;
-      filterStartDate?: string;
-      filterEndDate?: string;
-      searchQuery?: string;
-    },
-    onSuccess: () => void,
-    onError: (msg: string) => void
-  ) => {
-    if (staffProfiles.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
-
-    const headers = ['Full Name', 'Codename', 'Total Full Leave', 'Total Short Leave', 'Total Overtime'];
-    const rows = staffProfiles.map(p => {
-      const stats = getUserSummaryStats(p.id);
-      return [
-        `"${(p.full_name || '').replace(/"/g, '""')}"`,
-        p.username ? p.username.toUpperCase() : '',
-        stats.full,
-        stats.short,
-        p.allow_overtime ? stats.overtime : '-'
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-
-    let filename = 'staff_leaves_summary';
-    if (filters.selectedYear && filters.selectedYear !== 'all') {
-      filename += `_year_${filters.selectedYear}`;
-    }
-    if (filters.filterType && filters.filterType !== 'all') {
-      filename += `_type_${filters.filterType.replace(/\s+/g, '_')}`;
-    }
-    if (filters.filterStartDate && filters.filterEndDate) {
-      filename += `_${filters.filterStartDate}_to_${filters.filterEndDate}`;
-    } else if (filters.filterStartDate) {
-      filename += `_from_${filters.filterStartDate}`;
-    } else if (filters.filterEndDate) {
-      filename += `_until_${filters.filterEndDate}`;
-    }
-    if (filters.searchQuery && filters.searchQuery.trim()) {
-      const cleanSearch = filters.searchQuery.trim().replace(/[^a-zA-Z0-9\u0980-\u09FF_-]/g, '_');
-      filename += `_search_${cleanSearch}`;
-    }
-    if (
-      (!filters.selectedYear || filters.selectedYear === 'all') &&
-      (!filters.filterType || filters.filterType === 'all') &&
-      !filters.filterStartDate &&
-      !filters.filterEndDate &&
-      (!filters.searchQuery || !filters.searchQuery.trim())
-    ) {
-      filename += `_${new Date().toISOString().split('T')[0]}`;
-    }
-    filename += '.csv';
-
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
-  },
 
   // Export summary report for all staff as Excel (HTML format)
   exportSummaryExcel: (
@@ -379,7 +203,7 @@ export const exportHelper = {
     onError: (msg: string) => void
   ) => {
     if (staffProfiles.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
@@ -387,15 +211,15 @@ export const exportHelper = {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
-        <h3>স্টাফ ছুটির মাস্টার ডাটাবেজ সামারি</h3>
+        <h3>Staff Leave Master Database Summary</h3>
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
-              <th>স্টাফ নাম</th>
-              <th>কোডনেম</th>
-              <th>ফুল লিভ</th>
-              <th>শর্ট লিভ</th>
-              <th>ওভারটাইম</th>
+              <th>Staff Name</th>
+              <th>Codename</th>
+              <th>Full Leave</th>
+              <th>Short Leave</th>
+              <th>Overtime</th>
             </tr>
           </thead>
           <tbody>
@@ -480,13 +304,13 @@ export const exportHelper = {
   ) => {
     const activeProfile = staffProfile || (userId === sessionUser?.id ? profile : null);
     if (recordsToExport.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -495,12 +319,12 @@ export const exportHelper = {
 
     let rowsHtml = '';
     recordsToExport.forEach(r => {
-      let adjustmentVal = 'না';
+      let adjustmentVal = 'No';
       if (r.adjustment) {
-        adjustmentVal = 'হ্যাঁ';
+        adjustmentVal = 'Yes';
       } else if (r.adjusted_hour) {
         const adjHourStr = r.adjusted_hour.toString().split('.')[0].substring(0, 5);
-        adjustmentVal = `আংশিক (${adjHourStr})`;
+        adjustmentVal = `Partial (${adjHourStr})`;
       }
 
       const signInStr = r.leave_type === 'Full Leave' ? '-' : formatTimeToAMPM(r.sign_in_time);
@@ -525,7 +349,7 @@ export const exportHelper = {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>ছুটির বিস্তারিত রিপোর্ট - ${activeProfile?.full_name || 'Staff'}</title>
+        <title>Detailed Leave Report - ${activeProfile?.full_name || 'Staff'}</title>
         <meta charset="utf-8">
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
@@ -560,50 +384,50 @@ export const exportHelper = {
       </head>
       <body>
         <div class="header">
-          <h1>ছুটির বিস্তারিত রিপোর্ট</h1>
+          <h1>Detailed Leave Report</h1>
           <p>${activeProfile?.full_name} (${(activeProfile?.username || '').toUpperCase()})</p>
         </div>
         
         <div class="info-grid">
           <div class="info-card">
-            <strong>স্টাফ বিবরণী:</strong><br>
-            রোল: ${activeProfile?.job_role || activeProfile?.role}<br>
-            দৈনিক কর্মঘণ্টা: ${activeProfile?.working_hours || 9.5} ঘণ্টা (ব্রেক: ${activeProfile?.break_time || 0} মি.)
+            <strong>Staff Profile:</strong><br>
+            Role: ${activeProfile?.job_role || activeProfile?.role}<br>
+            Daily Working Hours: ${activeProfile?.working_hours || 9.5} hrs (Break: ${activeProfile?.break_time || 0}m)
           </div>
           <div class="info-card">
-            <strong>রিপোর্ট ফিল্টার:</strong><br>
-            বছর: ${filters.selectedYear || 'All'}<br>
-            তারিখ সীমা: ${filters.filterStartDate ? formatDate(filters.filterStartDate) : 'শুরু'} থেকে ${filters.filterEndDate ? formatDate(filters.filterEndDate) : 'শেষ'}
+            <strong>Report Filters:</strong><br>
+            Year: ${filters.selectedYear || 'All'}<br>
+            Date Range: ${filters.filterStartDate ? formatDate(filters.filterStartDate) : 'Start'} to ${filters.filterEndDate ? formatDate(filters.filterEndDate) : 'End'}
           </div>
         </div>
 
         <div class="stats-grid">
           <div class="stat-box">
-            <span>শর্ট লিভ</span>
-            <strong>${stats.shortHours} ঘণ্টা</strong>
+            <span>Short Leave</span>
+            <strong>${stats.shortHours} hrs</strong>
           </div>
           <div class="stat-box">
-            <span>ফুল লিভ</span>
-            <strong>${stats.fullLeaves} দিন</strong>
+            <span>Full Leave</span>
+            <strong>${stats.fullLeaves} days</strong>
           </div>
 
           ${showOvertime ? `<div class="stat-box">
-            <span>ওভারটাইম</span>
-            <strong>${stats.overtimeHours} ঘণ্টা</strong>
+            <span>Overtime</span>
+            <strong>${stats.overtimeHours} hrs</strong>
           </div>` : ''}
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>তারিখ</th>
-              <th>ধরন</th>
+              <th>Date</th>
+              <th>Type</th>
               <th>Adjustment</th>
-              <th>সাইন ইন/আউট</th>
-              <th>লিভ আওয়ার</th>
-              ${showOvertime ? '<th>ওভারটাইম</th>' : ''}
-              <th>মন্তব্য</th>
-              <th>অবস্থা</th>
+              <th>Sign In/Out</th>
+              <th>Leave Hour</th>
+              ${showOvertime ? '<th>Overtime</th>' : ''}
+              <th>Comment</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -641,13 +465,13 @@ export const exportHelper = {
     onError: (msg: string) => void
   ) => {
     if (staffProfiles.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -659,9 +483,9 @@ export const exportHelper = {
           <td>${p.full_name || ''}</td>
           <td>${(p.username || '').toUpperCase()}</td>
           <td>${p.job_role || p.role}</td>
-          <td>${stats.full} দিন</td>
-          <td>${stats.short} ঘণ্টা</td>
-          <td>${p.allow_overtime ? `${stats.overtime} ঘণ্টা` : '-'}</td>
+          <td>${stats.full} days</td>
+          <td>${stats.short} hrs</td>
+          <td>${p.allow_overtime ? `${stats.overtime} hrs` : '-'}</td>
         </tr>
       `;
     });
@@ -670,7 +494,7 @@ export const exportHelper = {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>স্টাফ ছুটির রেকর্ড সামারি রিপোর্ট</title>
+        <title>Staff Leave Summary Report</title>
         <meta charset="utf-8">
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
@@ -693,25 +517,25 @@ export const exportHelper = {
       </head>
       <body>
         <div class="header">
-          <h1>স্টাফ ছুটির উপস্থিতি বিবরণী সামারি রিপোর্ট</h1>
-          <p>অফিসিয়াল রিপোর্ট জেনারেটেড অন: ${new Date().toLocaleDateString('bn-BD')}</p>
+          <h1>Staff Leave Attendance Summary Report</h1>
+          <p>Official Report Generated On: ${new Date().toLocaleDateString('en-US')}</p>
         </div>
         
         <div class="filters-card">
-          <strong>রিপোর্ট ফিল্টার:</strong><br>
-          বছর: ${filters.selectedYear || 'All'}<br>
-          তারিখ সীমা: ${filters.filterStartDate ? formatDate(filters.filterStartDate) : 'শুরু'} থেকে ${filters.filterEndDate ? formatDate(filters.filterEndDate) : 'শেষ'}
+          <strong>Report Filters:</strong><br>
+          Year: ${filters.selectedYear || 'All'}<br>
+          Date Range: ${filters.filterStartDate ? formatDate(filters.filterStartDate) : 'Start'} to ${filters.filterEndDate ? formatDate(filters.filterEndDate) : 'End'}
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>স্টাফ নাম</th>
-              <th>কোডনেম</th>
-              <th>জব রোল / পদবি</th>
-              <th>ফুল লিভ</th>
-              <th>শর্ট লিভ</th>
-              <th>ওভারটাইম</th>
+              <th>Staff Name</th>
+              <th>Codename</th>
+              <th>Job Role</th>
+              <th>Full Leave</th>
+              <th>Short Leave</th>
+              <th>Overtime</th>
             </tr>
           </thead>
           <tbody>
@@ -734,40 +558,6 @@ export const exportHelper = {
     onSuccess();
   },
 
-  // Export Govt Holiday Responses as CSV
-  exportHolidayResponsesCSV: (
-    responses: any[],
-    onSuccess: () => void,
-    onError: (msg: string) => void
-  ) => {
-    if (responses.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
-      return;
-    }
-
-    const headers = ['Date', 'Holiday Name', 'Staff Name', 'Codename', 'Response Choice', 'Submitted At'];
-    const rows = responses.map(r => {
-      const staffName = r.profiles?.full_name || 'N/A';
-      const staffCode = r.profiles?.username ? r.profiles.username.toUpperCase() : 'N/A';
-      return [
-        `="${formatDate(r.holiday_date)}"`,
-        `="${(r.holiday_name || '').replace(/"/g, '""')}"`,
-        `="${staffName.replace(/"/g, '""')}"`,
-        staffCode,
-        r.response === 'paid' ? 'Get Paid' : 'Reserve',
-        r.created_at ? new Date(r.created_at).toLocaleString() : ''
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csvContent));
-    link.setAttribute('download', `govt_holiday_responses_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
-  },
 
   // Export Govt Holiday Responses as Excel
   exportHolidayResponsesExcel: (
@@ -776,7 +566,7 @@ export const exportHelper = {
     onError: (msg: string) => void
   ) => {
     if (responses.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
@@ -790,8 +580,8 @@ export const exportHelper = {
           <td>${escapeHtml(r.holiday_name)}</td>
           <td>${escapeHtml(staffName)}</td>
           <td>${escapeHtml(staffCode)}</td>
-          <td>${r.response === 'paid' ? 'পেমেন্ট নিবে' : 'রিজার্ভ রাখবে'}</td>
-          <td>${escapeHtml(r.created_at ? new Date(r.created_at).toLocaleString('bn-BD') : '')}</td>
+          <td>${r.response === 'paid' ? 'Get Paid' : 'Reserve'}</td>
+          <td>${escapeHtml(r.created_at ? new Date(r.created_at).toLocaleString('en-US') : '')}</td>
         </tr>
       `;
     });
@@ -800,16 +590,16 @@ export const exportHelper = {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
       <body>
-        <h3>সরকারি ছুটির স্টাফ রেসপন্সসমূহ</h3>
+        <h3>Govt Holiday Staff Responses</h3>
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
-              <th>ছুটির তারিখ</th>
-              <th>ছুটির নাম</th>
-              <th>স্টাফ নাম</th>
-              <th>কোডনেম</th>
-              <th>বিকল্প নির্বাচন</th>
-              <th>রেসপন্স সময়</th>
+              <th>Holiday Date</th>
+              <th>Holiday Name</th>
+              <th>Staff Name</th>
+              <th>Codename</th>
+              <th>Selection</th>
+              <th>Response Time</th>
             </tr>
           </thead>
           <tbody>
@@ -837,13 +627,13 @@ export const exportHelper = {
     onError: (msg: string) => void
   ) => {
     if (responses.length === 0) {
-      onError('রপ্তানি (Export) করার মতো কোনো ডাটা পাওয়া যায়নি!');
+      onError('No data found to export!');
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      onError('পপআপ উইন্ডো ওপেন করতে ব্যর্থ! অনুগ্রহ করে আপনার ব্রাউজারের পপআপ ব্লকার চেক করুন।');
+      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -856,8 +646,8 @@ export const exportHelper = {
           <td>${formatDate(r.holiday_date)}</td>
           <td>${r.holiday_name}</td>
           <td>${staffName} (${staffCode})</td>
-          <td><span class="status-badge ${r.response === 'paid' ? 'approved' : 'pending_supervisor'}">${r.response === 'paid' ? 'Get Paid (পেমেন্ট)' : 'Reserve (রিজার্ভ)'}</span></td>
-          <td>${r.created_at ? new Date(r.created_at).toLocaleString('bn-BD') : ''}</td>
+          <td><span class="status-badge ${r.response === 'paid' ? 'approved' : 'pending_supervisor'}">${r.response === 'paid' ? 'Get Paid' : 'Reserve'}</span></td>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleString('en-US') : ''}</td>
         </tr>
       `;
     });
@@ -866,7 +656,7 @@ export const exportHelper = {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>সরকারি ছুটির স্টাফ রেসপন্স রিপোর্ট</title>
+        <title>Govt Holiday Staff Response Report</title>
         <meta charset="utf-8">
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
@@ -890,18 +680,18 @@ export const exportHelper = {
       </head>
       <body>
         <div class="header">
-          <h1>সরকারি ছুটির স্টাফ রেসপন্স রিপোর্ট</h1>
-          <p>রিপোর্ট জেনারেটেড অন: ${new Date().toLocaleDateString('bn-BD')}</p>
+          <h1>Govt Holiday Staff Response Report</h1>
+          <p>Report Generated On: ${new Date().toLocaleDateString('en-US')}</p>
         </div>
         
         <table>
           <thead>
             <tr>
-              <th>ছুটির তারিখ</th>
-              <th>ছুটির নাম</th>
-              <th>স্টাফ নাম ও কোডনেম</th>
-              <th>বিকল্প নির্বাচন</th>
-              <th>রেসপন্স সময়</th>
+              <th>Holiday Date</th>
+              <th>Holiday Name</th>
+              <th>Staff Name & Codename</th>
+              <th>Selection</th>
+              <th>Response Time</th>
             </tr>
           </thead>
           <tbody>

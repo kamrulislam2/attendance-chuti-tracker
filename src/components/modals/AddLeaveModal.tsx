@@ -9,6 +9,8 @@ import { supabase } from '@/utils/supabase';
 import { LeaveUsageSummary } from '@/components/LeaveUsageSummary';
 import { AddLeaveFormFields } from '../AddLeaveFormFields';
 
+import { Modal } from '../Modal';
+
 interface AddLeaveModalProps {
   showAddLeaveModal: boolean;
   setShowAddLeaveModal: (val: boolean) => void;
@@ -153,180 +155,166 @@ export function AddLeaveModal({
     );
   }, [records, globalSettings.office_leave_default, selectedYear]);
 
-  if (!showAddLeaveModal) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md p-4">
-      <div className="flex min-h-full items-center justify-center">
-        <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-4xl p-6 md:p-8 relative overflow-hidden my-8">
-          <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[80px] pointer-events-none" />
-          
-          <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-5">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus className="h-5 w-5 text-blue-500" /> নতুন ছুটির এন্ট্রি দিন
-            </h3>
-            <button 
-              onClick={() => setShowAddLeaveModal(false)}
-              className="text-slate-450 hover:text-white text-sm cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Warning Banner */}
-          {isFullLeaveQuotaExceeded && (
-            <div className="p-3 bg-amber-955/50 border border-amber-900/50 text-amber-300 text-xs rounded-lg mb-4 flex items-start gap-2 animate-pulse">
-              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold block text-slate-200">ছুটির কোটা সীমা অতিক্রম করছে!</span>
-                <span className="text-[11px] block mt-0.5 text-slate-300">
-                  আপনার বার্ষিক ফুল লিভ লিমিট হলো {profile?.max_full_leaves ?? 15} দিন, কিন্তু আপনি ইতিমধ্যে {stats.fullLeaves} দিন ভোগ করেছেন।
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            <form onSubmit={handleSubmit} className="md:col-span-2 space-y-4 font-sans text-xs">
-              <AddLeaveFormFields
-                date={date}
-                setDate={setDate}
-                leaveType={leaveType}
-                setLeaveType={setLeaveType}
-                adjustmentCategory={adjustmentCategory}
-                setAdjustmentCategory={setAdjustmentCategory}
-                setAdjustment={setAdjustment}
-                adjustShortLeave={adjustShortLeave}
-                setAdjustShortLeave={setAdjustShortLeave}
-                signInTime={signInTime}
-                setSignInTime={setSignInTime}
-                signOutTime={signOutTime}
-                setSignOutTime={setSignOutTime}
-                leaveHour={leaveHour}
-                setLeaveHour={setLeaveHour}
-                comment={comment}
-                setComment={setComment}
-                bulkDates={bulkDates}
-                bulkAdjustments={bulkAdjustments}
-                handleAddBulkDate={handleAddBulkDate}
-                handleUpdateBulkDate={handleUpdateBulkDate}
-                handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
-                handleRemoveBulkDate={handleRemoveBulkDate}
-                allowOvertime={profile?.allow_overtime || false}
-                adjustment={adjustment}
-                availableOvertimeMins={parseHHMMToMinutes(stats.overtimeHours)}
-                availableShortLeaveMins={parseHHMMToMinutes(stats.shortHours)}
-                records={records}
-                govtHolidayRemaining={govtHolidayRemaining}
-                eidFitrRemaining={eidFitrRemaining}
-                eidAdhaRemaining={eidAdhaRemaining}
-                eligibleOfficeLeave={isOfficeLeaveEligible}
-              >
-                {/* Supervisor Selection (Conditional) */}
-                {profile?.needs_supervisor_approval !== false && supervisors.length > 0 && (
-                  <div className="space-y-2 bg-slate-955/60 p-3 rounded-lg border border-slate-800/80">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        সুপারভাইজার অনুমোদন (Supervisor Approval)
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {selectedSupervisors.length > 0 ? `${selectedSupervisors.length} জন নির্বাচিত` : 'সবাই নির্বাচিত'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-450">
-                      ছুটির আবেদনটি অনুমোদন করার জন্য নির্দিষ্ট সুপারভাইজার সিলেক্ট করুন। কোনো সুপারভাইজার সিলেক্ট না করলে সবার কাছেই নোটিফিকেশন যাবে।
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <label className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none ${
-                        selectedSupervisors.length === 0 
-                          ? 'border-blue-600 bg-blue-955/20 text-blue-400' 
-                          : 'border-slate-800 bg-slate-900/60 text-slate-300'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={selectedSupervisors.length === 0}
-                          onChange={() => setSelectedSupervisors([])}
-                          className="rounded border-slate-700 bg-slate-955 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
-                        />
-                        <span className="text-xs font-semibold">সবাই (All)</span>
-                      </label>
-                      
-                      {supervisors.map(sup => {
-                        const isChecked = selectedSupervisors.includes(sup.id);
-                        return (
-                          <label 
-                            key={sup.id} 
-                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none ${
-                              isChecked 
-                                ? 'border-blue-600 bg-blue-955/20 text-blue-400' 
-                                : 'border-slate-800 bg-slate-900/60 text-slate-300'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (isChecked) {
-                                  setSelectedSupervisors(selectedSupervisors.filter(id => id !== sup.id));
-                                } else {
-                                  setSelectedSupervisors([...selectedSupervisors, sup.id]);
-                                }
-                              }}
-                              className="rounded border-slate-700 bg-slate-955 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
-                            />
-                            <span className="text-xs font-semibold">
-                              {sup.username} {sup.full_name ? `(${sup.full_name})` : ''}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </AddLeaveFormFields>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddLeaveModal(false)}
-                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
-                >
-                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                  {submitting ? 'সাবমিট হচ্ছে...' : 'সাবমিট করুন'}
-                </button>
-              </div>
-            </form>
-
-            {/* Right Column: Balance & Limit display */}
-            <LeaveUsageSummary
-              selectedYear={selectedYear}
-              officeLeaveRemaining={officeLeaveRemaining}
-              officeLeaveTotal={officeLeaveTotal}
-              govtHolidayRemaining={govtHolidayRemaining}
-              govtHolidayTotal={govtHolidayTotal}
-              eidFitrRemaining={eidFitrRemaining}
-              eidFitrTotal={eidFitrTotal}
-              eidAdhaRemaining={eidAdhaRemaining}
-              eidAdhaTotal={eidAdhaTotal}
-              fullLeaves={stats.fullLeaves}
-              shortHours={stats.shortHours}
-              overtimeHours={stats.overtimeHours}
-              allowOvertime={profile?.allow_overtime}
-              eligibleOfficeLeave={profile?.eligible_office_leave !== false}
-              eligibleGovtHoliday={profile?.eligible_govt_holiday !== false}
-              halfYearlyStats={halfYearlyStats}
-            />
+    <Modal
+      isOpen={showAddLeaveModal}
+      onClose={() => setShowAddLeaveModal(false)}
+      title="New Leave Entry"
+      icon={<Plus className="h-5 w-5 text-orange-500" />}
+      maxWidthClass="max-w-4xl"
+    >
+      {/* Warning Banner */}
+      {isFullLeaveQuotaExceeded && (
+        <div className="p-3 bg-amber-955/50 border border-amber-900/50 text-amber-300 text-xs rounded-lg mb-4 flex items-start gap-2 animate-pulse">
+          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold block text-slate-200">Leave Quota Limit Exceeded!</span>
+            <span className="text-[11px] block mt-0.5 text-slate-300">
+              Your annual full leave limit is {profile?.max_full_leaves ?? 15} days, but you have already taken {stats.fullLeaves} days.
+            </span>
           </div>
         </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-4 font-sans text-xs">
+          <AddLeaveFormFields
+            date={date}
+            setDate={setDate}
+            leaveType={leaveType}
+            setLeaveType={setLeaveType}
+            adjustmentCategory={adjustmentCategory}
+            setAdjustmentCategory={setAdjustmentCategory}
+            setAdjustment={setAdjustment}
+            adjustShortLeave={adjustShortLeave}
+            setAdjustShortLeave={setAdjustShortLeave}
+            signInTime={signInTime}
+            setSignInTime={setSignInTime}
+            signOutTime={signOutTime}
+            setSignOutTime={setSignOutTime}
+            leaveHour={leaveHour}
+            setLeaveHour={setLeaveHour}
+            comment={comment}
+            setComment={setComment}
+            bulkDates={bulkDates}
+            bulkAdjustments={bulkAdjustments}
+            handleAddBulkDate={handleAddBulkDate}
+            handleUpdateBulkDate={handleUpdateBulkDate}
+            handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
+            handleRemoveBulkDate={handleRemoveBulkDate}
+            allowOvertime={profile?.allow_overtime || false}
+            adjustment={adjustment}
+            availableOvertimeMins={parseHHMMToMinutes(stats.overtimeHours)}
+            availableShortLeaveMins={parseHHMMToMinutes(stats.shortHours)}
+            records={records}
+            govtHolidayRemaining={govtHolidayRemaining}
+            eidFitrRemaining={eidFitrRemaining}
+            eidAdhaRemaining={eidAdhaRemaining}
+            eligibleOfficeLeave={isOfficeLeaveEligible}
+          >
+            {/* Supervisor Selection (Conditional) */}
+            {profile?.needs_supervisor_approval !== false && supervisors.length > 0 && (
+              <div className="space-y-2 bg-slate-955/60 p-3 rounded-lg border border-slate-800/80">
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Supervisor Approval
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {selectedSupervisors.length > 0 ? `${selectedSupervisors.length} Selected` : 'All Selected'}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-455">
+                  Select specific supervisors to approve the leave request. If none are selected, all supervisors will receive notifications.
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <label className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none ${
+                    selectedSupervisors.length === 0 
+                      ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                      : 'border-slate-800 bg-slate-900/60 text-slate-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSupervisors.length === 0}
+                      onChange={() => setSelectedSupervisors([])}
+                      className="rounded border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="text-xs font-semibold">All</span>
+                  </label>
+                  
+                  {supervisors.map(sup => {
+                    const isChecked = selectedSupervisors.includes(sup.id);
+                    return (
+                      <label 
+                        key={sup.id} 
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none ${
+                          isChecked 
+                            ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                            : 'border-slate-800 bg-slate-900/60 text-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSelectedSupervisors(selectedSupervisors.filter(id => id !== sup.id));
+                            } else {
+                              setSelectedSupervisors([...selectedSupervisors, sup.id]);
+                            }
+                          }}
+                          className="rounded border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                        />
+                        <span className="text-xs font-semibold">
+                          {sup.username} {sup.full_name ? `(${sup.full_name})` : ''}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </AddLeaveFormFields>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => setShowAddLeaveModal(false)}
+              className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+            >
+              {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+              {submitting ? 'Submitting...' : 'Submit Leave'}
+            </button>
+          </div>
+        </form>
+
+        {/* Right Column: Balance & Limit display */}
+        <LeaveUsageSummary
+          selectedYear={selectedYear}
+          officeLeaveRemaining={officeLeaveRemaining}
+          officeLeaveTotal={officeLeaveTotal}
+          govtHolidayRemaining={govtHolidayRemaining}
+          govtHolidayTotal={govtHolidayTotal}
+          eidFitrRemaining={eidFitrRemaining}
+          eidFitrTotal={eidFitrTotal}
+          eidAdhaRemaining={eidAdhaRemaining}
+          eidAdhaTotal={eidAdhaTotal}
+          fullLeaves={stats.fullLeaves}
+          shortHours={stats.shortHours}
+          overtimeHours={stats.overtimeHours}
+          allowOvertime={profile?.allow_overtime}
+          eligibleOfficeLeave={profile?.eligible_office_leave !== false}
+          eligibleGovtHoliday={profile?.eligible_govt_holiday !== false}
+          halfYearlyStats={halfYearlyStats}
+        />
       </div>
-    </div>
+    </Modal>
   );
 }

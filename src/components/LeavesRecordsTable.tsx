@@ -15,7 +15,6 @@ interface LeavesRecordsTableProps {
   filterEndDate: string;
   setFilterEndDate: (val: string) => void;
   onResetFilters: () => void;
-  onExportCSV: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportExcel: (filtered: ChutiRecord[], searchTerm: string) => void;
   onExportPDF: (filtered: ChutiRecord[], searchTerm: string) => void;
   onToggleAdjustment: (r: ChutiRecord) => void;
@@ -44,7 +43,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
   filterEndDate,
   setFilterEndDate,
   onResetFilters,
-  onExportCSV,
   onExportExcel,
   onExportPDF,
   onToggleAdjustment,
@@ -91,7 +89,6 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
         setFilterEndDate={setFilterEndDate}
         selectedYear={selectedYear}
         allowOvertime={allowOvertime}
-        onExportCSV={() => onExportCSV(filteredRecords, searchTerm)}
         onExportExcel={() => onExportExcel(filteredRecords, searchTerm)}
         onExportPDF={() => onExportPDF(filteredRecords, searchTerm)}
         onResetFilters={handleReset}
@@ -102,7 +99,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
         <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col lg:flex-row justify-between items-center gap-4">
           <div className="flex flex-col">
             <h3 className="text-base font-bold text-white">{title}</h3>
-            <span className="text-xs text-slate-400 mt-0.5">সর্বমোট: {filteredRecords.length}টি এন্ট্রি</span>
+            <span className="text-xs text-slate-400 mt-0.5">Total: {filteredRecords.length} {filteredRecords.length === 1 ? 'entry' : 'entries'}</span>
           </div>
           
           {/* Quick Search */}
@@ -112,10 +109,10 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
             </div>
             <input
               type="text"
-              placeholder="মন্তব্য বা ছুটির ধরণ দিয়ে খুঁজুন..."
+              placeholder="Search by comment or leave type..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-10 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
+              className="w-full pl-9 pr-10 py-1.5 bg-white border border-slate-800 rounded-lg text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs transition-all dark:bg-slate-955/80 dark:border-slate-800 dark:text-white dark:placeholder-slate-500"
             />
             {searchTerm && (
               <button
@@ -132,14 +129,14 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
           <div className="flex gap-2 shrink-0">
             <button
               onClick={onAddLeaveClick}
-              className="flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer transition-all border border-blue-700 shadow-md"
+              className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-orange-600 text-orange-600 dark:border-orange-500 dark:text-orange-500 hover:bg-orange-600/10 dark:hover:bg-orange-500/10 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" /> Add Leave
             </button>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-md"
+              className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer shadow-md"
             >
               <option value="all" className="bg-slate-900 text-white">All</option>
               {availableYears.map(y => (
@@ -160,14 +157,14 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
             <table className="min-w-full divide-y divide-slate-800">
               <thead className="bg-slate-950/60">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">তারিখ</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ধরন</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Adjustment</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">সাইন ইন/আউট</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">লিভ আওয়ার</th>
-                  {allowOvertime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ওভারটাইম</th>}
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">মন্তব্য</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">একশন</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign In/Out</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Hours</th>
+                  {allowOvertime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>}
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Comment</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Action</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
@@ -184,13 +181,13 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                           r.leave_type === 'Full Leave' 
                             ? 'bg-red-955/50 border border-red-800 text-red-300' 
                             : r.leave_type === 'Overtime'
                             ? 'bg-emerald-955/50 border border-emerald-800 text-emerald-300'
-                            : 'bg-blue-955/50 border border-blue-800 text-blue-300'
+                            : 'bg-orange-955/50 border border-orange-800 text-orange-300'
                         }`}>
                           {r.leave_type}
                         </span>
@@ -201,7 +198,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                             type="button"
                             onClick={() => onToggleAdjustment(r)}
                             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                              (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-blue-600' : 'bg-slate-800'
+                              (r.adjustment || r.adjusted_hour || r.reserve_adjustment_status === 'pending') ? 'bg-orange-600' : 'bg-slate-800'
                             }`}
                           >
                             <span
@@ -212,20 +209,20 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           </button>
                           <span className="text-xs font-semibold">
                             {r.reserve_adjustment_status === 'pending' ? (
-                              <span className="text-amber-400 animate-pulse font-semibold">পেন্ডিং</span>
+                              <span className="text-amber-400 animate-pulse font-semibold">Pending</span>
                             ) : r.adjustment ? (
-                              <span className="text-blue-400">হ্যাঁ</span>
+                              <span className="text-orange-400">Yes</span>
                             ) : r.adjusted_hour ? (
-                              <span className="text-cyan-400 font-mono">আংশিক ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
+                              <span className="text-cyan-400 font-mono">Partial ({r.adjusted_hour.toString().split('.')[0].substring(0, 5)})</span>
                             ) : r.reserve_adjustment_status === 'rejected' ? (
-                              <span className="text-slate-500">না (Rejected)</span>
+                              <span className="text-slate-500">No (Rejected)</span>
                             ) : (
-                              <span className="text-slate-500">না</span>
+                              <span className="text-slate-500">No</span>
                             )}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 font-mono">
                         {r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
@@ -246,7 +243,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                             <button
                               onClick={() => onRevisionClick(r)}
                               className="text-amber-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-amber-500/10 cursor-pointer transition-all animate-pulse"
-                              title="সংশোধন করুন (Revision)"
+                              title="Needs Review (Revision)"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
@@ -254,8 +251,8 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           {onEditClick && (
                             <button
                               onClick={() => onEditClick(r)}
-                              className="text-blue-400 hover:text-blue-300 p-1.5 rounded-lg hover:bg-blue-500/10 cursor-pointer transition-all"
-                              title="এডিট করুন (Admin Edit)"
+                              className="text-orange-400 hover:text-orange-300 p-1.5 rounded-lg hover:bg-orange-500/10 cursor-pointer transition-all"
+                              title="Admin Edit"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
@@ -263,7 +260,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           <button
                             onClick={() => onDeleteClick(r)}
                             className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 cursor-pointer transition-all"
-                            title="মুছে ফেলুন"
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -273,7 +270,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                         <div className="flex flex-col gap-1 items-end">
                           <StatusBadge record={r} />
                           {r.is_edited && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-955/40 border border-blue-800 text-blue-400">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-955/40 border border-orange-800 text-orange-400">
                               (Edited)
                             </span>
                           )}

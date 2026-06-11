@@ -1,6 +1,6 @@
 /**
  * Error Handler Utility
- * Centralized error management with user-friendly Bengali messages
+ * Centralized error management with user-friendly English messages
  */
 
 interface ErrorInfo {
@@ -10,45 +10,44 @@ interface ErrorInfo {
   severity: 'error' | 'warning' | 'info';
 }
 
-
 export const errorHandler = {
-  // ত্রুটি বার্তা ম্যাপিং
+  // Error Messages Mapping
   errorMessages: {
-    // অথেন্টিকেশন ত্রুটি
-    'auth_invalid_credentials': 'ব্যবহারকারী নাম বা পাসওয়ার্ড ভুল।',
-    'auth_user_not_found': 'এই ব্যবহারকারী বিদ্যমান নেই।',
-    'auth_invalid_token': 'সেশন মেয়াদ উত্তীর্ণ হয়েছে। আবার লগইন করুন।',
-    'auth_email_exists': 'এই ইমেইল ইতিমধ্যে ব্যবহৃত হয়েছে।',
-    'auth_weak_password': 'পাসওয়ার্ড খুব দুর্বল।',
+    // Authentication Errors
+    'auth_invalid_credentials': 'Invalid username or password.',
+    'auth_user_not_found': 'This user does not exist.',
+    'auth_invalid_token': 'Session expired. Please log in again.',
+    'auth_email_exists': 'This email is already in use.',
+    'auth_weak_password': 'Password is too weak.',
 
-    // ডাটাবেস ত্রুটি
-    'db_duplicate_key': 'এই তথ্য ইতিমধ্যে বিদ্যমান।',
-    'db_unique_violation': 'এই মান ইতিমধ্যে ব্যবহৃত হয়েছে।',
-    'db_not_found': 'অনুরোধ করা ডাটা পাওয়া যায়নি।',
-    'db_permission_denied': 'আপনার এই কাজ করার অনুমতি নেই।',
+    // Database Errors
+    'db_duplicate_key': 'This entry already exists.',
+    'db_unique_violation': 'This value is already in use.',
+    'db_not_found': 'Requested data was not found.',
+    'db_permission_denied': 'You do not have permission to perform this action.',
 
-    // নেটওয়ার্ক ত্রুটি
-    'network_timeout': 'সংযোগ সময় শেষ হয়েছে। আবার চেষ্টা করুন।',
-    'network_offline': 'ইন্টারনেট সংযোগ নেই।',
-    'network_error': 'নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।',
+    // Network Errors
+    'network_timeout': 'Connection timed out. Please try again.',
+    'network_offline': 'No internet connection.',
+    'network_error': 'Network error. Please try again.',
 
-    // ভ্যালিডেশন ত্রুটি
-    'validation_required': 'এই ফিল্ড প্রয়োজনীয়।',
-    'validation_format': 'ফরম্যাট সঠিক নয়।',
-    'validation_range': 'মান সীমার বাইরে।',
+    // Validation Errors
+    'validation_required': 'This field is required.',
+    'validation_format': 'Invalid format.',
+    'validation_range': 'Value out of range.',
 
-    // সার্ভার ত্রুটি
-    'server_internal': 'সার্ভার ত্রুটি। পরে আবার চেষ্টা করুন।',
-    'server_unavailable': 'সেবা এখন উপলব্ধ নয়।',
-    'server_maintenance': 'রক্ষণাবেক্ষণের জন্য সেবা বন্ধ।',
+    // Server Errors
+    'server_internal': 'Internal server error. Please try again later.',
+    'server_unavailable': 'Service is currently unavailable.',
+    'server_maintenance': 'Service is down for maintenance.',
 
-    // সাধারণ ত্রুটি
-    'unknown': 'কিছু ত্রুটি ঘটেছে। আবার চেষ্টা করুন।',
-    'operation_failed': 'অপারেশন ব্যর্থ হয়েছে।',
+    // General Errors
+    'unknown': 'Something went wrong. Please try again.',
+    'operation_failed': 'Operation failed.',
   } as Record<string, string>,
 
   /**
-   * Supabase error হ্যান্ডলিং
+   * Handle Supabase Errors
    */
   handleSupabaseError: (error: unknown): ErrorInfo => {
     const err = error as { code?: string | number; message?: string } | null | undefined;
@@ -58,7 +57,7 @@ export const errorHandler = {
     if (err?.code === '23505' || err?.message?.includes('duplicate')) {
       return {
         code: 'db_duplicate_key',
-        userMessage: 'এই তথ্য ইতিমধ্যে বিদ্যমান।',
+        userMessage: 'This entry already exists.',
         technicalMessage,
         severity: 'error'
       };
@@ -68,7 +67,7 @@ export const errorHandler = {
     if (err?.code === '42501' || err?.message?.includes('permission')) {
       return {
         code: 'db_permission_denied',
-        userMessage: 'আপনার এই কাজ করার অনুমতি নেই।',
+        userMessage: 'You do not have permission to perform this action.',
         technicalMessage,
         severity: 'error'
       };
@@ -78,7 +77,7 @@ export const errorHandler = {
     if (err?.code === '23503' || err?.message?.includes('foreign')) {
       return {
         code: 'db_not_found',
-        userMessage: 'সংযুক্ত রেকর্ড খুঁজে পাওয়া যায়নি।',
+        userMessage: 'Associated record was not found.',
         technicalMessage,
         severity: 'error'
       };
@@ -87,14 +86,14 @@ export const errorHandler = {
     // Default Supabase error
     return {
       code: 'server_error',
-      userMessage: err?.message || 'ডাটাবেস ত্রুটি ঘটেছে।',
+      userMessage: err?.message || 'A database error occurred.',
       technicalMessage,
       severity: 'error'
     };
   },
 
   /**
-   * নেটওয়ার্ক ত্রুটি হ্যান্ডলিং
+   * Handle Network Errors
    */
   handleNetworkError: (error: unknown): ErrorInfo => {
     const err = error as { code?: string | number; message?: string } | null | undefined;
@@ -103,7 +102,7 @@ export const errorHandler = {
     if (message.includes('timeout') || err?.code === 'ECONNABORTED') {
       return {
         code: 'network_timeout',
-        userMessage: 'সংযোগ সময় শেষ হয়েছে। আবার চেষ্টা করুন।',
+        userMessage: 'Connection timed out. Please try again.',
         technicalMessage: message,
         severity: 'error'
       };
@@ -112,7 +111,7 @@ export const errorHandler = {
     if (!navigator.onLine) {
       return {
         code: 'network_offline',
-        userMessage: 'ইন্টারনেট সংযোগ নেই।',
+        userMessage: 'No internet connection.',
         technicalMessage: message,
         severity: 'error'
       };
@@ -120,14 +119,14 @@ export const errorHandler = {
 
     return {
       code: 'network_error',
-      userMessage: 'নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।',
+      userMessage: 'Network error. Please try again.',
       technicalMessage: message,
       severity: 'error'
     };
   },
 
   /**
-   * যেকোনো ত্রুটি হ্যান্ডলিং
+   * General Error Handler
    */
   handleError: (error: unknown): ErrorInfo => {
     const err = error as { code?: string | number; message?: string } | null | undefined;
@@ -158,42 +157,42 @@ export const errorHandler = {
     // Default error
     return {
       code: 'unknown',
-      userMessage: 'কিছু ত্রুটি ঘটেছে। আবার চেষ্টা করুন।',
+      userMessage: 'Something went wrong. Please try again.',
       technicalMessage: message || (error instanceof Error ? error.message : String(error)),
       severity: 'error'
     };
   },
 
   /**
-   * ব্যবহারকারী-বান্ধব বার্তা পান
+   * Get User Friendly Message
    */
   getUserMessage: (code: string): string => {
     return errorHandler.errorMessages[code] || errorHandler.errorMessages['unknown'];
   },
 
   /**
-   * লগ করুন (ডেভেলপমেন্টে)
+   * Log context error in development
    */
   logError: (error: unknown, context?: string): void => {
     if (typeof window !== 'undefined' && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development')) {
-      console.error(`[Error] ${context || 'Unknown'}:`, error);
+      console.error(`[Error] ${context || 'Unknown context'}:`, error);
     }
   },
 
   /**
-   * সফলতার বার্তা
+   * Success Message Helper
    */
   getSuccessMessage: (action: string): string => {
     const messages: Record<string, string> = {
-      'create': 'সফলভাবে তৈরি করা হয়েছে।',
-      'update': 'সফলভাবে আপডেট করা হয়েছে।',
-      'delete': 'সফলভাবে ডিলিট করা হয়েছে।',
-      'approve': 'সফলভাবে অনুমোদন করা হয়েছে।',
-      'reject': 'সফলভাবে প্রত্যাখ্যান করা হয়েছে।',
-      'submit': 'সফলভাবে জমা দেওয়া হয়েছে।',
-      'sync': 'সফলভাবে সিঙ্ক করা হয়েছে।',
-      'export': 'সফলভাবে রপ্তানি করা হয়েছে।',
+      'create': 'Successfully created.',
+      'update': 'Successfully updated.',
+      'delete': 'Successfully deleted.',
+      'approve': 'Successfully approved.',
+      'reject': 'Successfully rejected.',
+      'submit': 'Successfully submitted.',
+      'sync': 'Successfully synced.',
+      'export': 'Successfully exported.',
     };
-    return messages[action] || 'সফলভাবে সম্পন্ন হয়েছে।';
+    return messages[action] || 'Successfully completed.';
   }
 };

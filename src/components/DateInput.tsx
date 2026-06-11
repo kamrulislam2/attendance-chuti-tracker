@@ -105,7 +105,7 @@ export const DateInput: React.FC<DateInputProps> = ({
         placeholder={placeholder}
         value={inputValue}
         onChange={handleTextChange}
-        className={`block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider placeholder-slate-600 ${className}`}
+        className={`block w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider placeholder-slate-600 ${className}`}
       />
       <div className="relative shrink-0 flex items-center justify-center">
         {/* Hidden native picker covering the calendar button */}
@@ -138,7 +138,7 @@ export const DateInput: React.FC<DateInputProps> = ({
             }
           }}
           className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 rounded-lg cursor-pointer transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          title="ক্যালেন্ডার খুলুন"
+          title="Open calendar"
         >
           <Calendar className="h-4 w-4" />
         </button>

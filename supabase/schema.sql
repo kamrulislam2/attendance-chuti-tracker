@@ -665,3 +665,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Enable Realtime for chuti and profiles tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+
+-- Create indexes for performance optimization
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chuti_bulk_id ON public.chuti(bulk_id) WHERE bulk_id IS NOT NULL;
+

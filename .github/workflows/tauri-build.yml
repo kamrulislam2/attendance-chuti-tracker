@@ -63,22 +63,24 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Office Chuti Tracker v__VERSION__"
           releaseBody: |
-            ### Office Chuti Tracker v__VERSION__ Desktop Release 🚀
+            ### Office Chuti Tracker v__VERSION__ (First Official Release) 🚀
 
-            Welcome to the official desktop release of **Office Chuti Tracker**!
+            Welcome to the first official release (v0.1.0) of **Office Chuti Tracker**!
 
             This application allows team members to track and log office leave records, overtime, and government holiday preferences.
 
             #### 🌟 Core Features:
             - **Modern Visual Styling**: Packaged with a vibrant Orange (`#ea580d`) color system in light mode and sleek pure black in dark mode.
-            - **Simplified Onboarding**: Admins only need to specify a codename (username) to create a new staff profile. The default password is set to `1234` for onboarding, and staff configure their profiles upon first login.
-            - **Export Controls**: Outline-styled exports to Excel (emerald green theme) and PDF (red theme) formats.
-            - **Robust Modal Scrolling & Closing**: Modals scroll cleanly on all device formats and require explicit Cancel/Esc/Close interaction (clicking outside is disabled).
-            - **Offline Synchronization**: Instant caching and synchronization when network connectivity changes.
+            - **Simplified Onboarding**: Admins only need to specify a codename (username) to create a new staff profile, removing weak defaults.
+            - **Export Controls**: Outline-styled exports to Excel (emerald green theme) and PDF (red theme) formats with strict HTML escaping for XSS protection.
+            - **Robust Modal Scrolling & Closing**: Modals scroll cleanly on all device formats and require explicit Cancel/Esc/Close interaction.
+            - **Offline Synchronization**: Instant caching and synchronization when network connectivity changes using IndexedDB.
 
             #### 📦 Installation:
-            - **Windows**: Download the `.msi` or `.exe` installer under the Assets section, run it, and follow the instructions.
-            - **macOS**: Download the `.dmg` or `.app` bundle, drag it to your Applications folder, and run it. (Note: On macOS, you may need to right-click and choose "Open" to bypass security warnings for unsigned apps).
+            - **Windows**: Download the `.msi` or `.exe` installer (x64) from the Assets, run it, and follow the instructions.
+            - **macOS (Intel)**: Download the `x86_64` `.dmg` installer, drag the app to your Applications folder, and run it.
+            - **macOS (Apple Silicon)**: Download the `aarch64` `.dmg` installer (for M1/M2/M3/M4 Macs), drag the app to your Applications folder, and run it.
+            *Note: On macOS, you may need to right-click and choose "Open" to bypass security warnings for unsigned apps.*
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}

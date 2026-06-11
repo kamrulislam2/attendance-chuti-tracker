@@ -237,13 +237,15 @@ VAPID_PRIVATE_KEY=your_vapid_private_key
 
 ## 🖥️ Desktop Application (Tauri Integration)
 
-We have integrated **Tauri v2** to package **Office Chuti Tracker** as a native desktop application for Windows.
+We have integrated **Tauri v2** to package **Office Chuti Tracker** as a native desktop application for **Windows** and **macOS** (Intel & Apple Silicon).
 
 ### Prerequisites
 
 To develop or build the desktop app locally, you need:
 - **Rust**: Install from [rustup.rs](https://rustup.rs/).
-- **C++ Build Tools**: Install Microsoft Visual Studio with C++ desktop development workload (for Windows).
+- **Platform Development Tools**:
+  - **Windows**: Install Microsoft Visual Studio with the "Desktop development with C++" workload.
+  - **macOS**: Install Xcode Command Line Tools via `xcode-select --install`.
 
 ### Development & Build Commands
 
@@ -251,16 +253,29 @@ To develop or build the desktop app locally, you need:
   ```bash
   npm run tauri dev
   ```
-- **Build Native Installers (`.msi` / `.exe`)**:
-  ```bash
-  npm run tauri build
-  ```
+- **Build Native Installers**:
+  - For local platform build:
+    ```bash
+    npm run tauri build
+    ```
+  - For cross-compiling macOS Intel target (on macOS):
+    ```bash
+    npm run tauri build -- --target x86_64-apple-darwin
+    ```
+  - For cross-compiling macOS Apple Silicon target (on macOS):
+    ```bash
+    npm run tauri build -- --target aarch64-apple-darwin
+    ```
 
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.0.0`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v0.1.0`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
-2. Set up Rust and compile the native Windows installers.
-3. Automatically attach the installers to a draft release on GitHub.
+2. Set up Rust toolchains.
+3. Compile three native target applications:
+   - **Windows (x64)** `.msi` / `.exe` installer.
+   - **macOS Intel (x86_64)** `.dmg` installer.
+   - **macOS Apple Silicon (aarch64)** `.dmg` installer.
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v0.1.0`).
 

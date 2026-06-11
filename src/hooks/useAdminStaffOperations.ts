@@ -72,8 +72,8 @@ export const useAdminStaffOperations = ({
   // --- Add New Staff Account states ---
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
-  const [newStaffPassword, setNewStaffPassword] = useState('1234');
-  const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('1234');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('');
   const [newStaffUsername, setNewStaffUsername] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('user');
   const [newStaffFullName, setNewStaffFullName] = useState('');
@@ -407,8 +407,12 @@ export const useAdminStaffOperations = ({
       setFirstTimePasswordError('Passwords do not match!');
       return;
     }
-    if (firstTimePassword.length < 4) {
-      setFirstTimePasswordError('Password must be at least 4 characters long!');
+    if (firstTimePassword.length < 6) {
+      setFirstTimePasswordError('Password must be at least 6 characters long!');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(firstTimePassword) || !/[0-9]/.test(firstTimePassword)) {
+      setFirstTimePasswordError('Password must include at least one letter and one number!');
       return;
     }
 
@@ -501,10 +505,10 @@ export const useAdminStaffOperations = ({
         }
       }
       
-      setMessage({ type: 'success', text: `New staff "${newStaffUsername.toUpperCase()}" successfully created with default password "1234"!` });
+      setMessage({ type: 'success', text: `New staff "${newStaffUsername.toUpperCase()}" successfully created! Please set their password via credentials.` });
       setShowCreateUserModal(false);
-      setNewStaffPassword('1234');
-      setNewStaffConfirmPassword('1234');
+      setNewStaffPassword('');
+      setNewStaffConfirmPassword('');
       setNewStaffUsername('');
       setNewStaffRole('user');
       setNewStaffFullName('');
@@ -540,8 +544,12 @@ export const useAdminStaffOperations = ({
       setMessage({ type: 'error', text: 'Passwords do not match!' });
       return;
     }
-    if (credNewPassword && credNewPassword.length < 4) {
-      setMessage({ type: 'error', text: 'Password must be at least 4 characters long!' });
+    if (credNewPassword && credNewPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters long!' });
+      return;
+    }
+    if (credNewPassword && (!/[a-zA-Z]/.test(credNewPassword) || !/[0-9]/.test(credNewPassword))) {
+      setMessage({ type: 'error', text: 'Password must include at least one letter and one number!' });
       return;
     }
     setUpdatingCredentials(true);

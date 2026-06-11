@@ -229,11 +229,11 @@ export const exportHelper = {
       const stats = getUserSummaryStats(p.id);
       html += `
         <tr>
-          <td>${p.full_name || ''}</td>
-          <td>${(p.username || '').toUpperCase()}</td>
-          <td>${stats.full}</td>
-          <td>${stats.short}</td>
-          <td>${p.allow_overtime ? stats.overtime : '-'}</td>
+          <td>${escapeHtml(p.full_name || '')}</td>
+          <td>${escapeHtml((p.username || '').toUpperCase())}</td>
+          <td>${escapeHtml(stats.full)}</td>
+          <td>${escapeHtml(stats.short)}</td>
+          <td>${p.allow_overtime ? escapeHtml(stats.overtime) : '-'}</td>
         </tr>
       `;
     });
@@ -333,14 +333,14 @@ export const exportHelper = {
 
       rowsHtml += `
         <tr>
-          <td>${formatDate(r.date)}</td>
-          <td>${r.leave_type}</td>
-          <td>${adjustmentVal}</td>
-          <td>${r.leave_type === 'Full Leave' ? '-' : `${signInStr} / ${signOutStr}`}</td>
-          <td>${leaveHourStr}</td>
-          ${showOvertime ? `<td>${r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}</td>` : ''}
-          <td>${getCleanComment(r.comment) || '-'}</td>
-          <td><span class="status-badge ${r.status}">${r.status}</span></td>
+          <td>${escapeHtml(formatDate(r.date))}</td>
+          <td>${escapeHtml(r.leave_type)}</td>
+          <td>${escapeHtml(adjustmentVal)}</td>
+          <td>${r.leave_type === 'Full Leave' ? '-' : escapeHtml(`${signInStr} / ${signOutStr}`)}</td>
+          <td>${escapeHtml(leaveHourStr)}</td>
+          ${showOvertime ? `<td>${escapeHtml(r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-')}</td>` : ''}
+          <td>${escapeHtml(getCleanComment(r.comment)) || '-'}</td>
+          <td><span class="status-badge ${escapeHtml(r.status || '')}">${escapeHtml(r.status)}</span></td>
         </tr>
       `;
     });
@@ -349,7 +349,7 @@ export const exportHelper = {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Detailed Leave Report - ${activeProfile?.full_name || 'Staff'}</title>
+        <title>Detailed Leave Report - ${escapeHtml(activeProfile?.full_name || 'Staff')}</title>
         <meta charset="utf-8">
         <style>
           body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
@@ -385,14 +385,14 @@ export const exportHelper = {
       <body>
         <div class="header">
           <h1>Detailed Leave Report</h1>
-          <p>${activeProfile?.full_name} (${(activeProfile?.username || '').toUpperCase()})</p>
+          <p>${escapeHtml(activeProfile?.full_name)} (${escapeHtml((activeProfile?.username || '').toUpperCase())})</p>
         </div>
         
         <div class="info-grid">
           <div class="info-card">
             <strong>Staff Profile:</strong><br>
-            Role: ${activeProfile?.job_role || activeProfile?.role}<br>
-            Daily Working Hours: ${activeProfile?.working_hours || 9.5} hrs (Break: ${activeProfile?.break_time || 0}m)
+            Role: ${escapeHtml(activeProfile?.job_role || activeProfile?.role)}<br>
+            Daily Working Hours: ${escapeHtml(activeProfile?.working_hours || 9.5)} hrs (Break: ${escapeHtml(activeProfile?.break_time || 0)}m)
           </div>
           <div class="info-card">
             <strong>Report Filters:</strong><br>
@@ -480,12 +480,12 @@ export const exportHelper = {
       const stats = getUserSummaryStats(p.id);
       rowsHtml += `
         <tr>
-          <td>${p.full_name || ''}</td>
-          <td>${(p.username || '').toUpperCase()}</td>
-          <td>${p.job_role || p.role}</td>
-          <td>${stats.full} days</td>
-          <td>${stats.short} hrs</td>
-          <td>${p.allow_overtime ? `${stats.overtime} hrs` : '-'}</td>
+          <td>${escapeHtml(p.full_name || '')}</td>
+          <td>${escapeHtml((p.username || '').toUpperCase())}</td>
+          <td>${escapeHtml(p.job_role || p.role)}</td>
+          <td>${escapeHtml(stats.full)} days</td>
+          <td>${escapeHtml(stats.short)} hrs</td>
+          <td>${p.allow_overtime ? `${escapeHtml(stats.overtime)} hrs` : '-'}</td>
         </tr>
       `;
     });
@@ -643,11 +643,11 @@ export const exportHelper = {
       const staffCode = r.profiles?.username ? r.profiles.username.toUpperCase() : 'N/A';
       rowsHtml += `
         <tr>
-          <td>${formatDate(r.holiday_date)}</td>
-          <td>${r.holiday_name}</td>
-          <td>${staffName} (${staffCode})</td>
+          <td>${escapeHtml(formatDate(r.holiday_date))}</td>
+          <td>${escapeHtml(r.holiday_name)}</td>
+          <td>${escapeHtml(staffName)} (${escapeHtml(staffCode)})</td>
           <td><span class="status-badge ${r.response === 'paid' ? 'approved' : 'pending_supervisor'}">${r.response === 'paid' ? 'Get Paid' : 'Reserve'}</span></td>
-          <td>${r.created_at ? new Date(r.created_at).toLocaleString('en-US') : ''}</td>
+          <td>${r.created_at ? escapeHtml(new Date(r.created_at).toLocaleString('en-US')) : ''}</td>
         </tr>
       `;
     });

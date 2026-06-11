@@ -157,8 +157,10 @@ export const validator = {
 
     if (!data.password || data.password.length === 0) {
       errors.push('Please enter a password.');
-    } else if (data.password.length < 4) {
-      errors.push('Password must be at least 4 characters.');
+    } else if (data.password.length < 6) {
+      errors.push('Password must be at least 6 characters.');
+    } else if (!/[a-zA-Z]/.test(data.password) || !/[0-9]/.test(data.password)) {
+      errors.push('Password must include at least one letter and one number.');
     }
 
     if (data.password !== data.confirmPassword) {

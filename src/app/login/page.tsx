@@ -70,28 +70,31 @@ export default function LoginPage() {
     let loginEmail = email.trim();
     if (!loginEmail.includes('@')) {
       try {
-        const { data: resolvedEmail } = await supabase.rpc('get_user_email_by_username', { p_username: loginEmail });
-        if (resolvedEmail) {
-          loginEmail = resolvedEmail;
-        } else {
-          // fallback mapping
-          if (loginEmail.toLowerCase().includes('admin') || loginEmail.toLowerCase() === 'kamrul') {
-            loginEmail = `${loginEmail.toLowerCase()}@admin.chuti`;
-          } else if (loginEmail.toLowerCase().includes('supervisor')) {
-            loginEmail = `${loginEmail.toLowerCase()}@supervisor.chuti`;
+        const res = await fetch('/api/resolve-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loginEmail }),
+        });
+        
+        if (res.ok) {
+          const { email: resolvedEmail } = await res.json();
+          if (resolvedEmail) {
+            loginEmail = resolvedEmail;
           } else {
-            loginEmail = `${loginEmail.toLowerCase()}@user.chuti`;
+            setError('Codename not found. Please check and try again.');
+            setLoading(false);
+            return;
           }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setError(errData.error || 'Failed to resolve login credentials.');
+          setLoading(false);
+          return;
         }
       } catch {
-        // fallback mapping
-        if (loginEmail.toLowerCase().includes('admin') || loginEmail.toLowerCase() === 'kamrul') {
-          loginEmail = `${loginEmail.toLowerCase()}@admin.chuti`;
-        } else if (loginEmail.toLowerCase().includes('supervisor')) {
-          loginEmail = `${loginEmail.toLowerCase()}@supervisor.chuti`;
-        } else {
-          loginEmail = `${loginEmail.toLowerCase()}@user.chuti`;
-        }
+        setError('Network error resolving login credentials.');
+        setLoading(false);
+        return;
       }
     }
 

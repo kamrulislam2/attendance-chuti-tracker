@@ -24,7 +24,13 @@ try {
   }
 
   console.log('Running Next.js production build...');
-  execSync('npx next build', { stdio: 'inherit' });
+  execSync('npx next build', { 
+    env: { 
+      ...process.env, 
+      IS_TAURI_BUILD: 'true' 
+    }, 
+    stdio: 'inherit' 
+  });
 
   console.log('Static export build completed successfully.');
 } catch (error) {

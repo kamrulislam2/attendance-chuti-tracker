@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  User, 
-  Clock, 
-  Calendar, 
-  ArrowLeft, 
-  AlertTriangle, 
-  Edit, 
+import {
+  User,
+  Clock,
+  Calendar,
+  ArrowLeft,
+  AlertTriangle,
+  Edit,
   Trash2,
   Settings,
   RotateCcw
@@ -14,11 +14,11 @@ import { Profile, ChutiRecordWithProfile, GovtHolidayResponse } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { LeavesRecordsTable } from './LeavesRecordsTable';
 import { StaffMasterTable } from './StaffMasterTable';
-import { 
-  formatDate, 
-  formatTimeToAMPM, 
-  getCleanComment, 
-  formatWorkingHours, 
+import {
+  formatDate,
+  formatTimeToAMPM,
+  getCleanComment,
+  formatWorkingHours,
   GlobalSettings,
   parseIntervalToMinutes,
   formatDuration,
@@ -179,9 +179,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const convertedHours = staffProfile?.converted_short_leaves_hours ?? 0;
 
   // Total full-day leaves taken: adjusted office + unadjusted full + reserve taken + converted days
-  const totalTaken = staffOfficeTaken 
+  const totalTaken = staffOfficeTaken
     + (staffStats.fullLeaves ?? 0)
-    + (staffStats.govtHolidaysTaken ?? 0) 
+    + (staffStats.govtHolidaysTaken ?? 0)
     + convertedDays;
 
   const totalAllowed = staffOfficeQuota + reservedCount;
@@ -195,7 +195,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const totalShortMins = parseIntervalToMinutes(staffStats.shortHours);
   const netShortMins = Math.max(0, totalShortMins - convertedHours * 60);
   const displayShortHours = formatDuration(netShortMins);
-  
+
   const displayFullLeaves = staffStats.fullLeaves + convertedDays;
 
   const workingHours = staffProfile?.working_hours ?? 9.5;
@@ -205,7 +205,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     if (!staffProfile) return;
     const maxDays = Math.floor(netShortMins / (workingHours * 60));
     const hoursText = (maxDays * workingHours).toFixed(1);
-    
+
     if (confirm(`Do you want to convert ${hoursText} hours of short leave into ${maxDays} days of full leave?\n(This will be subtracted from the staff's short leave balance and added to their full leave)`)) {
       onConvertShortLeaveToFullLeave(staffProfile.id, workingHours, netShortMins);
     }
@@ -216,21 +216,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     const activeHolidayDates = new Set((globalSettings.govt_holidays || []).map(h => parseHolidayItem(h).date));
     return holidayResponses.filter(r => {
       if (!activeHolidayDates.has(r.holiday_date)) return false;
-      
+
       const matchesDate = holidaySearchDate ? r.holiday_date === holidaySearchDate : true;
-      
+
       const searchLower = holidaySearchQuery.toLowerCase().trim();
       if (!searchLower) return matchesDate;
-      
+
       const employeeName = r.profiles?.full_name || '';
       const employeeCode = r.profiles?.username || '';
       const holidayName = r.holiday_name || '';
-      
-      const matchesQuery = 
+
+      const matchesQuery =
         employeeName.toLowerCase().includes(searchLower) ||
         employeeCode.toLowerCase().includes(searchLower) ||
         holidayName.toLowerCase().includes(searchLower);
-        
+
       return matchesDate && matchesQuery;
     });
   }, [holidayResponses, holidaySearchDate, holidaySearchQuery, globalSettings.govt_holidays]);
@@ -309,13 +309,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <div>
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {staffProfile?.full_name || 'Staff User'} ({staffProfile?.username ? staffProfile.username.toUpperCase() : ''})
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-                    staffProfile?.role === 'admin'
-                      ? 'bg-orange-955/60 border-orange-800 text-orange-300' 
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
+                      ? 'bg-orange-955/60 border-orange-800 text-orange-300'
                       : staffProfile?.role === 'supervisor'
-                      ? 'bg-amber-955/60 border-amber-805 text-amber-300'
-                      : 'bg-orange-955/60 border-orange-805 text-orange-300'
-                  }`}>
+                        ? 'bg-amber-955/60 border-amber-805 text-amber-300'
+                        : 'bg-orange-955/60 border-orange-805 text-orange-300'
+                    }`}>
                     {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                   </span>
                 </h2>
@@ -351,7 +350,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
 
           {/* Stats for the viewed staff */}
-          <UserStats 
+          <UserStats
             stats={{
               shortHours: displayShortHours,
               fullLeaves: displayFullLeaves,
@@ -371,7 +370,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           />
 
           {/* Filtering Panel for viewed staff */}
-          <LeavesRecordsTable 
+          <LeavesRecordsTable
             records={individualRecords}
             allowOvertime={staffProfile?.allow_overtime}
             filterType={filterType}
@@ -404,22 +403,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row w-full sm:w-auto bg-slate-900/40 backdrop-blur-xl p-1 rounded-xl border border-slate-850/80 self-center gap-1 sm:gap-0">
             <button
               onClick={() => setActiveTab('staff_master')}
-              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'staff_master'
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'staff_master'
                   ? 'bg-orange-600 text-white shadow-lg shadow-orange-950/40 border border-orange-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
-              }`}
+                }`}
             >
               <User className="h-4 w-4" />
               <span>Staff Leave Master Database</span>
             </button>
             <button
               onClick={() => setActiveTab('govt_responses')}
-              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'govt_responses'
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'govt_responses'
                   ? 'bg-teal-600 text-white shadow-lg shadow-teal-950/40 border border-teal-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
-              }`}
+                }`}
             >
               <Calendar className="h-4 w-4" />
               <span>Govt Holiday Response Report</span>
@@ -428,7 +425,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
           {activeTab === 'staff_master' ? (
             /* ================= STAFF MASTER DATABASE SUMMARY TABLE ================= */
-            <StaffMasterTable 
+            <StaffMasterTable
               profilesList={profilesList}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -443,7 +440,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             />
           ) : (
             /* ================= GOVT HOLIDAY RESPONSES TABLE REPORT ================= */
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-855 shadow-2xl rounded-2xl p-6 flex flex-col gap-4 animate-fade-in">
+            <div className="bg-slate-900/40 backdrop-blur-xl  shadow-2xl rounded-2xl p-6 flex flex-col gap-4 animate-fade-in">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2">
@@ -454,7 +451,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     Staff preferences and responses for government holidays (Paid vs Reserve)
                   </p>
                 </div>
-                
+
                 {/* Export buttons */}
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <button
@@ -536,7 +533,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       filteredResponses.map((resp) => {
                         const fullName = resp.profiles?.full_name || 'Staff';
                         const codeName = resp.profiles?.username ? resp.profiles.username.toUpperCase() : 'N/A';
-                        
+
                         return (
                           <tr key={resp.id} className="hover:bg-slate-800/40 transition-colors">
                             <td className="px-4 py-3 font-semibold text-slate-200">
@@ -549,11 +546,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                               {fullName} ({codeName})
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                resp.response === 'paid'
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${resp.response === 'paid'
                                   ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
                                   : 'bg-teal-955/60 border-teal-800 text-teal-300'
-                              }`}>
+                                }`}>
                                 {resp.response === 'paid' ? 'Get Paid' : 'Reserve'}
                               </span>
                             </td>

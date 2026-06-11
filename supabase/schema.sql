@@ -147,6 +147,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Revoke execute permissions on this function from PUBLIC (anon and authenticated)
+REVOKE EXECUTE ON FUNCTION public.get_user_email_by_username(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_user_email_by_username(TEXT) TO service_role;
+
 -- RPC function to create a new user (admin only)
 CREATE OR REPLACE FUNCTION public.create_new_user(
   p_email TEXT, 
@@ -644,6 +648,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.delete_push_subscription(p_sub_id UUID)
 RETURNS VOID AS $$
 BEGIN
+  -- Security check: only allow if user owns the sub, or is admin, or is service_role
+  IF NOT EXISTS (
+    SELECT 1 FROM public.push_subscriptions 
+    WHERE id = p_sub_id 
+      AND (
+        user_id = auth.uid() 
+        OR public.is_admin() 
+        OR auth.role() = 'service_role'
+      )
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: subscription not found or permission denied';
+  END IF;
+
   DELETE FROM public.push_subscriptions WHERE id = p_sub_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -656,6 +673,11 @@ CREATE OR REPLACE FUNCTION public.register_push_subscription(
 )
 RETURNS VOID AS $$
 BEGIN
+  -- Security check: user must match auth.uid() unless executing as service_role
+  IF auth.uid() <> p_user_id AND auth.role() <> 'service_role' THEN
+    RAISE EXCEPTION 'Unauthorized: cannot register push subscription for another user';
+  END IF;
+
   DELETE FROM public.push_subscriptions WHERE endpoint = p_endpoint;
   INSERT INTO public.push_subscriptions (user_id, endpoint, p256dh, auth)
   VALUES (p_user_id, p_endpoint, p_p256dh, p_auth);

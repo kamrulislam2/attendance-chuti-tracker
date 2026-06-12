@@ -66,25 +66,24 @@ jobs:
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
         with:
           tagName: v__VERSION__
-          releaseName: "Office Chuti Tracker v__VERSION__"
+          releaseName: "Chuti v__VERSION__"
           releaseBody: |
-            ### Office Chuti Tracker v__VERSION__ 🚀
+            ### Chuti v__VERSION__ 🚀
 
-            Welcome to version **v__VERSION__** of **Office Chuti Tracker**!
-
-            This release introduces the **Tauri Auto-Updater** feature for desktop applications and fixes critical login connectivity bugs.
-
-            #### 🌟 New in v0.1.1:
-            - **Tauri Auto-Updater**: App now automatically checks for updates in the background. When a new version is detected, it downloads silently and shows a "Restart to Update" notification banner.
-            - **CORS Login Resolution**: Fixed desktop login fetch failures by resolving endpoints dynamically to absolute Vercel endpoints and adding appropriate CORS responses on backend routes.
-            - **Rust Dependency Stability**: Pinned `time` crate version to `0.3.47` in lockfiles to resolve a compilation regression.
-            - **Custom Window Title**: Configured standard window title settings across builds.
+            #### 🌟 What's New:
+            - **Multi-size Windows Icon**: Setup `.exe` file and taskbar now properly display the Chuti logo (ICO with 16/32/48/64/128/256px embedded sizes).
+            - **Clean NSIS Installer**: Reverted to clean, standard installer layout with proper Chuti branding and developer info.
+            - **Startup Crash Fix**: Resolved blank/white screen on Windows and "Load failed" on macOS caused by missing Supabase environment variables during CI builds.
+            - **Safe Session Handling**: Wrapped all Supabase auth calls in try-catch blocks to prevent fatal crashes on connection drops.
+            - **Smart Push Toggle**: Desktop Notifications toggle is now hidden in Tauri desktop apps (not supported in system webview), only shown in browser.
+            - **Auto-Updater**: App checks for updates every 30 minutes. Future updates will auto-download and show a "Restart to Update" banner.
 
             #### 📦 Installation:
-            - **Windows**: Download the `.msi` or `.exe` installer (x64) from the Assets, run it, and follow the instructions.
-            - **macOS (Intel)**: Download the `x86_64` `.dmg` installer, drag the app to your Applications folder, and run it.
-            - **macOS (Apple Silicon)**: Download the `aarch64` `.dmg` installer (for M1/M2/M3/M4 Macs), drag the app to your Applications folder, and run it.
-            *Note: On macOS, you may need to right-click and choose "Open" to bypass security warnings for unsigned apps.*
-          releaseDraft: true
+            - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.
+            - **macOS (Intel)**: Download the `x86_64` `.dmg`, drag to Applications.
+            - **macOS (Apple Silicon)**: Download the `aarch64` `.dmg` (M1/M2/M3/M4), drag to Applications.
+
+            *Developed by Kamrul Islam, IT Officer, B&F Corporate.*
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}

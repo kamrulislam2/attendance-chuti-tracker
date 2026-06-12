@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PWARegister from "./pwa-register";
+import TauriUpdater from "@/components/TauriUpdater";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
@@ -65,6 +66,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-slate-955 text-slate-100">
         <PWARegister />
+        <TauriUpdater />
         {children}
         <SpeedInsights />
       </body>

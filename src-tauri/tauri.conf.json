@@ -26,6 +26,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -35,6 +36,15 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/kamrulislam2/attendance-chuti-tracker/releases/latest/download/latest.json"
+      ],
+      "pubkey": "RWTdwG4SF8CI9xPkkZj4ClmAqddDnbYZga8teB8KD37TDHZV+wlBChln"
     }
   }
 }

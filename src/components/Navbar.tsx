@@ -30,6 +30,7 @@ interface NavbarProps {
   pendingReserveRequestsCount: number;
   pendingProfileRequestsCount: number;
   adminActiveTab: 'user' | 'admin';
+  adminHolidayNotificationsCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingReserveRequestsCount,
   pendingProfileRequestsCount,
   adminActiveTab,
+  adminHolidayNotificationsCount,
 }) => {
   return (
     <header className="bg-slate-900/40 backdrop-blur-md border-b border-slate-900 px-4 py-4 sm:px-6 lg:px-8 z-10">
@@ -64,9 +66,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               Welcome, {profile?.full_name || 'User'} ({profile?.username ? profile.username.toUpperCase() : ''})
               <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${profile?.role === 'admin'
-                ? 'bg-orange-950/60 border-orange-800 text-orange-300'
+                ? 'bg-orange-955/60 border-orange-800 text-orange-300'
                 : profile?.role === 'supervisor'
-                  ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+                  ? 'bg-amber-955/60 border-amber-800 text-amber-300'
                   : 'bg-orange-955/60 border-orange-800 text-orange-300'
                 }`}>
                 {profile?.job_role || (profile?.role === 'admin' ? 'Admin' : (profile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
@@ -91,8 +93,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-3 flex-wrap">
           {/* Online/Offline Badge */}
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${isOnline
-            ? 'bg-emerald-950/50 border-emerald-800/80 text-emerald-400'
-            : 'bg-amber-950/50 border-amber-800/80 text-amber-400'
+            ? 'bg-emerald-955/50 border-emerald-800/80 text-emerald-400'
+            : 'bg-amber-955/50 border-amber-800/80 text-amber-400'
             }`}>
             {isOnline ? (
               <>
@@ -142,9 +144,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {groupedSupervisorRequestsCount + unreadUserNotificationsCount}
                 </span>
               )}
-              {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount) > 0 && (
+              {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + (adminHolidayNotificationsCount || 0)) > 0 && (
                 <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                  {groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount}
+                  {groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + (adminHolidayNotificationsCount || 0)}
                 </span>
               )}
               {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && unreadUserNotificationsCount > 0 && (

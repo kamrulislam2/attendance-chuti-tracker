@@ -70,13 +70,13 @@ jobs:
           releaseBody: |
             ### Chuti v__VERSION__ 🚀
 
-            #### 🌟 What's New:
-            - **Multi-size Windows Icon**: Setup `.exe` file and taskbar now properly display the Chuti logo (ICO with 16/32/48/64/128/256px embedded sizes).
-            - **Clean NSIS Installer**: Reverted to clean, standard installer layout with proper Chuti branding and developer info.
-            - **Startup Crash Fix**: Resolved blank/white screen on Windows and "Load failed" on macOS caused by missing Supabase environment variables during CI builds.
-            - **Safe Session Handling**: Wrapped all Supabase auth calls in try-catch blocks to prevent fatal crashes on connection drops.
-            - **Smart Push Toggle**: Desktop Notifications toggle is now hidden in Tauri desktop apps (not supported in system webview), only shown in browser.
-            - **Auto-Updater**: App checks for updates every 30 minutes. Future updates will auto-download and show a "Restart to Update" banner.
+            #### 🌟 What's New in v0.1.4:
+            - **Maximized Window on Launch**: The desktop app now launches in maximized state by default (filling the screen while keeping taskbar and title controls visible).
+            - **High-Quality Anti-Aliased Icons**: Icons are resampled using advanced Lanczos3 downscaling for extreme clarity across all resolutions on Windows/macOS.
+            - **Smart Govt Holiday Notifications**:
+              - *Reserve Enabled Users*: Notified to choose between Reserve / Get Paid. When chosen, the user is not spammed, and only the admin is notified (only in Admin Mode).
+              - *Reserve Disabled Users*: Automatically notified that their holiday payment will be added directly to their salary (no admin action required).
+            - **Smart Notification Separation**: Admin notifications regarding staff actions now only show when in Admin Mode (no longer cluttering the normal User Dashboard).
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

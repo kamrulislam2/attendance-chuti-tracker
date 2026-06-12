@@ -123,6 +123,7 @@ export default function Dashboard() {
     globalSettings,
     loading,
     initialFetchDone,
+    adminActiveTab,
   });
 
   const {
@@ -136,6 +137,7 @@ export default function Dashboard() {
     groupedChutiRequests,
     userNotificationsList,
     unreadUserNotificationsCount,
+    adminHolidayNotifications,
     staffProfile,
     individualRecords,
     staffStats,
@@ -583,6 +585,7 @@ export default function Dashboard() {
         pendingReserveRequestsCount={pendingReserveRequests.length}
         pendingProfileRequestsCount={pendingProfileRequests.length}
         adminActiveTab={adminActiveTab}
+        adminHolidayNotificationsCount={adminHolidayNotifications.length}
       />
 
       {/* Alert Messages */}
@@ -934,6 +937,7 @@ export default function Dashboard() {
         handleApproveReserveAdjustment={handleApproveReserveAdjustment}
         pendingProfileRequests={pendingProfileRequests}
         handleApproveProfileChangeRequest={handleApproveProfileChangeRequest}
+        adminHolidayNotifications={adminHolidayNotifications}
       />
 
       <AdminEditRecordModal

@@ -34,6 +34,7 @@ interface UseDerivedStateParams {
   globalSettings: GlobalSettings;
   loading: boolean;
   initialFetchDone: boolean;
+  adminActiveTab: 'user' | 'admin';
 }
 
 export function useDerivedState({
@@ -52,6 +53,7 @@ export function useDerivedState({
   globalSettings,
   loading,
   initialFetchDone,
+  adminActiveTab,
 }: UseDerivedStateParams) {
 
   // --- Record Filtering ---
@@ -200,23 +202,17 @@ export function useDerivedState({
         const response = holidayResponses.find(r => r.user_id === profile.id && r.holiday_date === holiday.date);
         
         if (response) {
-          if (response.response === 'reserve') {
+          // If reserve option is off, show them they will automatically get paid with salary
+          if (profile.allow_reserve === false) {
             list.push({
               id: `govt-holiday-choice-${holiday.date}`,
               type: 'govt_holiday_choice',
               timestamp: response.created_at || new Date(holiday.date).toISOString(),
-              title: 'Govt Holiday Reserved 📥',
-              body: `${holiday.name} (${formatDate(holiday.date)}) government holiday has been added to your reserve balance.`
-            });
-          } else {
-            list.push({
-              id: `govt-holiday-choice-${holiday.date}`,
-              type: 'govt_holiday_choice',
-              timestamp: response.created_at || new Date(holiday.date).toISOString(),
-              title: 'Govt Holiday Payment Approved 🎉',
-              body: `${holiday.name} (${formatDate(holiday.date)}) government holiday payment has been approved to be paid with your salary.`
+              title: 'Govt Holiday Payment Notification 💸',
+              body: `${holiday.name} (${formatDate(holiday.date)}) government holiday payment will be added to your salary.`
             });
           }
+          // If reserve option is on, they made the choice themselves, so NO user notification is needed.
         } else if (profile.allow_reserve !== false) {
           // Actionable prompt: only show if the user is allowed to reserve
           list.push({
@@ -232,23 +228,30 @@ export function useDerivedState({
       });
     }
 
-    // For Admin / Supervisor: inject all staff holiday responses as notifications
-    if (initialFetchDone && (profile.role === 'admin' || profile.role === 'supervisor')) {
+    // For Admin / Supervisor: inject staff holiday responses as notifications, BUT only if in Admin Mode and only for users with reserve enabled
+    if (initialFetchDone && (profile.role === 'admin' || profile.role === 'supervisor') && adminActiveTab === 'admin') {
       holidayResponses.forEach((r: any) => {
-        const staffName = r.profiles?.full_name || 'Staff';
-        const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
-        const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
-        const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
-          r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
-        }`;
-        
-        list.push({
-          id: `admin-holiday-resp-${r.id}`,
-          type: 'admin_holiday_response',
-          timestamp: r.created_at || new Date().toISOString(),
-          title,
-          body
-        });
+        // Find the staff profile to check if they have allow_reserve enabled
+        const staff = profilesList.find(p => p.id === r.user_id);
+        const isReserveEnabled = staff ? staff.allow_reserve !== false : true;
+
+        // Only notify admin if the staff member has reserve option ON
+        if (isReserveEnabled) {
+          const staffName = r.profiles?.full_name || 'Staff';
+          const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
+          const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
+          const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
+            r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
+          }`;
+          
+          list.push({
+            id: `admin-holiday-resp-${r.id}`,
+            type: 'admin_holiday_response',
+            timestamp: r.created_at || new Date().toISOString(),
+            title,
+            body
+          });
+        }
       });
     }
 
@@ -285,6 +288,40 @@ export function useDerivedState({
 
     return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading]);
+
+  // --- Admin/Supervisor Holiday Notifications ---
+  const adminHolidayNotifications = useMemo(() => {
+    if (!initialFetchDone || !sessionUser || !profile || profile.role !== 'admin') {
+      return [];
+    }
+
+    const list: NotificationItem[] = [];
+    holidayResponses.forEach((r: any) => {
+      // Find the staff profile to check if they have allow_reserve enabled
+      const staff = profilesList.find(p => p.id === r.user_id);
+      const isReserveEnabled = staff ? staff.allow_reserve !== false : true;
+
+      // Only notify admin if the staff member has reserve option ON
+      if (isReserveEnabled) {
+        const staffName = r.profiles?.full_name || 'Staff';
+        const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
+        const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
+        const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
+          r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
+        }`;
+        
+        list.push({
+          id: `admin-holiday-resp-${r.id}`,
+          type: 'admin_holiday_response',
+          timestamp: r.created_at || new Date().toISOString(),
+          title,
+          body
+        });
+      }
+    });
+
+    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [initialFetchDone, sessionUser, profile, holidayResponses, profilesList]);
 
   const unreadUserNotificationsCount = useMemo(() => 
     userNotificationsList.filter(
@@ -341,6 +378,7 @@ export function useDerivedState({
     // Notifications
     userNotificationsList,
     unreadUserNotificationsCount,
+    adminHolidayNotifications,
 
     // Staff view
     staffProfile,

@@ -10,7 +10,7 @@ A premium, modern, and offline-first Progressive Web App (PWA) built with **Next
 *   **Time Tracking**: Live tracking of daily working hours and break durations.
 *   **Sign-In / Sign-Out**: Single-click sign-in/out with customizable default timings.
 *   **Leave Requests**: Submit applications for 4 types of leaves (Full Leave, Short Leave, Overtime, and Reserve Holiday).
-*   **Government Holiday Response**: Select between taking a holiday payment ("Get Paid") or reserving it for future leaves ("Reserve") directly from interactive dashboard banners when admins publish new holidays.
+*   **Government Holiday Response**: Users with reserve options enabled can select between taking a holiday payment ("Get Paid") or reserving it for future leaves ("Reserve") directly from interactive dashboard banners. For users with reserve disabled, payment is automatically routed to salary with a direct notification (no admin intervention needed). Admin is only notified in Admin Mode for users who manually make choices.
 *   **Bulk Full Leave Entry & Single-Action Approval**: Dynamically submit up to 10 dates for Full Leave simultaneously using a "+" button in the interface. Prevents duplicate selection and inserts distinct database rows under a shared `bulk_id`. In the supervisor and admin dashboards, the request is grouped into a **single, unified action row** (displaying all dates as a comma-separated list), allowing the supervisor or admin to approve, reject, or request revision for the entire bulk package in one click.
 *   **Leave Adjustment**: Request adjustments (e.g., using accumulated overtime or reserve holidays to offset short leaves).
 *   **Personal Filtering Panel**: Filter personal records by category, year (with year-locked calendars), or custom date ranges.
@@ -164,7 +164,7 @@ npm run build
 *   **কাজের সময় ট্র্যাকিং**: দৈনিক মোট কাজের ঘণ্টা এবং ব্রেকের সময় সরাসরি ট্র্যাকিং।
 *   **সাইন-ইন / সাইন-আউট**: এক ক্লিকে সাইন-ইন/আউট করার সুবিধা এবং কাস্টম ডিফল্ট সময় সেট করা।
 *   **ছুটির আবেদন**: ৪ ধরণের ছুটির (ফুল লিভ, শর্ট লিভ, ওভারটাইম এবং রিজার্ভ হলিডে) আবেদন প্রক্রিয়া।
-*   **সরকারি ছুটির সিদ্ধান্ত (Get Paid vs Reserve)**: এডমিন নতুন সরকারি ছুটি যুক্ত করলে ড্যাশবোর্ডে সচল নোটিফিকেশন ব্যানারের মাধ্যমে অতিরিক্ত পেমেন্ট নিবেন ("Get Paid") নাকি ভবিষ্যতে ছুটি হিসেবে কাটানোর জন্য জমা রাখবেন ("Reserve") তা সরাসরি সিলেক্ট করার সুবিধা।
+*   **সরকারি ছুটির সিদ্ধান্ত (Get Paid vs Reserve)**: যার প্রোফাইলে সরকারি ছুটির রিজার্ভ অপশন চালু আছে, সে নোটিফিকেশন ব্যানার থেকে সরাসরি 'Reserve' বা 'Get Paid' নির্বাচন করতে পারবে। আর যার রিজার্ভ অপশন বন্ধ আছে, সে সরাসরি নোটিফিকেশন পাবে যে ছুটির পেমেন্ট বেতনের সাথে যোগ হবে। উভয় ক্ষেত্রেই অপ্রয়োজনীয় বাড়তি নোটিফিকেশন বা জটিলতা এড়ানো হয়েছে এবং এডমিন নোটিফিকেশন প্যানেলে শুধুমাত্র রিজার্ভ অপশন অন থাকা ব্যবহারকারীদের পছন্দগুলো রিয়েল-টাইমে দেখতে পাবেন।
 *   **বাল্ক ফুল লিভ এন্ট্রি ও একক অনুমোদন**: "Full Leave" সিলেক্ট করলে প্লাস (+) আইকন বোতামের সাহায্যে এক ক্লিকে সর্বোচ্চ ১০টি অতিরিক্ত তারিখ যোগ করার সুবিধা। ডুপ্লিকেট তারিখ নির্বাচন রোধের লাইভ সতর্কতা এবং প্রতিটি তারিখের আলাদা রেকর্ড একটি কমন `bulk_id` সহ ডাটাবেজে সংরক্ষিত হওয়ার সুবিধা। এছাড়া, সুপারভাইজার এবং অ্যাডমিনের এপ্রুভাল প্যানেলে এটিকে একক রিকোয়েস্ট (কমা দিয়ে তারিখগুলো সাজিয়ে) হিসেবে দেখাবে এবং মাত্র **এক ক্লিকে সম্পূর্ণ বাল্ক প্যাকেজটি অ্যাপ্রুভ বা রিভিশনে পাঠানো যাবে**।
 *   **ছুটি সমন্বয় (Adjustment)**: কাজের অতিরিক্ত ঘণ্টা (Overtime) বা জমে থাকা রিজার্ভ ডে দিয়ে শর্ট লিভ অ্যাডজাস্ট করার রিকোয়েস্ট পাঠানো।
 *   **ব্যক্তিগত ফিল্টারিং প্যানেল**: বছর-লকড ক্যালেন্ডার এবং ক্যাটাগরি দিয়ে নিজের ছুটির রেকর্ড ফিল্টার করা।

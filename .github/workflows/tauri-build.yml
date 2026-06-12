@@ -65,18 +65,17 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Office Chuti Tracker v__VERSION__"
           releaseBody: |
-            ### Office Chuti Tracker v__VERSION__ (First Official Release) 🚀
+            ### Office Chuti Tracker v__VERSION__ 🚀
 
-            Welcome to the first official release (v0.1.0) of **Office Chuti Tracker**!
+            Welcome to version **v__VERSION__** of **Office Chuti Tracker**!
 
-            This application allows team members to track and log office leave records, overtime, and government holiday preferences.
+            This release introduces the **Tauri Auto-Updater** feature for desktop applications and fixes critical login connectivity bugs.
 
-            #### 🌟 Core Features:
-            - **Modern Visual Styling**: Packaged with a vibrant Orange (`#ea580d`) color system in light mode and sleek pure black in dark mode.
-            - **Simplified Onboarding**: Admins only need to specify a codename (username) to create a new staff profile, removing weak defaults.
-            - **Export Controls**: Outline-styled exports to Excel (emerald green theme) and PDF (red theme) formats with strict HTML escaping for XSS protection.
-            - **Robust Modal Scrolling & Closing**: Modals scroll cleanly on all device formats and require explicit Cancel/Esc/Close interaction.
-            - **Offline Synchronization**: Instant caching and synchronization when network connectivity changes using IndexedDB.
+            #### 🌟 New in v0.1.1:
+            - **Tauri Auto-Updater**: App now automatically checks for updates in the background. When a new version is detected, it downloads silently and shows a "Restart to Update" notification banner.
+            - **CORS Login Resolution**: Fixed desktop login fetch failures by resolving endpoints dynamically to absolute Vercel endpoints and adding appropriate CORS responses on backend routes.
+            - **Rust Dependency Stability**: Pinned `time` crate version to `0.3.47` in lockfiles to resolve a compilation regression.
+            - **Custom Window Title**: Configured standard window title settings across builds.
 
             #### 📦 Installation:
             - **Windows**: Download the `.msi` or `.exe` installer (x64) from the Assets, run it, and follow the instructions.

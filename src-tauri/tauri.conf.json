@@ -27,8 +27,8 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
-    "publisher": "Kamrul Islam, IT Officer, B&F Corporate",
-    "copyright": "Developed by Kamrul Islam, IT Officer, B&F Corporate",
+    "publisher": "Kamrul Islam, IT Officer, B and F Corporate",
+    "copyright": "Developed by Kamrul Islam, IT Officer, B and F Corporate",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

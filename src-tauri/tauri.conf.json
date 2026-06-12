@@ -39,9 +39,7 @@
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",
-        "uninstallerIcon": "icons/icon.ico",
-        "headerImage": "icons/installer-header.bmp",
-        "sidebarImage": "icons/installer-sidebar.bmp"
+        "uninstallerIcon": "icons/icon.ico"
       }
     },
     "android": {

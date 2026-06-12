@@ -164,8 +164,8 @@ export function AdminProfileSettingsModal({
           )}
 
           <form onSubmit={handleUpdateSettings} className="space-y-4 font-sans">
-            {/* Web Push Notification Toggle */}
-            {!editingStaffProfileId && (
+            {/* Web Push Notification Toggle — hidden in Tauri desktop app (no Service Worker / Push API support in system webview) */}
+            {!editingStaffProfileId && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && !(window as any).__TAURI_INTERNALS__ && (
               <div className="push-notification-banner flex items-center justify-between p-3 bg-orange-955/45 rounded-lg border border-orange-900/35 mb-4 shadow-inner">
                 <div>
                   <span className="block text-sm font-semibold text-white">Desktop Notifications 🔔</span>

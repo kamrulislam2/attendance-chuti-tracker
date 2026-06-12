@@ -216,7 +216,8 @@ export async function sendPushNotification(params: {
   tag?: string;
 }): Promise<boolean> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
     if (!session) {
       console.warn('No active session to send push notification');
       return false;
@@ -231,11 +232,11 @@ export async function sendPushNotification(params: {
       body: JSON.stringify(params)
     });
 
-    const data = await response.json();
-    if (data.success !== true) {
-      console.warn('[WebPush] API failed to send notification:', data.error || data.message || JSON.stringify(data));
+    const resData = await response.json();
+    if (resData.success !== true) {
+      console.warn('[WebPush] API failed to send notification:', resData.error || resData.message || JSON.stringify(resData));
     }
-    return data.success === true;
+    return resData.success === true;
   } catch (error) {
     console.error('Error sending push notification:', error);
     return false;

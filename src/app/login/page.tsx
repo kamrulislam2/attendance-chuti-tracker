@@ -28,8 +28,10 @@ export default function LoginPage() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
+
+        const session = data?.session;
 
         if (session) {
           const userId = session.user.id;

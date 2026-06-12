@@ -446,82 +446,103 @@ export const useDashboardData = () => {
   // Check Authentication and Fetch Profile on Mount
   useEffect(() => {
     const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setInitialFetchDone(false);
-        router.push('/login');
-        return;
-      }
-
-      const userId = session.user.id;
-      const now = Date.now();
-      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-
-      const sessionStart = localStorage.getItem(`session_start_time_${userId}`);
-      const lastAccess = localStorage.getItem(`last_access_time_${userId}`);
-
-      if (sessionStart || lastAccess) {
-        const startAge = sessionStart ? now - parseInt(sessionStart, 10) : 0;
-        const accessAge = lastAccess ? now - parseInt(lastAccess, 10) : 0;
-
-        if (startAge > oneWeekMs || accessAge > oneWeekMs) {
-          localStorage.removeItem(`session_start_time_${userId}`);
-          localStorage.removeItem(`last_access_time_${userId}`);
-          await supabase.auth.signOut();
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Supabase session fetch error:', sessionError);
+          setInitialFetchDone(false);
+          setLoading(false);
           router.push('/login');
           return;
         }
-      }
 
-      if (!sessionStart) {
-        localStorage.setItem(`session_start_time_${userId}`, now.toString());
-      }
-      localStorage.setItem(`last_access_time_${userId}`, now.toString());
-
-      setSessionUser(session.user);
-
-      const savedMode = localStorage.getItem('admin_mode_' + userId);
-      if (savedMode === 'user' || savedMode === 'admin') {
-        setAdminActiveTab(savedMode as 'user' | 'admin');
-      }
-
-      // Fetch user profile
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (profileError || !userProfile) {
-        console.error('User profile not found. Logging out.', profileError);
-        localStorage.removeItem(`session_start_time_${userId}`);
-        localStorage.removeItem(`last_access_time_${userId}`);
-        try {
-          await supabase.auth.signOut();
-        } catch (e) {
-          console.error(e);
+        const session = data?.session;
+        if (!session) {
+          setInitialFetchDone(false);
+          setLoading(false);
+          router.push('/login');
+          return;
         }
+
+        const userId = session.user.id;
+        const now = Date.now();
+        const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+        const sessionStart = localStorage.getItem(`session_start_time_${userId}`);
+        const lastAccess = localStorage.getItem(`last_access_time_${userId}`);
+
+        if (sessionStart || lastAccess) {
+          const startAge = sessionStart ? now - parseInt(sessionStart, 10) : 0;
+          const accessAge = lastAccess ? now - parseInt(lastAccess, 10) : 0;
+
+          if (startAge > oneWeekMs || accessAge > oneWeekMs) {
+            localStorage.removeItem(`session_start_time_${userId}`);
+            localStorage.removeItem(`last_access_time_${userId}`);
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              console.error('Error signing out expired session:', signOutError);
+            }
+            router.push('/login');
+            return;
+          }
+        }
+
+        if (!sessionStart) {
+          localStorage.setItem(`session_start_time_${userId}`, now.toString());
+        }
+        localStorage.setItem(`last_access_time_${userId}`, now.toString());
+
+        setSessionUser(session.user);
+
+        const savedMode = localStorage.getItem('admin_mode_' + userId);
+        if (savedMode === 'user' || savedMode === 'admin') {
+          setAdminActiveTab(savedMode as 'user' | 'admin');
+        }
+
+        // Fetch user profile
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profileError || !userProfile) {
+          console.error('User profile not found. Logging out.', profileError);
+          localStorage.removeItem(`session_start_time_${userId}`);
+          localStorage.removeItem(`last_access_time_${userId}`);
+          try {
+            await supabase.auth.signOut();
+          } catch (e) {
+            console.error(e);
+          }
+          router.push('/login');
+          return;
+        }
+
+        setProfile(userProfile as Profile);
+
+        // Optimistically restore push preference from localStorage on reload
+        const savedPref = localStorage.getItem('push_subscribed_pref_' + userId);
+        setIsPushSubscribed(savedPref === 'true');
+
+        // Verify actual subscription status asynchronously
+        checkSubscriptionStatus(userId)
+          .then((status) => {
+            setIsPushSubscribed(status.isSubscribed);
+            localStorage.setItem('push_subscribed_pref_' + userId, status.isSubscribed ? 'true' : 'false');
+          })
+          .catch((err) => {
+            console.error('Error verifying push status:', err);
+          });
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Fatal exception in fetchSession:', err);
+        setInitialFetchDone(false);
+        setLoading(false);
         router.push('/login');
-        return;
       }
-
-      setProfile(userProfile as Profile);
-
-      // Optimistically restore push preference from localStorage on reload
-      const savedPref = localStorage.getItem('push_subscribed_pref_' + userId);
-      setIsPushSubscribed(savedPref === 'true');
-
-      // Verify actual subscription status asynchronously
-      checkSubscriptionStatus(userId)
-        .then((status) => {
-          setIsPushSubscribed(status.isSubscribed);
-          localStorage.setItem('push_subscribed_pref_' + userId, status.isSubscribed ? 'true' : 'false');
-        })
-        .catch((err) => {
-          console.error('Error verifying push status:', err);
-        });
-
-      setLoading(false);
     };
 
     fetchSession();

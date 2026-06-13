@@ -4,6 +4,7 @@
 DROP TABLE IF EXISTS public.chuti CASCADE;
 DROP TABLE IF EXISTS public.govt_holiday_responses CASCADE;
 DROP TABLE IF EXISTS public.push_subscriptions CASCADE;
+DROP TABLE IF EXISTS public.leave_settlements CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
 -- Drop trigger on auth.users
@@ -549,6 +550,7 @@ CREATE TABLE public.govt_holiday_responses (
   holiday_name TEXT NOT NULL,
   response TEXT NOT NULL CHECK (response IN ('paid', 'reserve')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by_admin BOOLEAN DEFAULT FALSE,
   CONSTRAINT unique_user_holiday UNIQUE (user_id, holiday_date)
 );
 
@@ -684,11 +686,52 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Enable Realtime for chuti and profiles tables
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+-- ==========================================
+-- 8. Leave Settlements Table
+-- ==========================================
+CREATE TABLE public.leave_settlements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  year VARCHAR(4) NOT NULL,
+  leave_category TEXT NOT NULL CHECK (leave_category IN ('Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Office Leave')),
+  remaining_days NUMERIC(4, 1) NOT NULL,
+  action_type TEXT NOT NULL CHECK (action_type IN ('carry_forward', 'payment')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed')),
+  processed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  processed_at TIMESTAMPTZ,
+  action_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_user_year_category UNIQUE (user_id, year, leave_category)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.leave_settlements ENABLE ROW LEVEL SECURITY;
+
+-- Policies for leave_settlements
+CREATE POLICY "Users can read own settlements"
+  ON public.leave_settlements
+  FOR SELECT
+  USING (auth.uid() = user_id OR public.is_admin() OR public.is_supervisor());
+
+CREATE POLICY "Users can insert own settlements"
+  ON public.leave_settlements
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins/supervisors can manage settlements"
+  ON public.leave_settlements
+  FOR ALL
+  USING (public.is_admin() OR public.is_supervisor())
+  WITH CHECK (public.is_admin() OR public.is_supervisor());
 
 -- Create indexes for performance optimization
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chuti_bulk_id ON public.chuti(bulk_id) WHERE bulk_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_leave_settlements_user_year ON public.leave_settlements(user_id, year);
+
+-- Enable Realtime for chuti, profiles, and leave_settlements tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.leave_settlements;
+
 

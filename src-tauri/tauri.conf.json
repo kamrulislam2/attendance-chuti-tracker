@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Chuti",
-  "version": "0.1.4",
-  "identifier": "com.chuti.app",
+  "version": "0.1.5",
+  "identifier": "com.chuti.tracker",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",

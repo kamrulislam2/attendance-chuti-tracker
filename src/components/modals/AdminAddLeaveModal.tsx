@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Calendar, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Calendar, AlertTriangle, Loader } from 'lucide-react';
 import { Profile } from '@/types';
 import { AddLeaveFormFields } from '@/components/AddLeaveFormFields';
 import { supabase } from '@/utils/supabase';
@@ -43,10 +43,12 @@ export function AdminAddLeaveModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userResponses, setUserResponses] = useState<any[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(true);
 
   // Fetch responses when staffProfile changes
   useEffect(() => {
     if (showModal && staffProfile) {
+      setLoadingResponses(true);
       const fetchUserResponses = async () => {
         const { data } = await supabase
           .from('govt_holiday_responses')
@@ -55,10 +57,12 @@ export function AdminAddLeaveModal({
         if (data) {
           setUserResponses(data);
         }
+        setLoadingResponses(false);
       };
       fetchUserResponses();
     } else {
       setUserResponses([]);
+      setLoadingResponses(false);
     }
   }, [showModal, staffProfile]);
 
@@ -116,12 +120,9 @@ export function AdminAddLeaveModal({
 
   const convertedDays = staffProfile?.converted_short_leaves_days ?? 0;
 
-  const totalAllowed = officeLeaveTotalBase + reservedCount;
+  const totalAllowed = officeLeaveTotalBase;
   const totalTaken = (stats.officeLeavesTaken ?? 0)
-    + (stats.eidFitrTaken ?? 0)
-    + (stats.eidAdhaTaken ?? 0)
     + (stats.fullLeaves ?? 0)
-    + (stats.govtHolidaysTaken ?? 0)
     + convertedDays;
 
   const officeLeaveTotal = totalAllowed;
@@ -132,6 +133,28 @@ export function AdminAddLeaveModal({
 
   const eidAdhaTotal = globalSettings.eid_adha_leave ?? 0;
   const eidAdhaRemaining = Math.max(0, eidAdhaTotal - (stats.eidAdhaTaken ?? 0));
+
+  // Real-time deduction preview logic based on modal state
+  let officeDeduction = 0;
+  let govtDeduction = 0;
+  let eidFitrDeduction = 0;
+  let eidAdhaDeduction = 0;
+
+  if (leaveType === 'Full Leave') {
+    const totalDays = 1 + bulkDates.length;
+    const adjustedDays = (adjustment ? 1 : 0) + bulkAdjustments.slice(0, bulkDates.length).filter(Boolean).length;
+    const unadjustedDays = totalDays - adjustedDays;
+
+    officeDeduction = unadjustedDays;
+
+    if (adjustmentCategory === 'Govt Holiday') {
+      govtDeduction = adjustedDays;
+    } else if (adjustmentCategory === 'Eid-ul-Fitr') {
+      eidFitrDeduction = adjustedDays;
+    } else if (adjustmentCategory === 'Eid-ul-Adha') {
+      eidAdhaDeduction = adjustedDays;
+    }
+  }
 
   const isFullLeaveQuotaExceeded = false;
 
@@ -267,84 +290,95 @@ export function AdminAddLeaveModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            <form onSubmit={handleSubmit} className="md:col-span-2 space-y-4 font-sans text-xs">
-              <AddLeaveFormFields
-                date={date}
-                setDate={setDate}
-                leaveType={leaveType}
-                setLeaveType={setLeaveType}
-                adjustmentCategory={adjustmentCategory}
-                setAdjustmentCategory={setAdjustmentCategory}
-                setAdjustment={setAdjustment}
-                adjustShortLeave={adjustShortLeave}
-                setAdjustShortLeave={setAdjustShortLeave}
-                signInTime={signInTime}
-                setSignInTime={setSignInTime}
-                signOutTime={signOutTime}
-                setSignOutTime={setSignOutTime}
-                leaveHour={leaveHour}
-                setLeaveHour={setLeaveHour}
-                comment={comment}
-                setComment={setComment}
-                bulkDates={bulkDates}
-                bulkAdjustments={bulkAdjustments}
-                handleAddBulkDate={handleAddBulkDate}
-                handleUpdateBulkDate={handleUpdateBulkDate}
-                handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
-                handleRemoveBulkDate={handleRemoveBulkDate}
-                allowOvertime={staffProfile.allow_overtime || false}
-                adjustment={adjustment}
-                availableOvertimeMins={parseHHMMToMinutes(stats.overtimeHours)}
-                availableShortLeaveMins={parseHHMMToMinutes(stats.shortHours)}
-                records={records}
+          {loadingResponses ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader className="h-8 w-8 animate-spin text-orange-500" />
+              <p className="mt-2 text-xs text-slate-400 font-medium font-sans">Loading leave data and holidays...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+              <form onSubmit={handleSubmit} className="md:col-span-2 space-y-4 font-sans text-xs">
+                <AddLeaveFormFields
+                  date={date}
+                  setDate={setDate}
+                  leaveType={leaveType}
+                  setLeaveType={setLeaveType}
+                  adjustmentCategory={adjustmentCategory}
+                  setAdjustmentCategory={setAdjustmentCategory}
+                  setAdjustment={setAdjustment}
+                  adjustShortLeave={adjustShortLeave}
+                  setAdjustShortLeave={setAdjustShortLeave}
+                  signInTime={signInTime}
+                  setSignInTime={setSignInTime}
+                  signOutTime={signOutTime}
+                  setSignOutTime={setSignOutTime}
+                  leaveHour={leaveHour}
+                  setLeaveHour={setLeaveHour}
+                  comment={comment}
+                  setComment={setComment}
+                  bulkDates={bulkDates}
+                  bulkAdjustments={bulkAdjustments}
+                  handleAddBulkDate={handleAddBulkDate}
+                  handleUpdateBulkDate={handleUpdateBulkDate}
+                  handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
+                  handleRemoveBulkDate={handleRemoveBulkDate}
+                  allowOvertime={staffProfile.allow_overtime || false}
+                  adjustment={adjustment}
+                  availableOvertimeMins={parseHHMMToMinutes(stats.overtimeHours)}
+                  availableShortLeaveMins={parseHHMMToMinutes(stats.shortHours)}
+                  records={records}
+                  govtHolidayRemaining={govtHolidayRemaining}
+                  eidFitrRemaining={eidFitrRemaining}
+                  eidAdhaRemaining={eidAdhaRemaining}
+                  eligibleOfficeLeave={isOfficeLeaveEligible}
+                  isAdmin={true}
+                />
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                    {submitting ? 'Adding...' : 'Add Leave'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Right Column: Balance & Limit display */}
+              <LeaveUsageSummary
+                selectedYear={selectedYear}
+                officeLeaveRemaining={officeLeaveRemaining}
+                officeLeaveTotal={officeLeaveTotal}
                 govtHolidayRemaining={govtHolidayRemaining}
+                govtHolidayTotal={govtHolidayTotal}
                 eidFitrRemaining={eidFitrRemaining}
+                eidFitrTotal={eidFitrTotal}
                 eidAdhaRemaining={eidAdhaRemaining}
-                eligibleOfficeLeave={isOfficeLeaveEligible}
-                isAdmin={true}
+                eidAdhaTotal={eidAdhaTotal}
+                fullLeaves={stats.fullLeaves}
+                shortHours={stats.shortHours}
+                overtimeHours={stats.overtimeHours}
+                allowOvertime={staffProfile?.allow_overtime}
+                eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
+                eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
+                halfYearlyStats={halfYearlyStats}
+                officeDeduction={officeDeduction}
+                govtDeduction={govtDeduction}
+                eidFitrDeduction={eidFitrDeduction}
+                eidAdhaDeduction={eidAdhaDeduction}
               />
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
-                >
-                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                  {submitting ? 'Adding...' : 'Add Leave'}
-                </button>
-              </div>
-            </form>
-
-            {/* Right Column: Balance & Limit display */}
-            <LeaveUsageSummary
-              selectedYear={selectedYear}
-              officeLeaveRemaining={officeLeaveRemaining}
-              officeLeaveTotal={officeLeaveTotal}
-              govtHolidayRemaining={govtHolidayRemaining}
-              govtHolidayTotal={govtHolidayTotal}
-              eidFitrRemaining={eidFitrRemaining}
-              eidFitrTotal={eidFitrTotal}
-              eidAdhaRemaining={eidAdhaRemaining}
-              eidAdhaTotal={eidAdhaTotal}
-              fullLeaves={stats.fullLeaves}
-              shortHours={stats.shortHours}
-              overtimeHours={stats.overtimeHours}
-              allowOvertime={staffProfile?.allow_overtime}
-              eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
-              eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
-              halfYearlyStats={halfYearlyStats}
-            />
-          </div>
+            </div>
+          )}
         </>
       )}
     </Modal>

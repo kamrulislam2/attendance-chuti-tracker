@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, History, Info } from 'lucide-react';
+import { Clock, Calendar, History, Info, Edit, RefreshCw, AlertTriangle } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { formatDate, HalfYearlyOfficeLeaveStats } from '@/utils/dashboardHelpers';
 
@@ -32,6 +32,17 @@ interface UserStatsProps {
   convertedHours?: number;
   onConvertToFullLeave?: () => void;
   hasConvertibleHours?: boolean;
+
+  // Admin Response Update props
+  isAdmin?: boolean;
+  userId?: string;
+  onUpdateHolidayResponse?: (targetUserId: string, holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => Promise<boolean>;
+
+  // Eid Holiday props
+  eidFitrRemaining?: number;
+  eidFitrTotal?: number;
+  eidAdhaRemaining?: number;
+  eidAdhaTotal?: number;
 }
 
 export const UserStats: React.FC<UserStatsProps> = ({
@@ -47,9 +58,51 @@ export const UserStats: React.FC<UserStatsProps> = ({
   convertedHours = 0,
   onConvertToFullLeave,
   hasConvertibleHours = false,
+  isAdmin = false,
+  userId,
+  onUpdateHolidayResponse,
+  eidFitrRemaining = 0,
+  eidFitrTotal = 0,
+  eidAdhaRemaining = 0,
+  eidAdhaTotal = 0,
 }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showOfficeDetailsModal, setShowOfficeDetailsModal] = useState(false);
+  const [updatingHolidayDate, setUpdatingHolidayDate] = useState<string | null>(null);
+
+  // Edit preference modal states
+  const [showEditPrefModal, setShowEditPrefModal] = useState(false);
+  const [editPrefHoliday, setEditPrefHoliday] = useState<{ date: string; name: string; response: string } | null>(null);
+  const [selectedPref, setSelectedPref] = useState<'reserve' | 'paid'>('reserve');
+
+  const handleEditHolidayResponse = async (holidayDate: string, holidayName: string, currentResponse: string) => {
+    if (!userId || !onUpdateHolidayResponse) return;
+    setEditPrefHoliday({ date: holidayDate, name: holidayName, response: currentResponse });
+    setSelectedPref(currentResponse as 'reserve' | 'paid');
+    setShowEditPrefModal(true);
+  };
+
+  const handleSavePref = async () => {
+    if (!userId || !onUpdateHolidayResponse || !editPrefHoliday) return;
+    
+    // If selected preference is the same as current, close immediately without any changes
+    if (selectedPref === editPrefHoliday.response) {
+      setShowEditPrefModal(false);
+      setEditPrefHoliday(null);
+      return;
+    }
+
+    setUpdatingHolidayDate(editPrefHoliday.date);
+    try {
+      await onUpdateHolidayResponse(userId, editPrefHoliday.date, editPrefHoliday.name, selectedPref);
+    } catch (err) {
+      console.error('Failed to update holiday response:', err);
+    } finally {
+      setUpdatingHolidayDate(null);
+      setShowEditPrefModal(false);
+      setEditPrefHoliday(null);
+    }
+  };
 
   // ESC key handler for inline modals
   useEffect(() => {
@@ -57,13 +110,17 @@ export const UserStats: React.FC<UserStatsProps> = ({
       if (e.key === 'Escape') {
         if (showHistoryModal) setShowHistoryModal(false);
         if (showOfficeDetailsModal) setShowOfficeDetailsModal(false);
+        if (showEditPrefModal) {
+          setShowEditPrefModal(false);
+          setEditPrefHoliday(null);
+        }
       }
     };
-    if (showHistoryModal || showOfficeDetailsModal) {
+    if (showHistoryModal || showOfficeDetailsModal || showEditPrefModal) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showHistoryModal, showOfficeDetailsModal]);
+  }, [showHistoryModal, showOfficeDetailsModal, showEditPrefModal]);
 
   // Office leave display determinations based on half-yearly split
   const showOfficeCard = eligibleOfficeLeave !== false && officeLeaveStats;
@@ -129,6 +186,32 @@ export const UserStats: React.FC<UserStatsProps> = ({
               <History className="h-3.5 w-3.5" />
             </button>
           ) : undefined}
+        />
+      )}
+
+      {/* Eid-ul-Fitr */}
+      {eidFitrRemaining > 0 && (
+        <StatCard
+          icon={Calendar}
+          iconBgClass="bg-amber-500/10"
+          iconColorClass="text-amber-400"
+          iconBorderClass="border-amber-500/20"
+          title="Eid-ul-Fitr Holiday (Remaining)"
+          value={`${eidFitrRemaining} days`}
+          subtitle={`Total Eid-ul-Fitr Holiday: ${eidFitrTotal} days`}
+        />
+      )}
+
+      {/* Eid-ul-Adha */}
+      {eidAdhaRemaining > 0 && (
+        <StatCard
+          icon={Calendar}
+          iconBgClass="bg-amber-500/10"
+          iconColorClass="text-amber-400"
+          iconBorderClass="border-amber-500/20"
+          title="Eid-ul-Adha Holiday (Remaining)"
+          value={`${eidAdhaRemaining} days`}
+          subtitle={`Total Eid-ul-Adha Holiday: ${eidAdhaTotal} days`}
         />
       )}
 
@@ -211,13 +294,30 @@ export const UserStats: React.FC<UserStatsProps> = ({
                           <td className="py-2.5 px-3 font-mono font-bold text-teal-400">{formatDate(h.date)}</td>
                           <td className="py-2.5 px-3 text-slate-200">{h.name}</td>
                           <td className="py-2.5 px-3 text-right">
-                            <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              h.response === 'reserve'
-                                ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
-                                : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
-                            }`}>
-                              {h.response === 'reserve' ? 'Reserve' : 'Paid'}
-                            </span>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                h.response === 'reserve'
+                                  ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
+                                  : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
+                              }`}>
+                                {h.response === 'reserve' ? 'Reserve' : 'Paid'}
+                              </span>
+                              {isAdmin && onUpdateHolidayResponse && userId && (
+                                <button
+                                  type="button"
+                                  disabled={updatingHolidayDate === h.date}
+                                  onClick={() => handleEditHolidayResponse(h.date, h.name, h.response)}
+                                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                                  title="Change Response Preference"
+                                >
+                                  {updatingHolidayDate === h.date ? (
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Edit className="h-3 w-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -326,6 +426,139 @@ export const UserStats: React.FC<UserStatsProps> = ({
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Holiday Preference Modal */}
+      {showEditPrefModal && editPrefHoliday && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-teal-900/10 blur-[80px] pointer-events-none" />
+            
+            <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Edit className="h-4 w-4 text-teal-400" /> Update Holiday Preference
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowEditPrefModal(false);
+                  setEditPrefHoliday(null);
+                }}
+                className="text-slate-450 hover:text-white text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Holiday Info */}
+              <div className="bg-slate-955/60 border border-slate-850 p-4 rounded-xl space-y-1.5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{editPrefHoliday.name}</h4>
+                    <span className="text-[11px] font-mono text-teal-400 font-bold">{formatDate(editPrefHoliday.date)}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    editPrefHoliday.response === 'reserve'
+                      ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
+                      : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
+                  }`}>
+                    Current: {editPrefHoliday.response === 'reserve' ? 'Reserve' : 'Paid'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Selection cards */}
+              <div className="space-y-3">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Select New Preference</label>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {/* Reserve Option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPref('reserve')}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      selectedPref === 'reserve'
+                        ? 'bg-teal-950/20 border-teal-500/80 shadow-[0_0_12px_rgba(20,184,166,0.15)]'
+                        : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                    }`}
+                  >
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      selectedPref === 'reserve' ? 'border-teal-400' : 'border-slate-600'
+                    }`}>
+                      {selectedPref === 'reserve' && <div className="w-2 h-2 rounded-full bg-teal-400 animate-scale-up" />}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-white block">Reserve Holiday</span>
+                      <span className="text-[10px] text-slate-400 leading-normal block mt-0.5">
+                        Employee can adjust any future leave against this holiday.
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Paid Option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPref('paid')}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      selectedPref === 'paid'
+                        ? 'bg-emerald-950/20 border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                        : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                    }`}
+                  >
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      selectedPref === 'paid' ? 'border-emerald-400' : 'border-slate-600'
+                    }`}>
+                      {selectedPref === 'paid' && <div className="w-2 h-2 rounded-full bg-emerald-400 animate-scale-up" />}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-white block">Get Paid (Payment)</span>
+                      <span className="text-[10px] text-slate-400 leading-normal block mt-0.5">
+                        Holiday is paid with salary. The adjustment will be removed and cannot be used for leave.
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Warning box if changing from Reserve to Paid */}
+              {editPrefHoliday.response === 'reserve' && selectedPref === 'paid' && (
+                <div className="bg-amber-955/20 border border-amber-900/50 p-3.5 rounded-xl flex items-start gap-2.5 animate-in slide-in-from-top-1 duration-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="text-[10.5px] text-amber-300 leading-relaxed font-medium">
+                    <span className="font-bold text-amber-400 block mb-0.5">⚠️ Warning: Unadjusting Leaves</span>
+                    Changing to 'Get Paid' will set any leaves previously adjusted against this holiday to 'No Adjustment'. These leaves will now count as standard Full Leave days instead.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-800/80 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditPrefModal(false);
+                  setEditPrefHoliday(null);
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updatingHolidayDate === editPrefHoliday.date}
+                onClick={handleSavePref}
+                className="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-550 hover:to-emerald-550 text-white rounded-lg text-xs font-bold shadow-md shadow-teal-950/20 hover:shadow-teal-900/30 cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {updatingHolidayDate === editPrefHoliday.date ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  'Save Preference'
+                )}
               </button>
             </div>
           </div>

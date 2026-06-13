@@ -279,3 +279,30 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v0.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
 4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v0.1.0`).
 
+---
+
+## 📜 Version History / Changelog
+
+### 🚀 v0.1.5 (Latest)
+* **Windows/macOS Startup Hang Fix**: Disabled PWA Service Worker (`sw.js`) registration in the Tauri desktop app context and added automatic unregistration of any old service worker instances to resolve cold boot white-screen issues.
+* **Safe Session Initialization**: Added a 4-second timeout protection (`Promise.race`) in Supabase getSession calls to prevent loading overlays from hanging indefinitely during poor network start-up.
+* **macOS Bundle Warning Fix**: Changed tauri bundle identifier to `com.chuti.tracker` to avoid collision warnings.
+* **Dynamic Eid Holiday Remaining Cards**: User dashboard now dynamically displays stats cards for Eid-ul-Fitr and Eid-ul-Adha holiday quotas if the user has remaining days (auto-hiding when fully adjusted or 0).
+* **Modal Loader Integrations**: Added loading spinner states inside AddLeaveModal and AdminAddLeaveModal to prevent async rendering glitches.
+* **Database Schema Fix**: Relocated ALTER PUBLICATION statement in schema.sql to prevent database query errors on clean setup.
+
+### 🚀 v0.1.4
+* **Maximized Window on Launch**: The desktop app now launches in maximized state by default (filling the screen while keeping taskbar and title controls visible).
+* **High-Quality Anti-Aliased Icons**: Icons are resampled using advanced Lanczos3 downscaling for extreme clarity across all resolutions on Windows/macOS.
+* **Smart Govt Holiday Notifications**:
+  - *Reserve Enabled Users*: Notified to choose between Reserve / Get Paid. When chosen, the user is not spammed, and only the admin is notified (only in Admin Mode).
+  - *Reserve Disabled Users*: Automatically notified that their holiday payment will be added directly to their salary (no admin action required).
+* **Smart Notification Separation**: Admin notifications regarding staff actions now only show when in Admin Mode (no longer cluttering the normal User Dashboard).
+
+### 🚀 v0.1.3
+* High-quality icon integration and maximized window default launcher adjustments.
+
+### 🚀 v0.1.2
+* Multi-size ICO generation, cleaner Tauri installer configuration, and automated build publishing pipeline setup.
+
+

@@ -5,6 +5,7 @@ export interface GlobalSettings {
   eid_fitr_leave: number;
   eid_adha_leave: number;
   govt_holidays: any[]; // Supports date strings or { date: string; name: string } objects
+  settlement_active_year?: string | null;
 }
 
 export const defaultGlobalSettings: GlobalSettings = {
@@ -34,7 +35,8 @@ export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
           office_leave_default: Number(gs.office_leave_default ?? 14),
           eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
           eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
-          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : []
+          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : [],
+          settlement_active_year: gs.settlement_active_year || null
         };
       }
     } catch (e) {
@@ -50,7 +52,8 @@ export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
           office_leave_default: Number(gs.office_leave_default ?? 14),
           eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
           eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
-          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : []
+          govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : [],
+          settlement_active_year: gs.settlement_active_year || null
         };
       }
     } catch (e) {
@@ -147,10 +150,10 @@ export const calculateStats = (records: ChutiRecord[]) => {
   records.forEach(r => {
     // Count only approved leaves in total counters
     if (r.status === 'approved') {
-      const isOfficeLeave = r.comment?.startsWith("Adjusted: Office Leave") || false;
-      const isEidFitr = r.comment?.startsWith("Adjusted: Eid-ul-Fitr") || false;
-      const isEidAdha = r.comment?.startsWith("Adjusted: Eid-ul-Adha") || false;
-      const isGovtHoliday = r.comment?.startsWith("Adjusted: Govt Holiday") || false;
+      const isOfficeLeave = r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave" || false);
+      const isEidFitr = r.adjustment && (r.comment?.includes("Eid-ul-Fitr") || r.reserve_holiday === "Eid-ul-Fitr" || false);
+      const isEidAdha = r.adjustment && (r.comment?.includes("Eid-ul-Adha") || r.reserve_holiday === "Eid-ul-Adha" || false);
+      const isGovtHoliday = r.adjustment && (r.comment?.includes("Govt Holiday") || r.reserve_holiday === "Govt Holiday" || false);
       const hasCategoryAdj = isOfficeLeave || isEidFitr || isEidAdha || isGovtHoliday;
 
       if (r.leave_type === 'Full Leave') {
@@ -339,13 +342,14 @@ export const calculateHalfYearlyOfficeLeave = (
   let h2Taken = 0;
 
   approvedRecs.forEach(r => {
-    // Only count full-day leaves (Full Leave or Reserve) that count against office leave
+    // Only count full-day leaves (Full Leave) that count against office leave
     const isFullLeave = r.leave_type === 'Full Leave';
     if (!isFullLeave) return;
 
-    // Check if it's adjusted to Govt Holiday (which uses govt holiday quota, not office leave)
-    const isGovtHolidayAdj = r.comment?.startsWith("Adjusted: Govt Holiday") || false;
-    if (isGovtHolidayAdj) return;
+    // Check if it should count against office leave: 
+    // It should count only if it is NOT adjusted, OR if it is adjusted specifically as "Office Leave".
+    const shouldCountAsOffice = !r.adjustment || (r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave"));
+    if (!shouldCountAsOffice) return;
 
     const month = parseInt(r.date.substring(5, 7), 10);
     if (month <= 6) {

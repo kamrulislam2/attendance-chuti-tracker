@@ -61,3 +61,21 @@ export interface GovtHolidayResponse {
     username: string;
   } | null;
 }
+
+export interface LeaveSettlement {
+  id: string;
+  user_id: string;
+  year: string;
+  leave_category: 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha' | 'Office Leave';
+  remaining_days: number;
+  action_type: 'carry_forward' | 'payment';
+  status: 'pending' | 'processed';
+  processed_by?: string | null;
+  processed_at?: string | null;
+  action_by?: string | null;
+  created_at?: string;
+  profiles?: {
+    full_name: string | null;
+    username: string;
+  } | null;
+}

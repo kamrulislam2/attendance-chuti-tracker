@@ -157,7 +157,7 @@ export const useAdjustmentOperations = ({
   };
 
   // Save Adjustment details
-  const handleSaveAdjustment = async (overrideAdjustShortLeave?: boolean) => {
+  const handleSaveAdjustment = async (overrideAdjustShortLeave?: boolean, adjustmentCategoryInput?: string) => {
     if (!adjustmentRecord || submitting) return;
     setSubmitting(true);
     const record = adjustmentRecord;
@@ -182,7 +182,22 @@ export const useAdjustmentOperations = ({
         const shouldAdjust = overrideAdjustShortLeave !== undefined ? overrideAdjustShortLeave : adjustShortLeaveOption;
         requestedUpdates = { adjustment: true, adjusted_hour: null, adjust_short_leave: shouldAdjust };
       } else {
-        requestedUpdates = { adjustment: true, adjusted_hour: null, adjust_short_leave: false };
+        const selectedCat = adjustmentCategoryInput || 'None';
+        const isCat = selectedCat !== 'None';
+        let cleanComment = record.comment || '';
+        // Clean any existing prefixes
+        cleanComment = cleanComment.replace(/Adjusted:\s*(?:Govt Holiday|Eid-ul-Fitr|Eid-ul-Adha|Office Leave)(?:\s*\|\s*)?/g, '').trim();
+        const finalComment = isCat 
+          ? `Adjusted: ${selectedCat}${cleanComment ? ` | ${cleanComment}` : ''}`
+          : cleanComment;
+
+        requestedUpdates = { 
+          adjustment: true, 
+          adjusted_hour: null, 
+          adjust_short_leave: false,
+          reserve_holiday: isCat ? selectedCat : null,
+          comment: finalComment || null
+        };
       }
 
       let updates: Record<string, unknown> = {};

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
@@ -90,6 +90,9 @@ export default function Dashboard() {
     handleSaveGlobalSettings,
     holidayResponses,
     handleSaveHolidayResponse,
+    handleAdminUpdateHolidayResponse,
+    leaveSettlements,
+    handleSaveLeaveSettlementsBulk,
     initialFetchDone,
   } = dashboardData;
 
@@ -105,6 +108,33 @@ export default function Dashboard() {
     }
     return new Date().getFullYear().toString();
   });
+
+  // State to track dismissed notifications (persistent in localStorage, cleaned after 24 hrs)
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<string>>(new Set());
+
+  // Load and clean up old dismissed notifications
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('dismissed_notifications');
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, number>;
+        const now = Date.now();
+        const fresh: Record<string, number> = {};
+        const freshIds = new Set<string>();
+        
+        for (const [id, timestamp] of Object.entries(parsed)) {
+          if (now - timestamp < 24 * 60 * 60 * 1000) {
+            fresh[id] = timestamp;
+            freshIds.add(id);
+          }
+        }
+        localStorage.setItem('dismissed_notifications', JSON.stringify(fresh));
+        setDismissedNotificationIds(freshIds);
+      }
+    } catch (e) {
+      console.error('Failed to load dismissed notifications:', e);
+    }
+  }, []);
 
   // Derived state (filtering, grouping, notifications, stats)
   const derivedState = useDerivedState({
@@ -124,6 +154,7 @@ export default function Dashboard() {
     loading,
     initialFetchDone,
     adminActiveTab,
+    dismissedNotificationIds,
   });
 
   const {
@@ -143,6 +174,29 @@ export default function Dashboard() {
     staffStats,
     availableYears,
   } = derivedState;
+
+  // Dismiss currently visible notifications from the panel
+  const handleDismissNotifications = (type: 'user' | 'admin') => {
+    const listToDismiss = type === 'user' ? userNotificationsList : adminHolidayNotifications;
+    if (!listToDismiss || listToDismiss.length === 0) return;
+    
+    try {
+      const stored = localStorage.getItem('dismissed_notifications');
+      const current = stored ? JSON.parse(stored) as Record<string, number> : {};
+      const now = Date.now();
+      
+      const newIds = new Set(dismissedNotificationIds);
+      listToDismiss.forEach((n: any) => {
+        current[n.id] = now;
+        newIds.add(n.id);
+      });
+      
+      localStorage.setItem('dismissed_notifications', JSON.stringify(current));
+      setDismissedNotificationIds(newIds);
+    } catch (e) {
+      console.error('Failed to dismiss notifications:', e);
+    }
+  };
 
   // Leave operations controller
   const chutiOps = useChutiOperations({
@@ -651,6 +705,8 @@ export default function Dashboard() {
             holidayResponses={holidayResponses}
             onSaveHolidayResponse={handleSaveHolidayResponse}
             initialFetchDone={initialFetchDone}
+            leaveSettlements={leaveSettlements}
+            onSaveLeaveSettlementsBulk={handleSaveLeaveSettlementsBulk}
           />
         )}
 
@@ -698,6 +754,11 @@ export default function Dashboard() {
             holidayResponses={holidayResponses}
             onExportHolidayResponsesExcel={handleExportHolidayResponsesExcel}
             onExportHolidayResponsesPDF={handleExportHolidayResponsesPDF}
+            onUpdateHolidayResponse={handleAdminUpdateHolidayResponse}
+            leaveSettlements={leaveSettlements}
+            onSaveLeaveSettlementsBulk={handleSaveLeaveSettlementsBulk}
+            adminRecords={adminRecords}
+            currentUserProfile={profile}
           />
         )}
 
@@ -814,7 +875,12 @@ export default function Dashboard() {
 
       <UserNotificationsModal
         showUserNotificationsModal={showUserNotificationsModal}
-        setShowUserNotificationsModal={setShowUserNotificationsModal}
+        setShowUserNotificationsModal={(val) => {
+          if (!val) {
+            handleDismissNotifications('user');
+          }
+          setShowUserNotificationsModal(val);
+        }}
         userNotificationsList={userNotificationsList}
         adminActiveTab={adminActiveTab}
         setShowLeaveApprovalModal={setShowLeaveApprovalModal}
@@ -853,6 +919,9 @@ export default function Dashboard() {
         setPartialAdjustmentTime={setPartialAdjustmentTime}
         setAdjustShortLeaveOption={setAdjustShortLeaveOption}
         handleSaveAdjustment={handleSaveAdjustment}
+        records={adjustmentRecord ? (adminActiveTab === 'admin' ? adminRecords : userRecords).filter(r => r.user_id === adjustmentRecord.user_id) : []}
+        holidayResponses={adjustmentRecord ? holidayResponses.filter(r => r.user_id === adjustmentRecord.user_id) : []}
+        globalSettings={globalSettings}
       />
 
       {/* Supervisor Approval & Revision Prompt Modals */}
@@ -925,7 +994,12 @@ export default function Dashboard() {
 
       <AdminLeaveApprovalModal
         showLeaveApprovalModal={showLeaveApprovalModal}
-        setShowLeaveApprovalModal={setShowLeaveApprovalModal}
+        setShowLeaveApprovalModal={(val) => {
+          if (!val) {
+            handleDismissNotifications('admin');
+          }
+          setShowLeaveApprovalModal(val);
+        }}
         profile={profile}
         groupedChutiRequests={groupedChutiRequests}
         profilesList={profilesList}

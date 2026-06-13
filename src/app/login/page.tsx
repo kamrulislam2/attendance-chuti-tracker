@@ -28,7 +28,11 @@ export default function LoginPage() {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<any>((_, reject) =>
+          setTimeout(() => reject(new Error('Supabase session fetch timed out')), 4000)
+        );
+        const { data, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
         if (sessionError) throw sessionError;
 
         const session = data?.session;

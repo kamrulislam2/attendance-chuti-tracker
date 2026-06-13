@@ -35,6 +35,7 @@ interface UseDerivedStateParams {
   loading: boolean;
   initialFetchDone: boolean;
   adminActiveTab: 'user' | 'admin';
+  dismissedNotificationIds?: Set<string>;
 }
 
 export function useDerivedState({
@@ -54,6 +55,7 @@ export function useDerivedState({
   loading,
   initialFetchDone,
   adminActiveTab,
+  dismissedNotificationIds,
 }: UseDerivedStateParams) {
 
   // --- Record Filtering ---
@@ -211,8 +213,17 @@ export function useDerivedState({
               title: 'Govt Holiday Payment Notification 💸',
               body: `${holiday.name} (${formatDate(holiday.date)}) government holiday payment will be added to your salary.`
             });
+          } else if (response.updated_by_admin) {
+            // If the preference was updated by the admin, notify the user.
+            list.push({
+              id: `govt-holiday-admin-update-${holiday.date}`,
+              type: 'govt_holiday_choice',
+              timestamp: response.created_at || new Date(holiday.date).toISOString(),
+              title: 'Govt Holiday Choice Updated By Admin 💸',
+              body: `Admin has updated your preference for ${holiday.name} (${formatDate(holiday.date)}) to ${response.response === 'reserve' ? 'Reserve' : 'Get Paid'}.`
+            });
           }
-          // If reserve option is on, they made the choice themselves, so NO user notification is needed.
+          // If reserve option is on and not updated by admin, they made the choice themselves, so NO user notification is needed.
         } else if (profile.allow_reserve !== false) {
           // Actionable prompt: only show if the user is allowed to reserve
           list.push({
@@ -286,8 +297,9 @@ export function useDerivedState({
       }
     });
 
-    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading]);
+    const filtered = list.filter(n => !dismissedNotificationIds?.has(n.id));
+    return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading, dismissedNotificationIds]);
 
   // --- Admin/Supervisor Holiday Notifications ---
   const adminHolidayNotifications = useMemo(() => {
@@ -320,8 +332,9 @@ export function useDerivedState({
       }
     });
 
-    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [initialFetchDone, sessionUser, profile, holidayResponses, profilesList]);
+    const filtered = list.filter(n => !dismissedNotificationIds?.has(n.id));
+    return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [initialFetchDone, sessionUser, profile, holidayResponses, profilesList, dismissedNotificationIds]);
 
   const unreadUserNotificationsCount = useMemo(() => 
     userNotificationsList.filter(

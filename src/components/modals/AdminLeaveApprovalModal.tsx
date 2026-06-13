@@ -251,7 +251,37 @@ export function AdminLeaveApprovalModal({
           )}
         </div>
 
-        <div>
+        {/* Section 4: Govt Holiday Responses */}
+        {leaveTypeFilter === 'all' && (
+          <div className="border-t border-slate-800/60 pt-6">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span> Staff Govt Holiday Responses (Total: {filteredHolidayNotifications.length})
+            </h4>
+            {filteredHolidayNotifications.length === 0 ? (
+              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
+                No government holiday responses from staff.
+              </div>
+            ) : (
+              <div className="space-y-3 font-sans max-h-60 overflow-y-auto pr-1">
+                {filteredHolidayNotifications.map(n => (
+                  <div key={n.id} className="bg-slate-955/60 border border-slate-850 rounded-xl p-4 flex flex-col sm:flex-row justify-between gap-4">
+                    <div className="space-y-1 text-xs text-slate-355 font-medium">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-bold text-white text-[13px]">{n.title}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {n.timestamp ? new Date(n.timestamp).toLocaleString('en-US', { hour12: true }) : ''}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 font-normal leading-relaxed">{n.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-slate-800/60 pt-6">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Reserve, Overtime & Adjustment Requests (Pending: {filteredReserveRequests.length})
           </h4>
@@ -480,35 +510,6 @@ export function AdminLeaveApprovalModal({
           )}
         </div>
 
-        {/* Section 4: Govt Holiday Responses */}
-        {leaveTypeFilter === 'all' && (
-          <div className="border-t border-slate-800/60 pt-6">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span> Staff Govt Holiday Responses (Total: {filteredHolidayNotifications.length})
-            </h4>
-            {filteredHolidayNotifications.length === 0 ? (
-              <div className="text-center py-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs font-medium font-sans">
-                No government holiday responses from staff.
-              </div>
-            ) : (
-              <div className="space-y-3 font-sans max-h-60 overflow-y-auto pr-1">
-                {filteredHolidayNotifications.map(n => (
-                  <div key={n.id} className="bg-slate-955/60 border border-slate-850 rounded-xl p-4 flex flex-col sm:flex-row justify-between gap-4">
-                    <div className="space-y-1 text-xs text-slate-355 font-medium">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="font-bold text-white text-[13px]">{n.title}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {n.timestamp ? new Date(n.timestamp).toLocaleString('en-US', { hour12: true }) : ''}
-                        </span>
-                      </div>
-                      <p className="text-slate-300 font-normal leading-relaxed">{n.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </Modal>
   );

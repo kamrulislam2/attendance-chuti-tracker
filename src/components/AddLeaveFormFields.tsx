@@ -271,24 +271,6 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                       />
                     </div>
 
-                    {/* Individual Adjustment Switch */}
-                    <div className="flex items-center gap-1.5 bg-slate-900/60 px-2 py-1.5 rounded-lg border border-slate-800/40 shrink-0">
-                      <span className="text-[10px] font-semibold text-slate-400">Adj?</span>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateBulkAdjustment(index, !bulkAdjustments[index])}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          bulkAdjustments[index] ? 'bg-orange-600' : 'bg-slate-800'
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            bulkAdjustments[index] ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
                     <button
                       type="button"
                       onClick={() => handleRemoveBulkDate(index)}

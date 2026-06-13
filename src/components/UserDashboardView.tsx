@@ -2,7 +2,7 @@ import React from 'react';
 import { UserStats } from './UserStats';
 import { LeavesRecordsTable } from './LeavesRecordsTable';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { Profile, GovtHolidayResponse } from '@/types';
+import { Profile, GovtHolidayResponse, LeaveSettlement } from '@/types';
 import { 
   formatDate, 
   formatTimeToAMPM, 
@@ -14,7 +14,8 @@ import {
   HalfYearlyOfficeLeaveStats
 } from '@/utils/dashboardHelpers';
 import { useGovtHolidayStats, useHalfYearlyStats } from '@/hooks/useLeaveQuotaStats';
-import { Calendar } from 'lucide-react';
+import { Calendar, RotateCcw } from 'lucide-react';
+import { UserSettleModal } from './modals/UserSettleModal';
 
 interface UserDashboardViewProps {
   profile: Profile | null;
@@ -51,6 +52,8 @@ interface UserDashboardViewProps {
   holidayResponses: GovtHolidayResponse[];
   onSaveHolidayResponse: (holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => Promise<boolean>;
   initialFetchDone: boolean;
+  leaveSettlements: LeaveSettlement[];
+  onSaveLeaveSettlementsBulk: (settlementsList: any[]) => Promise<boolean>;
 }
 
 export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
@@ -79,15 +82,30 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   holidayResponses,
   onSaveHolidayResponse,
   initialFetchDone,
+  leaveSettlements,
+  onSaveLeaveSettlementsBulk,
 }) => {
   // Eligibility & Deduction
   const isOfficeLeaveEligible = profile?.eligible_office_leave !== false;
   const isGovtHolidayEligible = profile?.eligible_govt_holiday !== false;
 
-  // Deduction setting is removed completely, so deduction = 0
-  const officeLeaveTotal = isOfficeLeaveEligible
-    ? (globalSettings.office_leave_default ?? 14) + (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0)
-    : (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0);
+  // Previous year carried balances
+  const prevYear = (Number(selectedYear) - 1).toString();
+  const carriedOffice = leaveSettlements
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Office Leave' && s.action_type === 'carry_forward')
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const carriedGovt = leaveSettlements
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday' && s.action_type === 'carry_forward')
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const carriedEidFitr = leaveSettlements
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr' && s.action_type === 'carry_forward')
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const carriedEidAdha = leaveSettlements
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha' && s.action_type === 'carry_forward')
+    .reduce((acc, s) => acc + s.remaining_days, 0);
 
   // Government Holiday calculations using shared hook
   const { paidCount, reservedCount, respondedHolidays, govtHolidayStats } = useGovtHolidayStats(
@@ -97,6 +115,16 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     isGovtHolidayEligible,
     userStats.govtHolidaysTaken || 0
   );
+
+  const adjustedGovtHolidayStats = {
+    ...govtHolidayStats,
+    total: govtHolidayStats.total + carriedGovt,
+    remaining: Math.max(0, govtHolidayStats.reserved + carriedGovt - govtHolidayStats.taken)
+  };
+
+  const officeLeaveTotal = isOfficeLeaveEligible
+    ? (globalSettings.office_leave_default ?? 14) + carriedOffice + (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha
+    : (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha;
 
   // Half-yearly split calculations using shared hook
   const { halfYearlyStats } = useHalfYearlyStats(
@@ -108,21 +136,34 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   // Short to Full Leave Conversion Adjustments
   const convertedDays = profile?.converted_short_leaves_days ?? 0;
 
-  // Total full-day leaves taken: unadjusted full + adjusted office + adjusted eids + reserve taken + converted days
+  // Total full-day leaves taken: unadjusted full + adjusted office + converted days
   const officeLeaveTaken = (userStats.officeLeavesTaken ?? 0)
-    + (userStats.eidFitrTaken ?? 0)
-    + (userStats.eidAdhaTaken ?? 0)
     + (userStats.fullLeaves ?? 0)
-    + (userStats.govtHolidaysTaken ?? 0)
     + convertedDays;
 
-  const totalAllowed = officeLeaveTotal + reservedCount;
+  const totalAllowed = officeLeaveTotal;
 
   const officeLeaveStats = {
     total: totalAllowed,
     taken: officeLeaveTaken,
     remaining: totalAllowed - officeLeaveTaken,
   };
+
+  // Determine if year-end settlement banner should show
+  const activeRemainingCategories = [
+    { name: 'Office Leave', remaining: officeLeaveTotal - officeLeaveTaken },
+    { name: 'Govt Holiday', remaining: adjustedGovtHolidayStats.remaining },
+    { name: 'Eid-ul-Fitr', remaining: Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0)) },
+    { name: 'Eid-ul-Adha', remaining: Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0)) }
+  ].filter(c => c.remaining > 0);
+
+  const activeSettlementsForYear = leaveSettlements.filter(s => s.user_id === profile?.id && s.year === selectedYear);
+
+  const showSettlementBanner = globalSettings.settlement_active_year === selectedYear &&
+                               activeRemainingCategories.length > 0 &&
+                               activeSettlementsForYear.length < activeRemainingCategories.length;
+
+  const [showUserSettleModal, setShowUserSettleModal] = React.useState(false);
 
   // Identify government holidays that the user has not responded to yet
   const pendingHolidays = React.useMemo(() => {
@@ -169,6 +210,29 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in">
+      {/* Year-End Leave Settlement Alert Banner */}
+      {showSettlementBanner && (
+        <div className="bg-slate-900/40 backdrop-blur-xl border border-indigo-900/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-xl shrink-0 mt-0.5">
+              <RotateCcw className="h-5 w-5 text-indigo-500" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">Year-End Leave Preferences Pending ({selectedYear}) 📅</h4>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                You have unused leaves for {selectedYear}. Please choose whether you want to carry them forward to next year or get paid.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowUserSettleModal(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow transition-all cursor-pointer text-xs shrink-0 self-start sm:self-center"
+          >
+            Settle Leaves Now
+          </button>
+        </div>
+      )}
+
       {/* Pending Govt Holiday Response Alert Banner */}
       {initialFetchDone && profile && profile.eligible_govt_holiday !== false && profile.allow_reserve !== false && pendingHolidays.length > 0 && (
         <div className="bg-slate-900/40 backdrop-blur-xl border border-amber-900/40 p-4 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -240,7 +304,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
           fullLeaves: displayFullLeaves
         }}
         officeLeaveStats={officeLeaveStats}
-        govtHolidayStats={govtHolidayStats}
+        govtHolidayStats={adjustedGovtHolidayStats}
         allowOvertime={profile?.allow_overtime}
         respondedHolidays={respondedHolidays}
         convertedDays={convertedDays}
@@ -250,6 +314,10 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         eligibleOfficeLeave={profile?.eligible_office_leave !== false}
         eligibleGovtHoliday={profile?.eligible_govt_holiday !== false}
         halfYearlyStats={halfYearlyStats}
+        eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0))}
+        eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
+        eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0))}
+        eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
       />
 
       <LeavesRecordsTable 
@@ -278,6 +346,20 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         emptyMessage="No leave records found. Submit a new entry."
         showPendingBadge={true}
       />
+
+      {showUserSettleModal && (
+        <UserSettleModal
+          showModal={showUserSettleModal}
+          setShowModal={setShowUserSettleModal}
+          profile={profile}
+          selectedYear={selectedYear}
+          records={userRecords}
+          globalSettings={globalSettings}
+          settlements={leaveSettlements}
+          holidayResponses={holidayResponses}
+          onSaveSettlementsBulk={onSaveLeaveSettlementsBulk}
+        />
+      )}
     </div>
   );
 };

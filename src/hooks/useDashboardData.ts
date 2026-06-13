@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Profile, ChutiRecordWithProfile } from '@/types';
+import { Profile, ChutiRecordWithProfile, LeaveSettlement } from '@/types';
 import { ChutiRecord, getOfflineRecords, syncOfflineData } from '@/utils/offlineSync';
 import { checkSubscriptionStatus, sendPushNotification } from '@/utils/webPushHelper';
 import { getGlobalSettingsFromProfile, defaultGlobalSettings, GlobalSettings, formatDate, parseHolidayItem } from '@/utils/dashboardHelpers';
@@ -39,6 +39,7 @@ export const useDashboardData = () => {
   const [adminRecords, setAdminRecords] = useState<ChutiRecordWithProfile[]>([]);
   const [profilesList, setProfilesList] = useState<Profile[]>([]);
   const [holidayResponses, setHolidayResponses] = useState<any[]>([]);
+  const [leaveSettlements, setLeaveSettlements] = useState<LeaveSettlement[]>([]);
 
   // Navigation / Tab states
   const [adminActiveTab, setAdminActiveTab] = useState<'user' | 'admin'>('admin');
@@ -119,6 +120,17 @@ export const useDashboardData = () => {
         if (!respError && responses) {
           setHolidayResponses(responses);
         }
+
+        const { data: settlements, error: settError } = await supabase
+          .from('leave_settlements')
+          .select(`
+            *,
+            profiles (full_name, username)
+          `)
+          .order('created_at', { ascending: false });
+        if (!settError && settlements) {
+          setLeaveSettlements(settlements);
+        }
       } else {
         const { data: responses, error: respError } = await supabase
           .from('govt_holiday_responses')
@@ -127,6 +139,15 @@ export const useDashboardData = () => {
           .order('created_at', { ascending: false });
         if (!respError && responses) {
           setHolidayResponses(responses);
+        }
+
+        const { data: settlements, error: settError } = await supabase
+          .from('leave_settlements')
+          .select('*')
+          .eq('user_id', sessionUser.id)
+          .order('created_at', { ascending: false });
+        if (!settError && settlements) {
+          setLeaveSettlements(settlements);
         }
       }
     } finally {
@@ -261,6 +282,174 @@ export const useDashboardData = () => {
     fetchRecords();
     return true;
   }, [sessionUser, profile, fetchRecords]);
+
+  const handleAdminUpdateHolidayResponse = useCallback(async (targetUserId: string, holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => {
+    if (!profile || profile.role !== 'admin') return false;
+    
+    setLoading(true);
+
+    // 1. Check existing preference
+    const { data: existingResponse } = await supabase
+      .from('govt_holiday_responses')
+      .select('response')
+      .eq('user_id', targetUserId)
+      .eq('holiday_date', holidayDate)
+      .maybeSingle();
+      
+    const wasReserved = existingResponse?.response === 'reserve';
+    const isNowPaid = response === 'paid';
+
+    // 2. Perform the update
+    const { error } = await supabase
+      .from('govt_holiday_responses')
+      .upsert({
+        user_id: targetUserId,
+        holiday_date: holidayDate,
+        holiday_name: holidayName,
+        response: response,
+        updated_by_admin: true,
+        created_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,holiday_date'
+      });
+      
+    if (error) {
+      console.error('Error admin-saving holiday response:', error);
+      setMessage({ type: 'error', text: 'Failed to update response: ' + error.message });
+      setLoading(false);
+      return false;
+    }
+
+    // 3. If preference was reserve and is now paid, automatically unadjust excess leaves
+    if (wasReserved && isNowPaid) {
+      try {
+        const selectedYear = holidayDate.substring(0, 4);
+
+        // Fetch new reserved count
+        const { data: activeReserveResponses } = await supabase
+          .from('govt_holiday_responses')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .eq('response', 'reserve');
+        
+        const newReservedCount = (activeReserveResponses || []).filter(
+          r => r.holiday_date.substring(0, 4) === selectedYear
+        ).length;
+
+        // Fetch user's adjusted full leaves in the same year
+        const { data: userLeaves } = await supabase
+          .from('chuti')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .eq('leave_type', 'Full Leave')
+          .eq('adjustment', true)
+          .gte('date', `${selectedYear}-01-01`)
+          .lte('date', `${selectedYear}-12-31`);
+
+        const govtHolidayLeaves = (userLeaves || []).filter(r => 
+          r.comment?.includes("Govt Holiday") || r.reserve_holiday === "Govt Holiday"
+        );
+
+        // If taken adjusted leaves exceed reserve count, unadjust the excess
+        if (govtHolidayLeaves.length > newReservedCount) {
+          const excessCount = govtHolidayLeaves.length - newReservedCount;
+          // Sort by date descending (unadjust most recent first)
+          govtHolidayLeaves.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const leavesToUnadjust = govtHolidayLeaves.slice(0, excessCount);
+
+          for (const leaf of leavesToUnadjust) {
+            let cleanComment = leaf.comment || '';
+            // Clean prefix "Adjusted: Govt Holiday | "
+            cleanComment = cleanComment.replace(/Adjusted:\s*Govt Holiday(?:\s*\|\s*)?/g, '').trim();
+
+            await supabase
+              .from('chuti')
+              .update({
+                adjustment: false,
+                reserve_holiday: null,
+                comment: cleanComment || null
+              })
+              .eq('id', leaf.id);
+          }
+        }
+      } catch (unadjustErr) {
+        console.error('Error auto-unadjusting leaves:', unadjustErr);
+      }
+    }
+    
+    // Trigger push notification to updated user
+    sendPushNotification({
+      userIds: [targetUserId],
+      title: 'Govt Holiday Choice Updated 💸',
+      body: `Admin has updated your preference for ${holidayName} (${formatDate(holidayDate)}) to ${response === 'reserve' ? 'Reserve' : 'Get Paid'}.`,
+      url: '/'
+    }).catch(err => console.error('Error sending push notification to user:', err));
+
+    setMessage({ type: 'success', text: 'Holiday response updated successfully!' });
+    setLoading(false);
+    fetchRecords();
+    return true;
+  }, [profile, fetchRecords]);
+
+  const handleSaveLeaveSettlementsBulk = useCallback(async (
+    settlementsList: Array<{
+      user_id: string;
+      year: string;
+      leave_category: string;
+      remaining_days: number;
+      action_type: 'carry_forward' | 'payment';
+      status?: 'pending' | 'processed';
+      processed_by?: string;
+      action_by?: string;
+    }>
+  ) => {
+    try {
+      setLoading(true);
+      const formatted = settlementsList.map(item => ({
+        user_id: item.user_id,
+        year: item.year,
+        leave_category: item.leave_category,
+        remaining_days: item.remaining_days,
+        action_type: item.action_type,
+        status: item.status || 'processed',
+        processed_by: item.processed_by || null,
+        processed_at: (item.status === 'processed' || item.status === undefined) ? new Date().toISOString() : null,
+        action_by: item.action_by || item.user_id
+      }));
+
+      const { error } = await supabase
+        .from('leave_settlements')
+        .upsert(formatted, {
+          onConflict: 'user_id,year,leave_category'
+        });
+
+      if (error) throw error;
+
+      // Trigger user push notification
+      const uniqueUserIds = Array.from(new Set(settlementsList.map(s => s.user_id)));
+      for (const targetUserId of uniqueUserIds) {
+        const userSettlements = settlementsList.filter(s => s.user_id === targetUserId);
+        const details = userSettlements.map(s => `${s.leave_category}: ${s.action_type === 'carry_forward' ? 'Carry Forward' : 'Payment'} (${s.remaining_days} days)`).join(', ');
+        
+        sendPushNotification({
+          userIds: [targetUserId],
+          title: 'Leave Settlements Processed 📅',
+          body: `Your leave settlements have been processed: ${details}.`,
+          url: '/'
+        }).catch(err => console.error('Error sending push notification for settlement:', err));
+      }
+
+      setMessage({ type: 'success', text: 'Settlement choices processed successfully!' });
+      await fetchRecords();
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Error bulk saving leave settlements:', err);
+      setMessage({ type: 'error', text: 'Failed to process settlements: ' + (err as Error).message });
+      setLoading(false);
+      return false;
+    }
+  }, [fetchRecords, setMessage]);
 
   useEffect(() => {
     if (profile) {
@@ -447,7 +636,12 @@ export const useDashboardData = () => {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<any>((_, reject) =>
+          setTimeout(() => reject(new Error('Supabase session fetch timed out')), 4000)
+        );
+        const { data, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
+        
         if (sessionError) {
           console.error('Supabase session fetch error:', sessionError);
           setInitialFetchDone(false);
@@ -634,6 +828,10 @@ export const useDashboardData = () => {
     holidayResponses,
     setHolidayResponses,
     handleSaveHolidayResponse,
+    handleAdminUpdateHolidayResponse,
+    leaveSettlements,
+    setLeaveSettlements,
+    handleSaveLeaveSettlementsBulk,
     initialFetchDone,
   };
 };

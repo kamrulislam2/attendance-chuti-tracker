@@ -2,6 +2,91 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { Profile } from '../types';
 import { ChutiRecord } from './offlineSync';
 import { calculateStats } from './dashboardHelpers';
+import { isTauriApp } from './apiUrlHelper';
+
+// Helper to save file inside Tauri using Save Dialog and FS API
+const saveTauriFile = async (
+  contentStr: string,
+  suggestedFilename: string,
+  fileTypeLabel: string,
+  fileExtension: string,
+  onSuccess: () => void,
+  onError: (msg: string) => void
+) => {
+  try {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+    const filePath = await save({
+      defaultPath: suggestedFilename,
+      filters: [{
+        name: fileTypeLabel,
+        extensions: [fileExtension]
+      }]
+    });
+
+    if (!filePath) {
+      // User cancelled, trigger success to clear loaders
+      onSuccess();
+      return;
+    }
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(contentStr);
+
+    await writeFile(filePath, data);
+    onSuccess();
+  } catch (err: any) {
+    console.error('Tauri file save error:', err);
+    onError(err.message || 'Failed to save file in desktop app.');
+  }
+};
+
+// Helper to print HTML content using a hidden iframe to bypass popup blockers
+const printHtml = (
+  htmlContent: string,
+  onSuccess: () => void,
+  onError: (msg: string) => void
+) => {
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      onError('Failed to create print document.');
+      return;
+    }
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Give it a moment to load and render, then print
+    setTimeout(() => {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+        onSuccess();
+      } else {
+        onError('Failed to access print window.');
+        document.body.removeChild(iframe);
+      }
+    }, 600);
+  } catch (err) {
+    console.error('Error during iframe printing:', err);
+    onError('Failed to execute print command.');
+  }
+};
 
 // Helper function to format date from YYYY-MM-DD to DD-MM-YYYY
 const formatDate = (dateString: string | null | undefined): string => {
@@ -147,10 +232,6 @@ export const exportHelper = {
       </html>
     `;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-
     let filename = `leave_report_${(activeProfile?.username || 'user').toUpperCase()}`;
     if (filters.selectedYear && filters.selectedYear !== 'all') {
       filename += `_year_${filters.selectedYear}`;
@@ -180,11 +261,18 @@ export const exportHelper = {
     }
     filename += '.xls';
 
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
+    if (isTauriApp()) {
+      saveTauriFile(html, filename, 'Excel Files', 'xls', onSuccess, onError);
+    } else {
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      onSuccess();
+    }
   },
 
 
@@ -245,10 +333,6 @@ export const exportHelper = {
       </html>
     `;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-
     let filename = 'staff_leaves_summary';
     if (filters.selectedYear && filters.selectedYear !== 'all') {
       filename += `_year_${filters.selectedYear}`;
@@ -278,11 +362,18 @@ export const exportHelper = {
     }
     filename += '.xls';
 
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
+    if (isTauriApp()) {
+      saveTauriFile(html, filename, 'Excel Files', 'xls', onSuccess, onError);
+    } else {
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      onSuccess();
+    }
   },
 
   // Export individual staff report as PDF
@@ -305,12 +396,6 @@ export const exportHelper = {
     const activeProfile = staffProfile || (userId === sessionUser?.id ? profile : null);
     if (recordsToExport.length === 0) {
       onError('No data found to export!');
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -445,9 +530,7 @@ export const exportHelper = {
       </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    onSuccess();
+    printHtml(htmlContent, onSuccess, onError);
   },
 
   // Export summary report for all staff as PDF
@@ -466,12 +549,6 @@ export const exportHelper = {
   ) => {
     if (staffProfiles.length === 0) {
       onError('No data found to export!');
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -553,9 +630,7 @@ export const exportHelper = {
       </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    onSuccess();
+    printHtml(htmlContent, onSuccess, onError);
   },
 
 
@@ -610,14 +685,20 @@ export const exportHelper = {
       </html>
     `;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `govt_holiday_responses_${new Date().toISOString().split('T')[0]}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
+    const filename = `govt_holiday_responses_${new Date().toISOString().split('T')[0]}.xls`;
+
+    if (isTauriApp()) {
+      saveTauriFile(html, filename, 'Excel Files', 'xls', onSuccess, onError);
+    } else {
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      onSuccess();
+    }
   },
 
   // Export Govt Holiday Responses as PDF
@@ -628,12 +709,6 @@ export const exportHelper = {
   ) => {
     if (responses.length === 0) {
       onError('No data found to export!');
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -709,9 +784,7 @@ export const exportHelper = {
       </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    onSuccess();
+    printHtml(htmlContent, onSuccess, onError);
   },
 
   // Export Settlements as Excel
@@ -774,14 +847,20 @@ export const exportHelper = {
       </html>
     `;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `leave_settlements_${category.replace(/\s+/g, '_')}_${periodLabel.replace(/\s+/g, '_')}_${year}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    onSuccess();
+    const filename = `leave_settlements_${category.replace(/\s+/g, '_')}_${periodLabel.replace(/\s+/g, '_')}_${year}.xls`;
+
+    if (isTauriApp()) {
+      saveTauriFile(html, filename, 'Excel Files', 'xls', onSuccess, onError);
+    } else {
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      onSuccess();
+    }
   },
 
   // Export Settlements as PDF
@@ -804,12 +883,6 @@ export const exportHelper = {
   ) => {
     if (settlementsData.length === 0) {
       onError('No data found to export!');
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
       return;
     }
 
@@ -900,8 +973,6 @@ export const exportHelper = {
       </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    onSuccess();
+    printHtml(htmlContent, onSuccess, onError);
   }
 };

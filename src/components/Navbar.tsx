@@ -17,8 +17,10 @@ import {
 import { Profile } from '@/types';
 import { formatWorkingHours } from '@/utils/dashboardHelpers';
 import { useAppReleaseLinks } from '@/hooks/useAppReleaseLinks';
+import { isTauriApp } from '@/utils/apiUrlHelper';
 
 interface NavbarProps {
+
   profile: Profile | null;
   isOnline: boolean;
   offlineCount: number;
@@ -58,6 +60,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const links = useAppReleaseLinks();
+  const isDesktop = isTauriApp();
+
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -178,54 +182,56 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Get App Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <Download className="h-4 w-4" /> Get App
-            </button>
+          {!isDesktop && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-white text-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <Download className="h-4 w-4" /> Get App
+              </button>
 
-            {showDownloadDropdown && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-950 border border-slate-800/80 shadow-2xl p-2.5 z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-900 mb-1.5">
-                  Download Platform
+              {showDownloadDropdown && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-950 border border-slate-800/80 shadow-2xl p-2.5 z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-900 mb-1.5">
+                    Download Platform
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <a
+                      href={links.windows}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowDownloadDropdown(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
+                    >
+                      <Monitor className="h-4 w-4 text-sky-400 group-hover:scale-110 transition-all duration-200" />
+                      <span>Windows (.exe)</span>
+                    </a>
+                    <a
+                      href={links.macSilicon}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowDownloadDropdown(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
+                    >
+                      <Apple className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-all duration-200" />
+                      <span>macOS (Apple Silicon)</span>
+                    </a>
+                    <a
+                      href={links.macIntel}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowDownloadDropdown(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
+                    >
+                      <Apple className="h-4 w-4 text-slate-400 group-hover:scale-110 transition-all duration-200" />
+                      <span>macOS (Intel)</span>
+                    </a>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <a
-                    href={links.windows}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowDownloadDropdown(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
-                  >
-                    <Monitor className="h-4 w-4 text-sky-400 group-hover:scale-110 transition-all duration-200" />
-                    <span>Windows (.exe)</span>
-                  </a>
-                  <a
-                    href={links.macSilicon}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowDownloadDropdown(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
-                  >
-                    <Apple className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-all duration-200" />
-                    <span>macOS (Apple Silicon)</span>
-                  </a>
-                  <a
-                    href={links.macIntel}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowDownloadDropdown(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-900 transition-all group cursor-pointer"
-                  >
-                    <Apple className="h-4 w-4 text-slate-400 group-hover:scale-110 transition-all duration-200" />
-                    <span>macOS (Intel)</span>
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={onLogout}

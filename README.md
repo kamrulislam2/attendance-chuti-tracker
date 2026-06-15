@@ -283,7 +283,14 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v0.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v0.1.6 (Latest)
+### 🚀 v0.1.7 (Latest)
+* **macOS Production Network Fix**: Resolved a webview routing issue where macOS production protocol was misidentified as local dev environment, causing login failures.
+* **Tauri Native File Save**: Integrated native dialog and filesystem plugins to allow users to securely save Excel exports directly to their folder choice.
+* **Embedded Iframe PDF Printing**: Replaced popups with an embedded iframe print flow to bypass webview popup blocker limitations.
+* **Desktop UI Clean Up**: Hidden all download banners and links when the app is running in the desktop Tauri context.
+* **Offline Build Speed Up**: Removed unused Google Fonts dependency for offline-compatible builds and faster compile times.
+
+### 🚀 v0.1.6
 * **Three-Way Split Settlements**: Implemented detailed split allocations (Carry Forward, Cash Payment, Adjust with other leaves) for Year-End settlements with real-time progress bar feedback and validation check constraints.
 * **Selection Flicker Bug Fix**: Synchronous lazy state initialization from props implemented inside settlements editing to eliminate UI flicker.
 * **Unified Action Loader Spinners**: Added button loading indicator spinners (`RefreshCw` icon), disabled interactions, and layout stability improvements for Cancel Adjustment, Edit Record, Holiday choice actions, and other modals.

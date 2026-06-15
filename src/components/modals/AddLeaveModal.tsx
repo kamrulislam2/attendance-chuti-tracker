@@ -124,7 +124,7 @@ export function AddLeaveModal({
   };
 
   const isOfficeLeaveEligible = profile?.eligible_office_leave !== false;
-  const officeLeaveTotalBase = isOfficeLeaveEligible ? (globalSettings.office_leave_default ?? 14) : 0;
+  const officeLeaveTotalBase = isOfficeLeaveEligible ? (globalSettings.office_leave_h1 + globalSettings.office_leave_h2) : 0;
 
   const reservedCount = userResponses.filter((r: any) => r.response === 'reserve').length;
   const govtHolidayTotal = reservedCount;
@@ -173,10 +173,11 @@ export function AddLeaveModal({
   const halfYearlyStats = React.useMemo(() => {
     return calculateHalfYearlyOfficeLeave(
       records,
-      globalSettings.office_leave_default ?? 14,
+      globalSettings.office_leave_h1,
+      globalSettings.office_leave_h2,
       selectedYear
     );
-  }, [records, globalSettings.office_leave_default, selectedYear]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear]);
 
   return (
     <Modal

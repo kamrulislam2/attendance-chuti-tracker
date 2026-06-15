@@ -37,7 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-955/80 backdrop-blur-md"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-slate-955/80 backdrop-blur-md"
     >
       <div className="flex min-h-full items-center justify-center p-4">
         <div className={`bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full ${maxWidthClass} p-6 relative overflow-hidden font-sans my-8`}>

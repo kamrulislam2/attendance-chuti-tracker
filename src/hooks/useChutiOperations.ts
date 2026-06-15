@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
-import { Profile, ChutiRecordWithProfile, BulkRepresentative } from '@/types';
+import { Profile, ChutiRecordWithProfile } from '@/types';
 import { 
   ChutiRecord, 
   saveOfflineRecord, 
   getOfflineRecords, 
-  saveOfflineUpdate, 
   saveOfflineDelete, 
   deleteOfflineRecord,
   generateUUID 
@@ -26,7 +25,6 @@ interface useChutiOperationsParams {
   adminRecords: ChutiRecordWithProfile[];
   setAdminRecords: React.Dispatch<React.SetStateAction<ChutiRecordWithProfile[]>>;
   setMessage: (msg: { type: 'success' | 'error'; text: string } | null) => void;
-  submitting: boolean;
   setSubmitting: (val: boolean) => void;
   profilesList: Profile[];
   approvingIds: Set<string>;
@@ -49,7 +47,6 @@ export const useChutiOperations = ({
   adminRecords,
   setAdminRecords,
   setMessage,
-  submitting,
   setSubmitting,
   profilesList,
   approvingIds,
@@ -761,7 +758,6 @@ export const useChutiOperations = ({
 
       const supervisorName = profile?.full_name ? `Supervisor ${profile.full_name}` : 'Supervisor';
       const supervisorUsername = profile?.username || 'Supervisor';
-      const user_id = targets[0].user_id;
       const leave_type = targets[0].leave_type;
       const formattedDates = targets.map(t => formatDate(t.date)).join(', ');
 
@@ -848,7 +844,6 @@ export const useChutiOperations = ({
 
       if (targets.length === 0) throw new Error('Record not found.');
 
-      const adminName = profile?.full_name ? `Admin ${profile.full_name}` : 'Admin';
       const adminUsername = profile?.username || 'Admin';
       const user_id = targets[0].user_id;
       const leave_type = targets[0].leave_type;

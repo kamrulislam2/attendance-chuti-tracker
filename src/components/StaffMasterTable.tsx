@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, Plus, Download, Search } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 export interface Profile {
   id: string;
@@ -55,6 +56,11 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
   onExportPDF,
   onViewDetails,
 }) => {
+  const yearOptions = [
+    { value: 'all', label: 'All' },
+    ...availableYears.map((y) => ({ value: y, label: y })),
+  ];
+
   return (
     <div className="bg-slate-900/40 border border-slate-900 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
       <div className="px-6 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -105,18 +111,12 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
           >
             <Download className="h-3.5 w-3.5" /> PDF
           </button>
-          <select
+          <CustomSelect
             value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer shadow-md"
-          >
-            <option value="all" className="bg-slate-900 text-white">All</option>
-            {availableYears.map(y => (
-              <option key={y} value={y} className="bg-slate-900 text-white">
-                {y}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedYear}
+            options={yearOptions}
+            className="min-w-[80px]"
+          />
         </div>
       </div>
 
@@ -129,12 +129,12 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
           <table className="min-w-full divide-y divide-slate-800">
             <thead className="bg-slate-955/60">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Staff Name</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Codename</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Leave (Unadjusted)</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Short Leave (Unadjusted)</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime (Unadjusted)</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Leave</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Short Leave</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>

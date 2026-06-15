@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
-import { Lock, Mail, AlertCircle, Loader, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader, Eye, EyeOff, Monitor, Apple } from 'lucide-react';
 import { getApiUrl } from '@/utils/apiUrlHelper';
+import { useAppReleaseLinks } from '@/hooks/useAppReleaseLinks';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const links = useAppReleaseLinks();
 
   // Load theme on mount
   useEffect(() => {
@@ -230,6 +232,48 @@ export default function LoginPage() {
             </div>
           </form>
         </div>
+
+        {/* Desktop App Download Area */}
+        <div className="mt-6">
+          <div className="bg-slate-900/30 backdrop-blur-xl border border-slate-800/50 p-6 shadow-xl rounded-2xl text-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Submit leaves faster with the
+            </p>
+            <h3 className="text-sm font-bold text-slate-200 mt-1">
+              Chuti Desktop Application
+            </h3>
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <a
+                href={links.windows}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-900/80 transition-all group cursor-pointer"
+              >
+                <Monitor className="h-5 w-5 text-sky-400 group-hover:scale-110 transition-all duration-200" />
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-200 mt-1.5">Windows</span>
+              </a>
+              <a
+                href={links.macSilicon}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-violet-500/30 hover:bg-slate-900/80 transition-all group cursor-pointer"
+              >
+                <Apple className="h-5 w-5 text-violet-400 group-hover:scale-110 transition-all duration-200" />
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-200 mt-1.5">Mac (Silicon)</span>
+              </a>
+              <a
+                href={links.macIntel}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700/50 hover:bg-slate-900/80 transition-all group cursor-pointer"
+              >
+                <Apple className="h-5 w-5 text-slate-400 group-hover:scale-110 transition-all duration-200" />
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-200 mt-1.5">Mac (Intel)</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { Profile, ChutiRecordWithProfile, BulkRepresentative } from '@/types';
+import { Profile, ChutiRecordWithProfile, BulkRepresentative, LeaveSettlement } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { formatDate, calculateStats, parseHolidayItem, GlobalSettings } from '@/utils/dashboardHelpers';
 
@@ -36,6 +36,7 @@ interface UseDerivedStateParams {
   initialFetchDone: boolean;
   adminActiveTab: 'user' | 'admin';
   dismissedNotificationIds?: Set<string>;
+  leaveSettlements: LeaveSettlement[];
 }
 
 export function useDerivedState({
@@ -56,6 +57,7 @@ export function useDerivedState({
   initialFetchDone,
   adminActiveTab,
   dismissedNotificationIds,
+  leaveSettlements,
 }: UseDerivedStateParams) {
 
   // --- Record Filtering ---
@@ -297,9 +299,38 @@ export function useDerivedState({
       }
     });
 
+    // Inject processed settlements as user notifications
+    leaveSettlements.forEach((s) => {
+      if (s.status === 'processed' && s.user_id === profile.id) {
+        const periodLabel = s.period === 'H1' ? 'January-June (H1)' : s.period === 'H2' ? 'July-December (H2)' : 'Instant';
+        let bodyText = '';
+        if (s.action_type === 'split') {
+          const parts: string[] = [];
+          if (s.carry_forward_days && s.carry_forward_days > 0) parts.push(`${s.carry_forward_days} days carried forward`);
+          if (s.payment_days && s.payment_days > 0) parts.push(`${s.payment_days} days paid out`);
+          if (s.adjust_leave_days && s.adjust_leave_days > 0) parts.push(`${s.adjust_leave_days} days adjusted against leaves`);
+          bodyText = `Your unused leave for ${s.leave_category} (${periodLabel}) has been settled: ${parts.join(', ')}.`;
+        } else if (s.action_type === 'carry_forward') {
+          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been carried forward/reserved.`;
+        } else if (s.action_type === 'payment') {
+          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) will be paid out along with your salary.`;
+        } else if (s.action_type === 'adjust_leave') {
+          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been adjusted against leaves.`;
+        }
+
+        list.push({
+          id: `settlement-processed-${s.id}`,
+          type: 'settlement_processed',
+          timestamp: s.processed_at || new Date().toISOString(),
+          title: 'Leave Settlement Processed 💸',
+          body: bodyText
+        });
+      }
+    });
+
     const filtered = list.filter(n => !dismissedNotificationIds?.has(n.id));
     return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading, dismissedNotificationIds]);
+  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading, dismissedNotificationIds, leaveSettlements]);
 
   // --- Admin/Supervisor Holiday Notifications ---
   const adminHolidayNotifications = useMemo(() => {

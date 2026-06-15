@@ -1,6 +1,7 @@
 import React from 'react';
 import { SlidersHorizontal, Download, RefreshCw } from 'lucide-react';
 import { DateInput } from './DateInput';
+import { CustomSelect } from './CustomSelect';
 
 interface FilterPanelProps {
   filterType: string;
@@ -29,6 +30,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onExportPDF,
   onResetFilters,
 }) => {
+  const leaveTypeOptions = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'Short Leave', label: 'Short Leave' },
+    { value: 'Full Leave', label: 'Full Leave' },
+    ...(allowOvertime ? [{ value: 'Overtime', label: 'Overtime' }] : []),
+  ];
+
   return (
     <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-900 shadow-2xl rounded-2xl p-6">
       <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800/80 pb-3 mb-4">
@@ -39,16 +47,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         {/* Filter Leave Type */}
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Leave Type</label>
-          <select
+          <CustomSelect
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            <option value="Short Leave">Short Leave</option>
-            <option value="Full Leave">Full Leave</option>
-            {allowOvertime && <option value="Overtime">Overtime</option>}
-          </select>
+            onChange={setFilterType}
+            options={leaveTypeOptions}
+            className="w-full mt-1"
+          />
         </div>
 
         {/* Start Date */}

@@ -21,10 +21,7 @@ import { AdminCreateUserModal } from '@/components/modals/AdminCreateUserModal';
 import { AdminCredentialsModal } from '@/components/modals/AdminCredentialsModal';
 import { AdminDeleteUserModal } from '@/components/modals/AdminDeleteUserModal';
 import { AdminAddLeaveModal } from '@/components/modals/AdminAddLeaveModal';
-import { 
-  CheckCircle, 
-  AlertTriangle
-} from 'lucide-react';
+
 
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useChutiOperations } from '@/hooks/useChutiOperations';
@@ -54,7 +51,6 @@ export default function Dashboard() {
     setSubmitting,
     isOnline,
     offlineCount,
-    message,
     setMessage,
     userRecords,
     setUserRecords,
@@ -93,6 +89,7 @@ export default function Dashboard() {
     handleAdminUpdateHolidayResponse,
     leaveSettlements,
     handleSaveLeaveSettlementsBulk,
+    handleDeleteLeaveSettlement,
     initialFetchDone,
   } = dashboardData;
 
@@ -155,6 +152,7 @@ export default function Dashboard() {
     initialFetchDone,
     adminActiveTab,
     dismissedNotificationIds,
+    leaveSettlements,
   });
 
   const {
@@ -210,7 +208,6 @@ export default function Dashboard() {
     adminRecords,
     setAdminRecords,
     setMessage,
-    submitting,
     setSubmitting,
     profilesList,
     approvingIds,
@@ -324,7 +321,6 @@ export default function Dashboard() {
 
   // Adjustment operations controller
   const adjustmentOps = useAdjustmentOperations({
-    sessionUser,
     profile,
     adminActiveTab,
     isOnline,
@@ -368,13 +364,6 @@ export default function Dashboard() {
     setProfilesList,
     setViewingStaffId,
     setMessage,
-    isPushSubscribed,
-    setIsPushSubscribed,
-    isPushLoading,
-    setIsPushLoading,
-    adminActiveTab,
-    setAdminActiveTab,
-    handleLogout,
     router,
     setApprovingIds,
     setApprovedIds,
@@ -413,16 +402,12 @@ export default function Dashboard() {
 
     showCreateUserModal,
     setShowCreateUserModal,
-    newStaffPassword,
     setNewStaffPassword,
-    newStaffConfirmPassword,
     setNewStaffConfirmPassword,
     newStaffUsername,
     setNewStaffUsername,
     newStaffRole,
     setNewStaffRole,
-    newStaffFullName,
-    setNewStaffFullName,
     newStaffNeedsApproval,
     setNewStaffNeedsApproval,
     newStaffAllowReserve,
@@ -484,18 +469,7 @@ export default function Dashboard() {
     setEditEligibleGovtHoliday,
     isEditRequestMode,
     setIsEditRequestMode,
-    editMaxFullLeaves,
     setEditMaxFullLeaves,
-    newStaffJobRole,
-    setNewStaffJobRole,
-    newStaffWorkingHours,
-    setNewStaffWorkingHours,
-    newStaffBreakTime,
-    setNewStaffBreakTime,
-    newStaffSignInTime,
-    setNewStaffSignInTime,
-    newStaffSignOutTime,
-    setNewStaffSignOutTime,
     newStaffEligibleOfficeLeave,
     setNewStaffEligibleOfficeLeave,
     newStaffEligibleGovtHoliday,
@@ -603,7 +577,7 @@ export default function Dashboard() {
 
 
 
-  if (loading) {
+  if (loading && !initialFetchDone) {
     return (
       <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center relative overflow-hidden">
         <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
@@ -672,7 +646,7 @@ export default function Dashboard() {
       />
 
       {/* 2. Main Content Body */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full z-10 flex-1 flex flex-col gap-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 flex flex-col gap-6">
         
         {/* ================= STAFF VIEW ================= */}
         {profile?.has_changed_password !== false && !!profile?.is_setup_completed && (profile?.role !== 'admin' || adminActiveTab === 'user') && (
@@ -757,6 +731,7 @@ export default function Dashboard() {
             onUpdateHolidayResponse={handleAdminUpdateHolidayResponse}
             leaveSettlements={leaveSettlements}
             onSaveLeaveSettlementsBulk={handleSaveLeaveSettlementsBulk}
+            onDeleteSettlement={handleDeleteLeaveSettlement}
             adminRecords={adminRecords}
             currentUserProfile={profile}
           />
@@ -922,6 +897,7 @@ export default function Dashboard() {
         records={adjustmentRecord ? (adminActiveTab === 'admin' ? adminRecords : userRecords).filter(r => r.user_id === adjustmentRecord.user_id) : []}
         holidayResponses={adjustmentRecord ? holidayResponses.filter(r => r.user_id === adjustmentRecord.user_id) : []}
         globalSettings={globalSettings}
+        submitting={submitting}
       />
 
       {/* Supervisor Approval & Revision Prompt Modals */}
@@ -988,8 +964,6 @@ export default function Dashboard() {
         setIsEditRequestMode={setIsEditRequestMode}
         setupSubmitting={setupSubmitting}
         handleUpdateSettings={handleUpdateSettings}
-        editMaxFullLeaves={editMaxFullLeaves}
-        setEditMaxFullLeaves={setEditMaxFullLeaves}
       />
 
       <AdminLeaveApprovalModal
@@ -1037,6 +1011,7 @@ export default function Dashboard() {
         adminEditComment={adminEditComment}
         setAdminEditComment={setAdminEditComment}
         handleAdminSaveEdit={handleAdminSaveEdit}
+        submitting={submitting}
       />
 
       <AdminCancelAdjustmentModal
@@ -1047,20 +1022,18 @@ export default function Dashboard() {
         handleConfirmCancelAdjustment={handleConfirmCancelAdjustment}
         profile={profile}
         adminActiveTab={adminActiveTab}
+        submitting={submitting}
       />
 
       <AdminCreateUserModal
         showCreateUserModal={showCreateUserModal}
         setShowCreateUserModal={setShowCreateUserModal}
         profile={profile}
-        newStaffPassword={newStaffPassword}
         setNewStaffPassword={setNewStaffPassword}
         newStaffUsername={newStaffUsername}
         setNewStaffUsername={setNewStaffUsername}
         newStaffRole={newStaffRole}
         setNewStaffRole={setNewStaffRole}
-        newStaffFullName={newStaffFullName}
-        setNewStaffFullName={setNewStaffFullName}
         newStaffNeedsApproval={newStaffNeedsApproval}
         setNewStaffNeedsApproval={setNewStaffNeedsApproval}
         newStaffAllowReserve={newStaffAllowReserve}
@@ -1068,19 +1041,8 @@ export default function Dashboard() {
         newStaffAllowOvertime={newStaffAllowOvertime}
         setNewStaffAllowOvertime={setNewStaffAllowOvertime}
         creatingUser={creatingUser}
-        newStaffConfirmPassword={newStaffConfirmPassword}
         setNewStaffConfirmPassword={setNewStaffConfirmPassword}
         handleCreateNewUser={handleCreateNewUser}
-        newStaffJobRole={newStaffJobRole}
-        setNewStaffJobRole={setNewStaffJobRole}
-        newStaffWorkingHours={newStaffWorkingHours}
-        setNewStaffWorkingHours={setNewStaffWorkingHours}
-        newStaffBreakTime={newStaffBreakTime}
-        setNewStaffBreakTime={setNewStaffBreakTime}
-        newStaffSignInTime={newStaffSignInTime}
-        setNewStaffSignInTime={setNewStaffSignInTime}
-        newStaffSignOutTime={newStaffSignOutTime}
-        setNewStaffSignOutTime={setNewStaffSignOutTime}
         newStaffEligibleOfficeLeave={newStaffEligibleOfficeLeave}
         setNewStaffEligibleOfficeLeave={setNewStaffEligibleOfficeLeave}
         newStaffEligibleGovtHoliday={newStaffEligibleGovtHoliday}

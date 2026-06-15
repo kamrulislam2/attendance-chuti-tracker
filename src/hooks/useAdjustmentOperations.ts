@@ -10,7 +10,6 @@ import { sendPushNotification } from '@/utils/webPushHelper';
 interface useAdjustmentOperationsParams {
   profile: Profile | null;
   adminActiveTab: 'user' | 'admin';
-  sessionUser: any;
   isOnline: boolean;
   fetchRecords: () => Promise<void>;
   setUserRecords: React.Dispatch<React.SetStateAction<ChutiRecord[]>>;
@@ -25,7 +24,6 @@ interface useAdjustmentOperationsParams {
 export const useAdjustmentOperations = ({
   profile,
   adminActiveTab,
-  sessionUser,
   isOnline,
   fetchRecords,
   setUserRecords,

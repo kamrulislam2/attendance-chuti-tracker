@@ -215,7 +215,7 @@ export const exportHelper = {
         <table border="1">
           <thead>
             <tr style="background-color: #4F81BD; color: white;">
-              <th>Staff Name</th>
+              <th>Name</th>
               <th>Codename</th>
               <th>Full Leave</th>
               <th>Short Leave</th>
@@ -530,7 +530,7 @@ export const exportHelper = {
         <table>
           <thead>
             <tr>
-              <th>Staff Name</th>
+              <th>Name</th>
               <th>Codename</th>
               <th>Job Role</th>
               <th>Full Leave</th>
@@ -596,7 +596,7 @@ export const exportHelper = {
             <tr style="background-color: #4F81BD; color: white;">
               <th>Holiday Date</th>
               <th>Holiday Name</th>
-              <th>Staff Name</th>
+              <th>Name</th>
               <th>Codename</th>
               <th>Selection</th>
               <th>Response Time</th>
@@ -689,9 +689,200 @@ export const exportHelper = {
             <tr>
               <th>Holiday Date</th>
               <th>Holiday Name</th>
-              <th>Staff Name & Codename</th>
+              <th>Name & Codename</th>
               <th>Selection</th>
               <th>Response Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    onSuccess();
+  },
+
+  // Export Settlements as Excel
+  exportSettlementsExcel: (
+    settlementsData: Array<{
+      staffName: string;
+      username: string;
+      category: string;
+      period: string;
+      year: string;
+      remainingDays: number;
+      actionLabel: string;
+      status: string;
+    }>,
+    year: string,
+    periodLabel: string,
+    category: string,
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) => {
+    if (settlementsData.length === 0) {
+      onError('No data found to export!');
+      return;
+    }
+
+    let rowsHtml = '';
+    settlementsData.forEach(s => {
+      rowsHtml += `
+        <tr>
+          <td>${escapeHtml(s.staffName)}</td>
+          <td>${escapeHtml(s.username.toUpperCase())}</td>
+          <td style="mso-number-format:'0.0';">${s.remainingDays}</td>
+          <td>${escapeHtml(s.actionLabel)}</td>
+          <td style="text-transform: capitalize;">${escapeHtml(s.status)}</td>
+        </tr>
+      `;
+    });
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"/><style>td { border: 0.5pt solid #ccc; }</style></head>
+      <body>
+        <h3>Unified Leave Review & Settlements Report (${year})</h3>
+        <p><strong>Review Period:</strong> ${escapeHtml(periodLabel)} | <strong>Leave Category:</strong> ${escapeHtml(category)}</p>
+        <table border="1">
+          <thead>
+            <tr style="background-color: #4F81BD; color: white;">
+              <th>Name</th>
+              <th>Codename</th>
+              <th>Unused Balance (days)</th>
+              <th>Settlement Split Choice</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `leave_settlements_${category.replace(/\s+/g, '_')}_${periodLabel.replace(/\s+/g, '_')}_${year}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onSuccess();
+  },
+
+  // Export Settlements as PDF
+  exportSettlementsPDF: (
+    settlementsData: Array<{
+      staffName: string;
+      username: string;
+      category: string;
+      period: string;
+      year: string;
+      remainingDays: number;
+      actionLabel: string;
+      status: string;
+    }>,
+    year: string,
+    periodLabel: string,
+    category: string,
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) => {
+    if (settlementsData.length === 0) {
+      onError('No data found to export!');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      onError('Failed to open popup window! Please check your browser\'s popup blocker.');
+      return;
+    }
+
+    let rowsHtml = '';
+    settlementsData.forEach(s => {
+      let statusBadgeClass = 'needs_review';
+      if (s.status === 'processed') statusBadgeClass = 'approved';
+      else if (s.status === 'responded') statusBadgeClass = 'approved_by_supervisor';
+      else if (s.status === 'initiated') statusBadgeClass = 'pending_supervisor';
+
+      rowsHtml += `
+        <tr>
+          <td>${escapeHtml(s.staffName)}</td>
+          <td>${escapeHtml(s.username.toUpperCase())}</td>
+          <td><strong>${s.remainingDays} days</strong></td>
+          <td>${escapeHtml(s.actionLabel)}</td>
+          <td><span class="status-badge ${statusBadgeClass}">${escapeHtml(s.status === 'initiated' ? 'Preference Pending' : s.status === 'responded' ? 'Preference Submitted' : s.status)}</span></td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Unified Leave Review & Settlements Report - ${year}</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 20px; }
+          .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+          .header h1 { margin: 0 0 5px 0; font-size: 22px; color: #0f172a; }
+          .header p { margin: 0; font-size: 13px; color: #64748b; }
+          
+          .info-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 8px; margin-bottom: 25px; font-size: 13px; }
+          .info-card strong { color: #0f172a; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+          th { background-color: #f1f5f9; color: #334155; font-weight: 600; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          
+          .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; text-transform: uppercase; }
+          .status-badge.approved { background: #dcfce7; color: #15803d; }
+          .status-badge.approved_by_supervisor { background: #e0f2fe; color: #0369a1; }
+          .status-badge.pending_supervisor { background: #fef3c7; color: #b45309; }
+          .status-badge.needs_review { background: #f1f5f9; color: #64748b; }
+
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Unified Leave Review & Settlements Report</h1>
+          <p>Generated On: ${new Date().toLocaleDateString('en-US')}</p>
+        </div>
+        
+        <div class="info-card">
+          <strong>Settlement Details:</strong><br>
+          Year: ${escapeHtml(year)}<br>
+          Review Period: ${escapeHtml(periodLabel)}<br>
+          Leave Category: ${escapeHtml(category)}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Codename</th>
+              <th>Unused Balance</th>
+              <th>Settlement Split Choice</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>

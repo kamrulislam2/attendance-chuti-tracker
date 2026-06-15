@@ -5,6 +5,7 @@ import { Bell, CheckCircle, RefreshCw, Search } from 'lucide-react';
 import { Profile, ChutiRecordWithProfile, BulkRepresentative } from '@/types';
 import { formatDate, formatTimeToAMPM } from '@/utils/dashboardHelpers';
 import { Modal } from '../Modal';
+import { CustomSelect } from '../CustomSelect';
 
 interface AdminLeaveApprovalModalProps {
   showLeaveApprovalModal: boolean;
@@ -41,6 +42,13 @@ export function AdminLeaveApprovalModal({
 }: AdminLeaveApprovalModalProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [leaveTypeFilter, setLeaveTypeFilter] = React.useState('all');
+
+  const leaveTypeOptions = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'Short Leave', label: 'Short Leave' },
+    { value: 'Full Leave', label: 'Full Leave' },
+    { value: 'Overtime', label: 'Overtime' },
+  ];
 
   React.useEffect(() => {
     if (!showLeaveApprovalModal) {
@@ -94,8 +102,8 @@ export function AdminLeaveApprovalModal({
     const notifications = adminHolidayNotifications || [];
     const query = searchQuery.toLowerCase().trim();
     if (!query) return notifications;
-    return notifications.filter(n => 
-      n.title.toLowerCase().includes(query) || 
+    return notifications.filter(n =>
+      n.title.toLowerCase().includes(query) ||
       n.body.toLowerCase().includes(query)
     );
   }, [adminHolidayNotifications, searchQuery, leaveTypeFilter]);
@@ -128,7 +136,7 @@ export function AdminLeaveApprovalModal({
               </div>
               <input
                 type="text"
-                placeholder="Search by staff name or codename (@username)..."
+                placeholder="Search by Name or codename (@username)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-10 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs transition-all font-sans"
@@ -148,16 +156,12 @@ export function AdminLeaveApprovalModal({
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Filter Leave Type</label>
-              <select
+              <CustomSelect
                 value={leaveTypeFilter}
-                onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer font-sans"
-              >
-                <option value="all">All Categories</option>
-                <option value="Short Leave">Short Leave</option>
-                <option value="Full Leave">Full Leave</option>
-                <option value="Overtime">Overtime</option>
-              </select>
+                onChange={setLeaveTypeFilter}
+                options={leaveTypeOptions}
+                className="w-full"
+              />
             </div>
             {(searchQuery || leaveTypeFilter !== 'all') && (
               <button
@@ -312,7 +316,7 @@ export function AdminLeaveApprovalModal({
                           {r.leave_type}
                         </span>
                       </p>
-                      
+
                       {(r.leave_type === 'Overtime' || r.leave_type === 'Short Leave') && (
                         <p><span className="text-slate-500 font-medium">Time & Hours:</span> <span className="font-mono text-slate-300">{formatTimeToAMPM(r.sign_in_time)} - {formatTimeToAMPM(r.sign_out_time)} ({r.leave_hour ? r.leave_hour.substring(0, 5) : '-'} hrs)</span></p>
                       )}
@@ -350,7 +354,7 @@ export function AdminLeaveApprovalModal({
                           </div>
                         </div>
                       )}
-                      
+
                       <p><span className="text-slate-500 font-medium">Reason/Comment:</span> <span className="italic text-slate-300 font-medium">{r.comment || '-'}</span></p>
                     </div>
 

@@ -2,24 +2,19 @@
 
 import React from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
-import { PasswordMatchIndicator } from '@/components/PasswordMatchIndicator';
-import { Profile } from '@/types';
-import { ProfileFields } from '@/components/ProfileFields';
-
 import { Modal } from '../Modal';
+import { CustomSelect } from '../CustomSelect';
+import { Profile } from '@/types';
 
 interface AdminCreateUserModalProps {
   showCreateUserModal: boolean;
   setShowCreateUserModal: (val: boolean) => void;
   profile: Profile | null;
-  newStaffPassword: string;
   setNewStaffPassword: (val: string) => void;
   newStaffUsername: string;
   setNewStaffUsername: (val: string) => void;
   newStaffRole: string;
   setNewStaffRole: (val: string) => void;
-  newStaffFullName: string;
-  setNewStaffFullName: (val: string) => void;
   newStaffNeedsApproval: boolean;
   setNewStaffNeedsApproval: (val: boolean) => void;
   newStaffAllowReserve: boolean;
@@ -27,19 +22,8 @@ interface AdminCreateUserModalProps {
   newStaffAllowOvertime: boolean;
   setNewStaffAllowOvertime: (val: boolean) => void;
   creatingUser: boolean;
-  newStaffConfirmPassword: string;
   setNewStaffConfirmPassword: (val: string) => void;
   handleCreateNewUser: () => void;
-  newStaffJobRole: string;
-  setNewStaffJobRole: (val: string) => void;
-  newStaffWorkingHours: string;
-  setNewStaffWorkingHours: (val: string) => void;
-  newStaffBreakTime: string;
-  setNewStaffBreakTime: (val: string) => void;
-  newStaffSignInTime: string;
-  setNewStaffSignInTime: (val: string) => void;
-  newStaffSignOutTime: string;
-  setNewStaffSignOutTime: (val: string) => void;
   newStaffEligibleOfficeLeave: boolean;
   setNewStaffEligibleOfficeLeave: (val: boolean) => void;
   newStaffEligibleGovtHoliday: boolean;
@@ -50,14 +34,11 @@ export function AdminCreateUserModal({
   showCreateUserModal,
   setShowCreateUserModal,
   profile,
-  newStaffPassword,
   setNewStaffPassword,
   newStaffUsername,
   setNewStaffUsername,
   newStaffRole,
   setNewStaffRole,
-  newStaffFullName,
-  setNewStaffFullName,
   newStaffNeedsApproval,
   setNewStaffNeedsApproval,
   newStaffAllowReserve,
@@ -65,30 +46,23 @@ export function AdminCreateUserModal({
   newStaffAllowOvertime,
   setNewStaffAllowOvertime,
   creatingUser,
-  newStaffConfirmPassword,
   setNewStaffConfirmPassword,
   handleCreateNewUser,
-  newStaffJobRole,
-  setNewStaffJobRole,
-  newStaffWorkingHours,
-  setNewStaffWorkingHours,
-  newStaffBreakTime,
-  setNewStaffBreakTime,
-  newStaffSignInTime,
-  setNewStaffSignInTime,
-  newStaffSignOutTime,
-  setNewStaffSignOutTime,
   newStaffEligibleOfficeLeave,
   setNewStaffEligibleOfficeLeave,
   newStaffEligibleGovtHoliday,
   setNewStaffEligibleGovtHoliday,
 }: AdminCreateUserModalProps) {
+  const roleOptions = [
+    { value: 'user', label: 'Staff / User' },
+    { value: 'supervisor', label: 'Supervisor' },
+    { value: 'admin', label: 'Admin' },
+  ];
   const handleClose = () => {
     setShowCreateUserModal(false);
-    setNewStaffPassword('1234');
-    setNewStaffConfirmPassword('1234');
+    setNewStaffPassword('123456');
+    setNewStaffConfirmPassword('123456');
     setNewStaffUsername('');
-    setNewStaffFullName('');
     setNewStaffRole('user');
     setNewStaffNeedsApproval(false);
     setNewStaffAllowReserve(false);
@@ -118,15 +92,12 @@ export function AdminCreateUserModal({
 
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Role</label>
-          <select
+          <CustomSelect
             value={newStaffRole}
-            onChange={(e) => setNewStaffRole(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="user">Staff / User</option>
-            <option value="supervisor">Supervisor</option>
-            <option value="admin">Admin</option>
-          </select>
+            onChange={setNewStaffRole}
+            options={roleOptions}
+            className="w-full mt-1"
+          />
         </div>
 
         {/* Checkboxes Grid */}

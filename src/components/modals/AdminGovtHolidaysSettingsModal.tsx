@@ -25,7 +25,6 @@ export function AdminGovtHolidaysSettingsModal({
   const [newName, setNewName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [removedDates, setRemovedDates] = useState<string[]>([]);
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{ date: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -39,7 +38,6 @@ export function AdminGovtHolidaysSettingsModal({
       });
       setGovtHolidays(parsed);
       setError(null);
-      setRemovedDates([]);
       setDeleteConfirmInfo(null);
       
       const today = new Date();
@@ -85,7 +83,6 @@ export function AdminGovtHolidaysSettingsModal({
     const { date: dateToRemove } = deleteConfirmInfo;
     setError(null);
     setGovtHolidays(prev => prev.filter(h => h.date !== dateToRemove));
-    setRemovedDates(prev => [...prev, dateToRemove]);
     setDeleteConfirmInfo(null);
   };
 
@@ -235,7 +232,7 @@ export function AdminGovtHolidaysSettingsModal({
 
       {/* Custom Confirmation Modal */}
       {deleteConfirmInfo && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-955/90 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-955/90 backdrop-blur-md p-4 animate-fade-in">
           <div className="bg-slate-900 border border-slate-850 shadow-2xl rounded-2xl w-full max-w-sm p-6 relative overflow-hidden font-sans text-center border-red-500/20">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-red-900/10 blur-[80px] pointer-events-none" />
             

@@ -718,6 +718,12 @@ CREATE POLICY "Users can insert own settlements"
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own settlements"
+  ON public.leave_settlements
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 CREATE POLICY "Admins/supervisors can manage settlements"
   ON public.leave_settlements
   FOR ALL

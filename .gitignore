@@ -43,3 +43,6 @@ next-env.d.ts
 
 # tauri keys
 tauri-private.*
+
+# scratch files
+/scratch

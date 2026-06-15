@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { DateInput } from '@/components/DateInput';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { formatDate } from '@/utils/dashboardHelpers';
+import { CustomSelect } from './CustomSelect';
 
 interface AddLeaveFormFieldsProps {
   date: string;
@@ -62,7 +63,6 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
   comment,
   setComment,
   bulkDates,
-  bulkAdjustments,
   handleAddBulkDate,
   handleUpdateBulkDate,
   handleUpdateBulkAdjustment,
@@ -76,11 +76,16 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
   govtHolidayRemaining = 0,
   eidFitrRemaining = 0,
   eidAdhaRemaining = 0,
-  eligibleOfficeLeave = true,
   isAdmin = false,
 }) => {
   const isFullLeave = leaveType === 'Full Leave';
   const hasAnyFullLeaveToggle = isAdmin || (govtHolidayRemaining > 0) || (eidFitrRemaining > 0) || (eidAdhaRemaining > 0);
+
+  const leaveTypeOptions = [
+    { value: 'Short Leave', label: 'Short Leave' },
+    { value: 'Full Leave', label: 'Full Leave' },
+    ...(allowOvertime ? [{ value: 'Overtime', label: 'Overtime' }] : []),
+  ];
 
   const [showBulkAdjPrompt, setShowBulkAdjPrompt] = React.useState(false);
   const [pendingCategory, setPendingCategory] = React.useState('');
@@ -239,15 +244,12 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
 
         <div>
           <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Type</label>
-          <select
+          <CustomSelect
             value={leaveType}
-            onChange={(e) => setLeaveType(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="Short Leave">Short Leave</option>
-            <option value="Full Leave">Full Leave</option>
-            {allowOvertime && <option value="Overtime">Overtime</option>}
-          </select>
+            onChange={setLeaveType}
+            options={leaveTypeOptions}
+            className="w-full mt-1"
+          />
         </div>
       </div>
 

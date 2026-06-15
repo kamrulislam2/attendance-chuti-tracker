@@ -14,13 +14,6 @@ interface useAdminStaffOperationsParams {
   setProfilesList: React.Dispatch<React.SetStateAction<Profile[]>>;
   setViewingStaffId: React.Dispatch<React.SetStateAction<string | null>>;
   setMessage: (msg: { type: 'success' | 'error'; text: string } | null) => void;
-  isPushSubscribed: boolean;
-  setIsPushSubscribed: (val: boolean) => void;
-  isPushLoading: boolean;
-  setIsPushLoading: (val: boolean) => void;
-  adminActiveTab: 'user' | 'admin';
-  setAdminActiveTab: React.Dispatch<React.SetStateAction<'user' | 'admin'>>;
-  handleLogout: () => Promise<void>;
   router: any;
   setApprovingIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
   setApprovedIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -35,13 +28,6 @@ export const useAdminStaffOperations = ({
   setProfilesList,
   setViewingStaffId,
   setMessage,
-  isPushSubscribed,
-  setIsPushSubscribed,
-  isPushLoading,
-  setIsPushLoading,
-  adminActiveTab,
-  setAdminActiveTab,
-  handleLogout,
   router,
   setApprovingIds,
   setApprovedIds,
@@ -76,18 +62,12 @@ export const useAdminStaffOperations = ({
   const [newStaffConfirmPassword, setNewStaffConfirmPassword] = useState('');
   const [newStaffUsername, setNewStaffUsername] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('user');
-  const [newStaffFullName, setNewStaffFullName] = useState('');
   const [newStaffNeedsApproval, setNewStaffNeedsApproval] = useState(false);
   const [newStaffAllowReserve, setNewStaffAllowReserve] = useState(false);
   const [newStaffAllowOvertime, setNewStaffAllowOvertime] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
 
   // New staff details and eligibility states
-  const [newStaffJobRole, setNewStaffJobRole] = useState('');
-  const [newStaffWorkingHours, setNewStaffWorkingHours] = useState('');
-  const [newStaffBreakTime, setNewStaffBreakTime] = useState('');
-  const [newStaffSignInTime, setNewStaffSignInTime] = useState('');
-  const [newStaffSignOutTime, setNewStaffSignOutTime] = useState('');
   const [newStaffEligibleOfficeLeave, setNewStaffEligibleOfficeLeave] = useState(true);
   const [newStaffEligibleGovtHoliday, setNewStaffEligibleGovtHoliday] = useState(true);
 
@@ -407,12 +387,8 @@ export const useAdminStaffOperations = ({
       setFirstTimePasswordError('Passwords do not match!');
       return;
     }
-    if (firstTimePassword.length < 6) {
-      setFirstTimePasswordError('Password must be at least 6 characters long!');
-      return;
-    }
-    if (!/[a-zA-Z]/.test(firstTimePassword) || !/[0-9]/.test(firstTimePassword)) {
-      setFirstTimePasswordError('Password must include at least one letter and one number!');
+    if (firstTimePassword.length < 6 || firstTimePassword.length > 12) {
+      setFirstTimePasswordError('Password must be between 6 and 12 characters long!');
       return;
     }
 
@@ -477,7 +453,7 @@ export const useAdminStaffOperations = ({
       const derivedEmail = `${newStaffUsername.toLowerCase().trim()}@office.local`;
       const { data: newUserId, error } = await supabase.rpc('create_new_user', {
         p_email: derivedEmail,
-        p_password: newStaffPassword || '1234',
+        p_password: newStaffPassword || '123456',
         p_username: newStaffUsername.toUpperCase(),
         p_role: newStaffRole,
         p_full_name: '', // Blank
@@ -511,17 +487,9 @@ export const useAdminStaffOperations = ({
       setNewStaffConfirmPassword('');
       setNewStaffUsername('');
       setNewStaffRole('user');
-      setNewStaffFullName('');
       setNewStaffNeedsApproval(false);
       setNewStaffAllowReserve(false);
       setNewStaffAllowOvertime(false);
-      
-      // Reset additional fields to empty strings
-      setNewStaffJobRole('');
-      setNewStaffWorkingHours('');
-      setNewStaffBreakTime('');
-      setNewStaffSignInTime('');
-      setNewStaffSignOutTime('');
       setNewStaffEligibleOfficeLeave(true);
       setNewStaffEligibleGovtHoliday(true);
       
@@ -544,12 +512,8 @@ export const useAdminStaffOperations = ({
       setMessage({ type: 'error', text: 'Passwords do not match!' });
       return;
     }
-    if (credNewPassword && credNewPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters long!' });
-      return;
-    }
-    if (credNewPassword && (!/[a-zA-Z]/.test(credNewPassword) || !/[0-9]/.test(credNewPassword))) {
-      setMessage({ type: 'error', text: 'Password must include at least one letter and one number!' });
+    if (credNewPassword && (credNewPassword.length < 6 || credNewPassword.length > 12)) {
+      setMessage({ type: 'error', text: 'Password must be between 6 and 12 characters long!' });
       return;
     }
     setUpdatingCredentials(true);
@@ -876,8 +840,6 @@ export const useAdminStaffOperations = ({
     setNewStaffUsername,
     newStaffRole,
     setNewStaffRole,
-    newStaffFullName,
-    setNewStaffFullName,
     newStaffNeedsApproval,
     setNewStaffNeedsApproval,
     newStaffAllowReserve,
@@ -885,16 +847,6 @@ export const useAdminStaffOperations = ({
     newStaffAllowOvertime,
     setNewStaffAllowOvertime,
     creatingUser,
-    newStaffJobRole,
-    setNewStaffJobRole,
-    newStaffWorkingHours,
-    setNewStaffWorkingHours,
-    newStaffBreakTime,
-    setNewStaffBreakTime,
-    newStaffSignInTime,
-    setNewStaffSignInTime,
-    newStaffSignOutTime,
-    setNewStaffSignOutTime,
     newStaffEligibleOfficeLeave,
     setNewStaffEligibleOfficeLeave,
     newStaffEligibleGovtHoliday,

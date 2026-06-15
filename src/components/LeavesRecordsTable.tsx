@@ -1,9 +1,9 @@
 import React from 'react';
-import { SlidersHorizontal, Download, RefreshCw, Edit, Trash2, Search, Plus } from 'lucide-react';
+import { Edit, Trash2, Search, Plus } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { DateInput } from './DateInput';
 import { FilterPanel } from './FilterPanel';
 import { StatusBadge } from './StatusBadge';
+import { CustomSelect } from './CustomSelect';
 
 interface LeavesRecordsTableProps {
   records: ChutiRecord[];
@@ -61,6 +61,10 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
   showPendingBadge = false,
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const yearOptions = [
+    { value: 'all', label: 'All' },
+    ...availableYears.map((y) => ({ value: y, label: y })),
+  ];
 
   const filteredRecords = React.useMemo(() => {
     return records.filter((r) => {
@@ -133,18 +137,12 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
             >
               <Plus className="h-3.5 w-3.5" /> Add Leave
             </button>
-            <select
+            <CustomSelect
               value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer shadow-md"
-            >
-              <option value="all" className="bg-slate-900 text-white">All</option>
-              {availableYears.map(y => (
-                <option key={y} value={y} className="bg-slate-900 text-white">
-                  {y}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedYear}
+              options={yearOptions}
+              className="min-w-[80px]"
+            />
           </div>
         </div>
 

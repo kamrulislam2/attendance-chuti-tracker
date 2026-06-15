@@ -283,7 +283,14 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v0.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v0.1.5 (Latest)
+### 🚀 v0.1.6 (Latest)
+* **Three-Way Split Settlements**: Implemented detailed split allocations (Carry Forward, Cash Payment, Adjust with other leaves) for Year-End settlements with real-time progress bar feedback and validation check constraints.
+* **Selection Flicker Bug Fix**: Synchronous lazy state initialization from props implemented inside settlements editing to eliminate UI flicker.
+* **Unified Action Loader Spinners**: Added button loading indicator spinners (`RefreshCw` icon), disabled interactions, and layout stability improvements for Cancel Adjustment, Edit Record, Holiday choice actions, and other modals.
+* **Relaxed Password Validations**: Removed strict digit/letter constraint rules on passwords while capping the length bounds securely between 6 to 12 characters.
+* **Settlement Clear Filter Option**: Added search and instant clear filters inside the settlements reports listing.
+
+### 🚀 v0.1.5
 * **Windows/macOS Startup Hang Fix**: Disabled PWA Service Worker (`sw.js`) registration in the Tauri desktop app context and added automatic unregistration of any old service worker instances to resolve cold boot white-screen issues.
 * **Safe Session Initialization**: Added a 4-second timeout protection (`Promise.race`) in Supabase getSession calls to prevent loading overlays from hanging indefinitely during poor network start-up.
 * **macOS Bundle Warning Fix**: Changed tauri bundle identifier to `com.chuti.tracker` to avoid collision warnings.

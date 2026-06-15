@@ -1,5 +1,6 @@
 import React from 'react';
 import { DateInput } from '@/components/DateInput';
+import { CustomSelect } from './CustomSelect';
 
 interface ChutiFormFieldsProps {
   date: string;
@@ -43,6 +44,12 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
   const isShortOrOvertime = leaveType !== 'Full Leave';
   const showAdjustmentSection = leaveType !== 'Full Leave';
 
+  const leaveTypeOptions = [
+    { value: 'Short Leave', label: 'Short Leave' },
+    { value: 'Full Leave', label: 'Full Leave' },
+    ...((allowOvertime || leaveType === 'Overtime') ? [{ value: 'Overtime', label: 'Overtime' }] : []),
+  ];
+
   return (
     <>
       <div>
@@ -63,17 +70,12 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
           Leave Type
         </label>
-        <select
+        <CustomSelect
           value={leaveType}
-          onChange={(e) => setLeaveType(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
-          <option value="Short Leave">Short Leave</option>
-          <option value="Full Leave">Full Leave</option>
-          {(allowOvertime || leaveType === 'Overtime') && (
-            <option value="Overtime">Overtime</option>
-          )}
-        </select>
+          onChange={setLeaveType}
+          options={leaveTypeOptions}
+          className="w-full mt-1"
+        />
       </div>
 
       {isShortOrOvertime && (

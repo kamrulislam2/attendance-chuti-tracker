@@ -112,7 +112,7 @@ export function AdminAddLeaveModal({
   };
 
   const isOfficeLeaveEligible = staffProfile?.eligible_office_leave !== false;
-  const officeLeaveTotalBase = isOfficeLeaveEligible ? (globalSettings.office_leave_default ?? 14) : 0;
+  const officeLeaveTotalBase = isOfficeLeaveEligible ? (globalSettings.office_leave_h1 + globalSettings.office_leave_h2) : 0;
 
   const reservedCount = userResponses.filter((r: any) => r.response === 'reserve').length;
   const govtHolidayTotal = reservedCount;
@@ -161,10 +161,11 @@ export function AdminAddLeaveModal({
   const halfYearlyStats = React.useMemo(() => {
     return calculateHalfYearlyOfficeLeave(
       records,
-      globalSettings.office_leave_default ?? 14,
+      globalSettings.office_leave_h1,
+      globalSettings.office_leave_h2,
       selectedYear
     );
-  }, [records, globalSettings.office_leave_default, selectedYear]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear]);
 
   const isFullLeave = leaveType === 'Full Leave';
 
@@ -225,7 +226,7 @@ export function AdminAddLeaveModal({
       // Direct Admin bulk insertion (bypasses regular user submission logic)
       const adjustedArr = datesWithAdjustment.map(item => item.adjustment);
       
-      const { data: newChutiRecords, error: bulkInsertError } = await supabase.rpc(
+      const { error: bulkInsertError } = await supabase.rpc(
         'admin_insert_chuti_records_bulk',
         {
           p_user_id: staffProfile.id,

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Edit } from 'lucide-react';
+import { Edit, RefreshCw } from 'lucide-react';
 import { Profile } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { ChutiFormFields } from '../ChutiFormFields';
@@ -30,6 +30,7 @@ interface AdminEditRecordModalProps {
   adminEditComment: string;
   setAdminEditComment: (val: string) => void;
   handleAdminSaveEdit: (e: React.FormEvent) => void;
+  submitting?: boolean;
 }
 
 export function AdminEditRecordModal({
@@ -55,6 +56,7 @@ export function AdminEditRecordModal({
   adminEditComment,
   setAdminEditComment,
   handleAdminSaveEdit,
+  submitting = false,
 }: AdminEditRecordModalProps) {
   if (profile?.role !== 'admin' || !adminEditRecord) return null;
 
@@ -96,15 +98,18 @@ export function AdminEditRecordModal({
           <button
             type="button"
             onClick={handleClose}
-            className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer transition-all"
+            disabled={submitting}
+            className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 cursor-pointer disabled:opacity-50 transition-all"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer transition-all"
+            disabled={submitting}
+            className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
           >
-            Save Changes
+            {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+            {submitting ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

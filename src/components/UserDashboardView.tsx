@@ -3,18 +3,19 @@ import { UserStats } from './UserStats';
 import { LeavesRecordsTable } from './LeavesRecordsTable';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { Profile, GovtHolidayResponse, LeaveSettlement } from '@/types';
-import { 
-  formatDate, 
-  formatTimeToAMPM, 
-  getCleanComment, 
+import {
+  formatDate,
+  formatTimeToAMPM,
+  getCleanComment,
   GlobalSettings,
   parseIntervalToMinutes,
   formatDuration,
   parseHolidayItem,
-  HalfYearlyOfficeLeaveStats
+  getSettlementSplits,
+  getSettlementLabel
 } from '@/utils/dashboardHelpers';
 import { useGovtHolidayStats, useHalfYearlyStats } from '@/hooks/useLeaveQuotaStats';
-import { Calendar, RotateCcw } from 'lucide-react';
+import { Calendar, RotateCcw, RefreshCw } from 'lucide-react';
 import { UserSettleModal } from './modals/UserSettleModal';
 
 interface UserDashboardViewProps {
@@ -92,23 +93,23 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   // Previous year carried balances
   const prevYear = (Number(selectedYear) - 1).toString();
   const carriedOffice = leaveSettlements
-    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Office Leave' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Office Leave')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedGovt = leaveSettlements
-    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedEidFitr = leaveSettlements
-    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedEidAdha = leaveSettlements
-    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   // Government Holiday calculations using shared hook
-  const { paidCount, reservedCount, respondedHolidays, govtHolidayStats } = useGovtHolidayStats(
+  const { respondedHolidays, govtHolidayStats } = useGovtHolidayStats(
     profile?.id,
     holidayResponses,
     globalSettings,
@@ -116,21 +117,37 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     userStats.govtHolidaysTaken || 0
   );
 
+  // Current Year settled amounts (processed or responded) to prevent double counting
+  const activeGovtSettled = leaveSettlements
+    .filter(s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Govt Holiday' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const activeEidFitrSettled = leaveSettlements
+    .filter(s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Fitr' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const activeEidAdhaSettled = leaveSettlements
+    .filter(s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Adha' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
   const adjustedGovtHolidayStats = {
     ...govtHolidayStats,
     total: govtHolidayStats.total + carriedGovt,
-    remaining: Math.max(0, govtHolidayStats.reserved + carriedGovt - govtHolidayStats.taken)
+    remaining: Math.max(0, govtHolidayStats.reserved + carriedGovt - govtHolidayStats.taken - activeGovtSettled)
   };
 
   const officeLeaveTotal = isOfficeLeaveEligible
-    ? (globalSettings.office_leave_default ?? 14) + carriedOffice + (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha
+    ? (globalSettings.office_leave_h1 + globalSettings.office_leave_h2) + carriedOffice + (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha
     : (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha;
 
   // Half-yearly split calculations using shared hook
   const { halfYearlyStats } = useHalfYearlyStats(
     userRecords,
-    globalSettings.office_leave_default ?? 14,
-    selectedYear
+    globalSettings.office_leave_h1,
+    globalSettings.office_leave_h2,
+    selectedYear,
+    leaveSettlements,
+    profile?.id
   );
 
   // Short to Full Leave Conversion Adjustments
@@ -149,19 +166,67 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     remaining: totalAllowed - officeLeaveTaken,
   };
 
-  // Determine if year-end settlement banner should show
-  const activeRemainingCategories = [
-    { name: 'Office Leave', remaining: officeLeaveTotal - officeLeaveTaken },
-    { name: 'Govt Holiday', remaining: adjustedGovtHolidayStats.remaining },
-    { name: 'Eid-ul-Fitr', remaining: Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0)) },
-    { name: 'Eid-ul-Adha', remaining: Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0)) }
-  ].filter(c => c.remaining > 0);
+  // Determine if leave settlement preference banner should show
+  const userYearSettlements = leaveSettlements.filter(
+    s => s.user_id === profile?.id && s.year === selectedYear
+  );
+  const hasAnySettlement = userYearSettlements.length > 0;
 
-  const activeSettlementsForYear = leaveSettlements.filter(s => s.user_id === profile?.id && s.year === selectedYear);
+  const initiatedSettlements = userYearSettlements.filter(
+    s => s.status === 'initiated'
+  );
+  const respondedSettlements = userYearSettlements.filter(
+    s => s.status === 'responded'
+  );
 
-  const showSettlementBanner = globalSettings.settlement_active_year === selectedYear &&
-                               activeRemainingCategories.length > 0 &&
-                               activeSettlementsForYear.length < activeRemainingCategories.length;
+  const currentHalfPeriod: 'H1' | 'H2' = halfYearlyStats.currentHalf === 1 ? 'H1' : 'H2';
+  const officeRemaining = halfYearlyStats.currentHalf === 1 ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
+
+  const activeGovtSettledForPeriod = leaveSettlements.some(
+    s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Govt Holiday' && s.period === currentHalfPeriod && (s.status === 'processed' || s.status === 'responded')
+  );
+  const govtRemaining = isGovtHolidayEligible && !activeGovtSettledForPeriod
+    ? adjustedGovtHolidayStats.remaining
+    : 0;
+
+  const activeEidFitrSettledForPeriod = leaveSettlements.some(
+    s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Fitr' && (s.status === 'processed' || s.status === 'responded')
+  );
+  const eidFitrRemaining = !activeEidFitrSettledForPeriod
+    ? Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0))
+    : 0;
+
+  const activeEidAdhaSettledForPeriod = leaveSettlements.some(
+    s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Adha' && (s.status === 'processed' || s.status === 'responded')
+  );
+  const eidAdhaRemaining = !activeEidAdhaSettledForPeriod
+    ? Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0))
+    : 0;
+
+  // Determine broadcast-specific remaining balance
+  const broadcastPeriod = globalSettings.settlement_active_period;
+  const broadcastCategory = globalSettings.settlement_active_category;
+
+  const broadcastRemaining = React.useMemo(() => {
+    if (!broadcastPeriod || !broadcastCategory || globalSettings.settlement_active_year !== selectedYear) return 0;
+
+    if (broadcastCategory === 'Office Leave') {
+      if (broadcastPeriod === 'H1') return Math.max(0, halfYearlyStats.h1Remaining);
+      if (broadcastPeriod === 'H2') return Math.max(0, halfYearlyStats.h2Remaining);
+      return Math.max(0, officeLeaveStats.remaining);
+    }
+    if (broadcastCategory === 'Govt Holiday') return govtRemaining;
+    if (broadcastCategory === 'Eid-ul-Fitr') return eidFitrRemaining;
+    if (broadcastCategory === 'Eid-ul-Adha') return eidAdhaRemaining;
+    return 0;
+  }, [broadcastPeriod, broadcastCategory, globalSettings.settlement_active_year, selectedYear, halfYearlyStats, officeLeaveStats.remaining, govtRemaining, eidFitrRemaining, eidAdhaRemaining]);
+
+  const isGeneralBroadcastActive = !hasAnySettlement &&
+    globalSettings.settlement_active_year === selectedYear &&
+    !!broadcastPeriod && !!broadcastCategory &&
+    broadcastRemaining > 0;
+
+  const showSettlementBanner = initiatedSettlements.length > 0 || isGeneralBroadcastActive;
 
   const [showUserSettleModal, setShowUserSettleModal] = React.useState(false);
 
@@ -190,7 +255,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   const totalShortMins = parseIntervalToMinutes(userStats.shortHours);
   const netShortMins = Math.max(0, totalShortMins - convertedHours * 60);
   const displayShortHours = formatDuration(netShortMins);
-  
+
   const displayFullLeaves = userStats.fullLeaves + convertedDays;
 
   const workingHours = profile?.working_hours ?? 9.5;
@@ -200,7 +265,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     if (!profile) return;
     const maxDays = Math.floor(netShortMins / (workingHours * 60));
     const hoursText = (maxDays * workingHours).toFixed(1);
-    
+
     if (confirm(`Do you want to convert ${hoursText} hours of short leave to ${maxDays} days of full leave?\n(This will deduct from your short leave balance and add to your full leave)`)) {
       onConvertShortLeaveToFullLeave(profile.id, workingHours, netShortMins);
     }
@@ -210,7 +275,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in">
-      {/* Year-End Leave Settlement Alert Banner */}
+      {/* Staff Leave Leave Settlement Alert Banner */}
       {showSettlementBanner && (
         <div className="bg-slate-900/40 backdrop-blur-xl border border-indigo-900/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-start gap-3">
@@ -218,9 +283,32 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
               <RotateCcw className="h-5 w-5 text-indigo-500" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">Year-End Leave Preferences Pending ({selectedYear}) 📅</h4>
+              <h4 className="text-sm font-bold text-white">
+                {initiatedSettlements.length > 0
+                  ? 'Leave Preferences Requested by Admin 📅'
+                  : respondedSettlements.length > 0
+                    ? 'Submitted Leave Preferences (Review Mode) 📅'
+                    : `Leave Settlement Review Active (${selectedYear}) 📅`}
+              </h4>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                You have unused leaves for {selectedYear}. Please choose whether you want to carry them forward to next year or get paid.
+                {initiatedSettlements.length > 0 || respondedSettlements.length > 0 ? (
+                  <>
+                    {initiatedSettlements.length > 0
+                      ? 'Admin has requested your preferences for: '
+                      : 'You have submitted your preferences for (pending admin process): '}
+                    <span className="font-semibold text-slate-200">{
+                      [...initiatedSettlements, ...respondedSettlements].map(s => {
+                        const periodLabel = s.period === 'Instant' ? 'Instant' : s.period;
+                        const choiceLabel = getSettlementLabel(s);
+                        return `${s.leave_category} (${periodLabel}) [${choiceLabel}]`;
+                      }).join(', ')
+                    }</span>. You can edit your choice before they are processed by clicking below.
+                  </>
+                ) : (
+                  <>
+                    Leave settlement review is active for <span className="font-semibold text-slate-200">{broadcastCategory} ({broadcastPeriod === 'H1' ? 'January-June (H1)' : broadcastPeriod === 'H2' ? 'July-December (H2)' : 'Instant'})</span> — {selectedYear}. You have <span className="font-semibold text-orange-400">{broadcastRemaining} days</span> remaining. Please submit your settlement preferences.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -228,7 +316,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
             onClick={() => setShowUserSettleModal(true)}
             className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow transition-all cursor-pointer text-xs shrink-0 self-start sm:self-center"
           >
-            Settle Leaves Now
+            {initiatedSettlements.length > 0 ? 'Select Preferences' : respondedSettlements.length > 0 ? 'Edit Preferences' : 'Select Preferences'}
           </button>
         </div>
       )}
@@ -255,7 +343,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
               </div>
             </div>
           </div>
-          
+
           <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 border-t border-slate-850/80 md:border-t-0 pt-3 md:pt-0">
             {pendingHolidays.map((holiday) => {
               const isSubmitting = submittingDates.includes(holiday.date);
@@ -273,9 +361,9 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
                         await onSaveHolidayResponse(holiday.date, holiday.name, 'paid');
                         setSubmittingDates(prev => prev.filter(d => d !== holiday.date));
                       }}
-                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-555 text-white border border-emerald-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans"
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-555 text-white border border-emerald-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans flex items-center justify-center min-w-[65px] h-7"
                     >
-                      {isSubmitting ? '...' : 'Get Paid'}
+                      {isSubmitting ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Get Paid'}
                     </button>
                     <button
                       type="button"
@@ -285,9 +373,9 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
                         await onSaveHolidayResponse(holiday.date, holiday.name, 'reserve');
                         setSubmittingDates(prev => prev.filter(d => d !== holiday.date));
                       }}
-                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-teal-600 hover:bg-teal-555 text-white border border-teal-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans"
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-teal-600 hover:bg-teal-555 text-white border border-teal-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 font-sans flex items-center justify-center min-w-[65px] h-7"
                     >
-                      {isSubmitting ? '...' : 'Reserve'}
+                      {isSubmitting ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Reserve'}
                     </button>
                   </div>
                 </div>
@@ -297,7 +385,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         </div>
       )}
 
-      <UserStats 
+      <UserStats
         stats={{
           ...userStats,
           shortHours: displayShortHours,
@@ -314,13 +402,13 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         eligibleOfficeLeave={profile?.eligible_office_leave !== false}
         eligibleGovtHoliday={profile?.eligible_govt_holiday !== false}
         halfYearlyStats={halfYearlyStats}
-        eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0))}
+        eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (userStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
         eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
-        eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0))}
+        eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
         eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
       />
 
-      <LeavesRecordsTable 
+      <LeavesRecordsTable
         records={filteredUserRecords}
         allowOvertime={profile?.allow_overtime}
         selectedYear={selectedYear}

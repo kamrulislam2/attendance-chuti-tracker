@@ -70,13 +70,12 @@ jobs:
           releaseBody: |
             ### Chuti v__VERSION__ 🚀
 
-            #### 🌟 What's New in v0.1.5:
-            - **Startup Hang & White Screen Resolution**: Bypassed PWA Service Worker (`sw.js`) registration inside the Tauri desktop environment and automatically unregistered old ones. This prevents asset resolution hangs that caused Windows/macOS apps to boot into a blank white screen.
-            - **Safe Session Initialization**: Embedded a 4-second timeout protection (`Promise.race`) in Supabase getSession calls to prevent the app from getting stuck on "Loading, please wait..." during network start-up delays.
-            - **macOS Bundle Warning Fix**: Switched tauri bundle identifier to `com.chuti.tracker` to avoid collision warnings on macOS.
-            - **Dynamic Eid Holiday Cards**: Automatically display pending Eid-ul-Fitr and Eid-ul-Adha holiday cards on the user dashboard if they have remaining/unadjusted days (auto-hiding when fully adjusted or 0).
-            - **Modal Loader Integrations**: Added clean loading spinner states to AddLeaveModal and AdminAddLeaveModal to eliminate rendering glitches and layout shifts.
-            - **Database Schema Optimization**: Relocated `ALTER PUBLICATION` statements in schema.sql to run after table declarations, eliminating sql query initialization errors.
+            #### 🌟 What's New in v0.1.6:
+            - **Three-Way Split Settlements**: Implemented detailed split allocations (Carry Forward, Cash Payment, and Adjust with other leaves) for Year-End settlements with real-time visual progress bar feedback and validation checks.
+            - **Selection Flicker Bug Fix**: Synchronous lazy state initialization from props inside settlements editing modal to eliminate selection flickering.
+            - **Unified Action Loader Spinners**: Integrated rotating React spinner loaders (`RefreshCw`), button disabled states, and minimum width overrides to prevent double-submissions and component layout shifting.
+            - **Relaxed Password Rule**: Bounded password constraints securely between 6 to 12 characters while removing the strict requirement for letters and numbers combined.
+            - **Settlement Clear Filter Option**: Added search and instant clear filters inside the settlements reports listing.
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

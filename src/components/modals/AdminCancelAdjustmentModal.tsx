@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { Profile } from '@/types';
 
@@ -15,6 +15,7 @@ interface AdminCancelAdjustmentModalProps {
   handleConfirmCancelAdjustment: () => void;
   profile: Profile | null;
   adminActiveTab: 'user' | 'admin';
+  submitting?: boolean;
 }
 
 export function AdminCancelAdjustmentModal({
@@ -25,6 +26,7 @@ export function AdminCancelAdjustmentModal({
   handleConfirmCancelAdjustment,
   profile,
   adminActiveTab,
+  submitting = false,
 }: AdminCancelAdjustmentModalProps) {
   const isDirectCancel = profile?.role === 'admin' && adminActiveTab === 'admin';
 
@@ -53,20 +55,25 @@ export function AdminCancelAdjustmentModal({
       <div className="flex gap-3">
         <button
           type="button"
+          disabled={submitting}
           onClick={() => {
             setShowCancelAdjustmentModal(false);
             setCancelAdjustmentRecord(null);
           }}
-          className="flex-1 flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+          className="flex-1 flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50"
         >
           No
         </button>
         <button
           type="button"
+          disabled={submitting}
           onClick={handleConfirmCancelAdjustment}
-          className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+          className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
-          {isDirectCancel ? 'Yes, Cancel' : 'Yes, Send Request'}
+          {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+          {submitting
+            ? (isDirectCancel ? 'Cancelling...' : 'Sending Request...')
+            : (isDirectCancel ? 'Yes, Cancel' : 'Yes, Send Request')}
         </button>
       </div>
     </Modal>

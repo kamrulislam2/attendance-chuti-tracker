@@ -1,18 +1,34 @@
 import { ChutiRecord, generateUUID } from '@/utils/offlineSync';
+import { LeaveSettlement } from '@/types';
 
 export interface GlobalSettings {
-  office_leave_default: number;
+  office_leave_h1: number;
+  office_leave_h2: number;
+  /** @deprecated Use office_leave_h1 + office_leave_h2 instead. Kept for backward compatibility. */
+  office_leave_default?: number;
   eid_fitr_leave: number;
   eid_adha_leave: number;
   govt_holidays: any[]; // Supports date strings or { date: string; name: string } objects
   settlement_active_year?: string | null;
+  settlement_active_period?: 'H1' | 'H2' | 'Instant' | null;
+  settlement_active_category?: 'Office Leave' | 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha' | null;
 }
 
 export const defaultGlobalSettings: GlobalSettings = {
-  office_leave_default: 14,
+  office_leave_h1: 7,
+  office_leave_h2: 7,
   eid_fitr_leave: 0,
   eid_adha_leave: 0,
   govt_holidays: []
+};
+
+/** Helper: derive H1/H2 from legacy office_leave_default if new fields are missing */
+const deriveH1H2 = (gs: any): { h1: number; h2: number } => {
+  if (gs.office_leave_h1 != null && gs.office_leave_h2 != null) {
+    return { h1: Number(gs.office_leave_h1), h2: Number(gs.office_leave_h2) };
+  }
+  const total = Number(gs.office_leave_default ?? 14);
+  return { h1: Math.floor(total / 2), h2: total - Math.floor(total / 2) };
 };
 
 export const parseHolidayItem = (item: any): { date: string; name: string } => {
@@ -31,12 +47,17 @@ export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
         ? JSON.parse(profile.global_settings)
         : profile.global_settings;
       if (gs && typeof gs === 'object') {
+        const derived = deriveH1H2(gs);
         return {
+          office_leave_h1: derived.h1,
+          office_leave_h2: derived.h2,
           office_leave_default: Number(gs.office_leave_default ?? 14),
           eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
           eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
           govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : [],
-          settlement_active_year: gs.settlement_active_year || null
+          settlement_active_year: gs.settlement_active_year || null,
+          settlement_active_period: gs.settlement_active_period || null,
+          settlement_active_category: gs.settlement_active_category || null
         };
       }
     } catch (e) {
@@ -48,12 +69,17 @@ export const getGlobalSettingsFromProfile = (profile: any): GlobalSettings => {
     try {
       const gs = JSON.parse(profile.requested_default_sign_in);
       if (gs && typeof gs === 'object') {
+        const derived = deriveH1H2(gs);
         return {
+          office_leave_h1: derived.h1,
+          office_leave_h2: derived.h2,
           office_leave_default: Number(gs.office_leave_default ?? 14),
           eid_fitr_leave: Number(gs.eid_fitr_leave ?? 0),
           eid_adha_leave: Number(gs.eid_adha_leave ?? 0),
           govt_holidays: Array.isArray(gs.govt_holidays) ? gs.govt_holidays : [],
-          settlement_active_year: gs.settlement_active_year || null
+          settlement_active_year: gs.settlement_active_year || null,
+          settlement_active_period: gs.settlement_active_period || null,
+          settlement_active_category: gs.settlement_active_category || null
         };
       }
     } catch (e) {
@@ -327,13 +353,49 @@ export interface HalfYearlyOfficeLeaveStats {
   currentHalf: 1 | 2;
 }
 
+export const getSettlementSplits = (s: LeaveSettlement) => {
+  const carry_forward = s.carry_forward_days ?? (s.action_type === 'carry_forward' ? s.remaining_days : 0);
+  const payment = s.payment_days ?? (s.action_type === 'payment' ? s.remaining_days : 0);
+  const adjust_leave = s.adjust_leave_days ?? (s.action_type === 'adjust_leave' ? s.remaining_days : 0);
+  return { carry_forward, payment, adjust_leave };
+};
+
+export const getSettlementLabel = (s: LeaveSettlement): string => {
+  if (s.remaining_days < 0) {
+    return 'Salary Deduction';
+  }
+  if (s.action_type === 'split') {
+    const parts: string[] = [];
+    const splits = getSettlementSplits(s);
+    if (splits.carry_forward > 0) parts.push(`${splits.carry_forward}d Carry Forward`);
+    if (splits.payment > 0) parts.push(`${splits.payment}d Cash Out`);
+    if (splits.adjust_leave > 0) parts.push(`${splits.adjust_leave}d Adjust`);
+    return parts.length > 0 ? parts.join(', ') : 'Split';
+  }
+  return s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Cash Out' : 'Adjust Leaves';
+};
+
 export const calculateHalfYearlyOfficeLeave = (
   records: ChutiRecord[],
-  officeLeaveDefault: number,
-  selectedYear: string
+  officeLeaveH1: number,
+  officeLeaveH2: number,
+  selectedYear: string,
+  leaveSettlements?: LeaveSettlement[],
+  userId?: string,
+  ignoreSettlementPeriod?: 'H1' | 'H2' | 'Instant' | 'all'
 ): HalfYearlyOfficeLeaveStats => {
-  const h1Quota = Math.floor(officeLeaveDefault / 2); // 7 days
-  const h2Quota = officeLeaveDefault - h1Quota; // 7 days
+  // 1. Calculate carried over office leave from previous year
+  let carriedOffice = 0;
+  if (leaveSettlements && userId) {
+    const prevYear = (Number(selectedYear) - 1).toString();
+    carriedOffice = leaveSettlements
+      .filter((s) => s.user_id === userId && s.year === prevYear && s.leave_category === 'Office Leave')
+      .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
+  }
+
+  // 2. Base quotas: H1 uses admin-set h1 quota + any carried over from previous year.
+  const h1Quota = officeLeaveH1 + carriedOffice;
+  const h2Quota = officeLeaveH2;
 
   // Filter approved full-day records for the selected year
   const approvedRecs = records.filter(r => r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
@@ -359,19 +421,49 @@ export const calculateHalfYearlyOfficeLeave = (
     }
   });
 
-  const h1Remaining = h1Quota - h1Taken;
-  const carryForward = Math.max(0, h1Remaining);
+  let h1Remaining = h1Quota - h1Taken;
+  
+  // Calculate H1 carry forward dynamically based on H1 settlement
+  let carryForward = Math.max(0, h1Remaining);
+  if (leaveSettlements && userId) {
+    const h1Settlements = leaveSettlements.filter(
+      (s) => s.user_id === userId && s.year === selectedYear && s.period === 'H1' && s.leave_category === 'Office Leave'
+    );
+    if (h1Settlements.length > 0) {
+      const activeSettlement = h1Settlements.find((s) => s.status === 'processed' || s.status === 'responded');
+      if (activeSettlement) {
+        if (ignoreSettlementPeriod !== 'H1' && ignoreSettlementPeriod !== 'all') {
+          h1Remaining = 0;
+        }
+        carryForward = getSettlementSplits(activeSettlement).carry_forward;
+      }
+    }
+  }
+
   const h2Total = h2Quota + carryForward;
-  const h2Remaining = h2Total - h2Taken;
+  let h2Remaining = h2Total - h2Taken;
+  if (leaveSettlements && userId) {
+    const h2Settlements = leaveSettlements.filter(
+      (s) => s.user_id === userId && s.year === selectedYear && s.period === 'H2' && s.leave_category === 'Office Leave'
+    );
+    if (h2Settlements.length > 0) {
+      const activeSettlement = h2Settlements.find((s) => s.status === 'processed' || s.status === 'responded');
+      if (activeSettlement) {
+        if (ignoreSettlementPeriod !== 'H2' && ignoreSettlementPeriod !== 'all') {
+          h2Remaining = 0;
+        }
+      }
+    }
+  }
 
   // Determine current active half
   const now = new Date();
   const currentYear = now.getFullYear().toString();
   let currentHalf: 1 | 2 = 1;
   if (selectedYear < currentYear) {
-    currentHalf = 2; // Past year is fully complete, default to H2
+    currentHalf = 2;
   } else if (selectedYear > currentYear) {
-    currentHalf = 1; // Future year starts in H1
+    currentHalf = 1;
   } else {
     currentHalf = (now.getMonth() + 1) <= 6 ? 1 : 2;
   }
@@ -381,7 +473,7 @@ export const calculateHalfYearlyOfficeLeave = (
     h1Taken,
     h1Remaining,
     carryForward,
-    h2Total: h2Quota,
+    h2Total,
     h2Taken,
     h2Remaining,
     currentHalf,
@@ -404,3 +496,34 @@ export const createNotification = (type: string, title: string, body: string) =>
   title,
   body,
 });
+
+export const getOutstandingOfficeLeave = (
+  records: ChutiRecord[],
+  officeLeaveH1: number,
+  officeLeaveH2: number,
+  selectedYear: string,
+  leaveSettlements: LeaveSettlement[],
+  userId: string
+): number => {
+  const rawStats = calculateHalfYearlyOfficeLeave(
+    records,
+    officeLeaveH1,
+    officeLeaveH2,
+    selectedYear,
+    leaveSettlements,
+    userId,
+    'all'
+  );
+
+  const h1Processed = leaveSettlements.some(
+    (s) => s.user_id === userId && s.year === selectedYear && s.leave_category === 'Office Leave' && s.period === 'H1' && s.status === 'processed'
+  );
+  const h2Processed = leaveSettlements.some(
+    (s) => s.user_id === userId && s.year === selectedYear && s.leave_category === 'Office Leave' && s.period === 'H2' && s.status === 'processed'
+  );
+
+  const h1Outstanding = !h1Processed && rawStats.h1Remaining < 0 ? -rawStats.h1Remaining : 0;
+  const h2Outstanding = !h2Processed && rawStats.h2Remaining < 0 ? -rawStats.h2Remaining : 0;
+
+  return h1Outstanding + h2Outstanding;
+};

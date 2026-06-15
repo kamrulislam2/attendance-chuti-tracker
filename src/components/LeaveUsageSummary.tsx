@@ -38,8 +38,6 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
   shortHours,
   overtimeHours,
   allowOvertime = false,
-  eligibleOfficeLeave = true,
-  eligibleGovtHoliday = true,
   halfYearlyStats,
   officeDeduction = 0,
   govtDeduction = 0,

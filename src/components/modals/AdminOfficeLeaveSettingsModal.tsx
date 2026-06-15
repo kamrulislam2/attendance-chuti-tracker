@@ -16,14 +16,16 @@ export function AdminOfficeLeaveSettingsModal({
   globalSettings,
   onSave,
 }: AdminOfficeLeaveSettingsModalProps) {
-  const [officeLeaveDefault, setOfficeLeaveDefault] = useState(14);
+  const [officeLeaveH1, setOfficeLeaveH1] = useState(7);
+  const [officeLeaveH2, setOfficeLeaveH2] = useState(7);
   const [eidFitrLeave, setEidFitrLeave] = useState(0);
   const [eidAdhaLeave, setEidAdhaLeave] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (showModal) {
-      setOfficeLeaveDefault(globalSettings.office_leave_default ?? 14);
+      setOfficeLeaveH1(globalSettings.office_leave_h1 ?? 7);
+      setOfficeLeaveH2(globalSettings.office_leave_h2 ?? 7);
       setEidFitrLeave(globalSettings.eid_fitr_leave ?? 0);
       setEidAdhaLeave(globalSettings.eid_adha_leave ?? 0);
     }
@@ -34,7 +36,9 @@ export function AdminOfficeLeaveSettingsModal({
     setSubmitting(true);
     const success = await onSave({
       ...globalSettings,
-      office_leave_default: Number(officeLeaveDefault),
+      office_leave_h1: Number(officeLeaveH1),
+      office_leave_h2: Number(officeLeaveH2),
+      office_leave_default: Number(officeLeaveH1) + Number(officeLeaveH2),
       eid_fitr_leave: Number(eidFitrLeave),
       eid_adha_leave: Number(eidAdhaLeave),
     });
@@ -53,17 +57,31 @@ export function AdminOfficeLeaveSettingsModal({
       maxWidthClass="max-w-md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs font-medium">
-        <div>
-          <label className="block text-slate-400 font-semibold mb-1">Default Office Leave (Days)</label>
-          <input
-            type="number"
-            min="0"
-            required
-            value={officeLeaveDefault}
-            onChange={(e) => setOfficeLeaveDefault(Number(e.target.value))}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-          />
-          <span className="text-[10px] text-slate-500 mt-1 block">Default annual leaves allocated to each staff initially (e.g., 14 Days)</span>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-400 font-semibold mb-1">Office Leave - H1 (Days)</label>
+            <input
+              type="number"
+              min="0"
+              required
+              value={officeLeaveH1}
+              onChange={(e) => setOfficeLeaveH1(Number(e.target.value))}
+              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+            />
+            <span className="text-[10px] text-slate-500 mt-1 block">Jan - June (e.g., 7 Days)</span>
+          </div>
+          <div>
+            <label className="block text-slate-400 font-semibold mb-1">Office Leave - H2 (Days)</label>
+            <input
+              type="number"
+              min="0"
+              required
+              value={officeLeaveH2}
+              onChange={(e) => setOfficeLeaveH2(Number(e.target.value))}
+              className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+            />
+            <span className="text-[10px] text-slate-500 mt-1 block">July - Dec (e.g., 7 Days)</span>
+          </div>
         </div>
 
         <div>

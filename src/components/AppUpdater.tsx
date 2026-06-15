@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 
-export default function TauriUpdater() {
+export default function AppUpdater() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [readyToRestart, setReadyToRestart] = useState(false);
+  const [updateObject, setUpdateObject] = useState<any>(null);
 
   useEffect(() => {
     // Only run on client side and if Tauri is present
@@ -36,11 +37,12 @@ export default function TauriUpdater() {
           console.log(`[Updater] Found new update: ${update.version}`);
           setUpdateAvailable(true);
           setDownloading(true);
+          setUpdateObject(update);
 
-          console.log('[Updater] Downloading and installing update...');
-          await update.downloadAndInstall();
+          console.log('[Updater] Downloading update in background...');
+          await update.download();
           
-          console.log('[Updater] Update downloaded and installed. Ready to restart.');
+          console.log('[Updater] Update downloaded. Ready to restart.');
           setDownloading(false);
           setReadyToRestart(true);
         } else {
@@ -67,7 +69,14 @@ export default function TauriUpdater() {
   }, []);
 
   const handleRestart = async () => {
+    if (!updateObject) {
+      console.error('[Updater] No update object available to install');
+      return;
+    }
     try {
+      console.log('[Updater] Installing update...');
+      await updateObject.install();
+      console.log('[Updater] Relaunching app...');
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (err) {

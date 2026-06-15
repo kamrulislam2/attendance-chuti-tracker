@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, Edit } from 'lucide-react';
+import { Bell, Edit, RefreshCw } from 'lucide-react';
 import { Profile } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { Modal } from '@/components/Modal';
@@ -130,17 +130,17 @@ export function UserNotificationsModal({
                     type="button"
                     disabled={submittingId !== null}
                     onClick={() => handleChoice(n.holidayDate, n.holidayName, 'paid', n.id)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-555 text-white border border-emerald-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans min-w-[75px]"
                   >
-                    {submittingId === n.id ? 'Loading...' : 'Get Paid'}
+                    {submittingId === n.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : 'Get Paid'}
                   </button>
                   <button
                     type="button"
                     disabled={submittingId !== null}
                     onClick={() => handleChoice(n.holidayDate, n.holidayName, 'reserve', n.id)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white border border-teal-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-555 text-white border border-teal-500 shadow-md transition-all cursor-pointer disabled:opacity-50 h-8 flex items-center justify-center font-sans min-w-[75px]"
                   >
-                    {submittingId === n.id ? 'Loading...' : 'Reserve'}
+                    {submittingId === n.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : 'Reserve'}
                   </button>
                 </div>
               )}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { CustomSelect } from './CustomSelect';
 
 interface ProfileFieldsProps {
   fullName: string;
@@ -31,6 +32,16 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
   setSignOutTime,
   disabled = false,
 }) => {
+  const workingHoursOptions = [
+    ...(workingHours === '' ? [{ value: '', label: 'Select Hours' }] : []),
+    { value: '7.5', label: '7 Hours 30 Mins' },
+    { value: '8.0', label: '8 Hours' },
+    { value: '8.5', label: '8 Hours 30 Mins' },
+    { value: '9.0', label: '9 Hours' },
+    { value: '9.5', label: '9 Hours 30 Mins' },
+    { value: '10.0', label: '10 Hours' },
+  ];
+
   return (
     <>
       <div>
@@ -68,23 +79,13 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
             Daily Working Hours
           </label>
-          <select
-            required
+          <CustomSelect
             value={workingHours}
-            onChange={(e) => setWorkingHours(e.target.value)}
+            onChange={setWorkingHours}
+            options={workingHoursOptions}
             disabled={disabled}
-            className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="" disabled hidden>
-              Select Hours
-            </option>
-            <option value="7.5">7 Hours 30 Mins</option>
-            <option value="8.0">8 Hours</option>
-            <option value="8.5">8 Hours 30 Mins</option>
-            <option value="9.0">9 Hours</option>
-            <option value="9.5">9 Hours 30 Mins</option>
-            <option value="10.0">10 Hours</option>
-          </select>
+            className="w-full mt-1"
+          />
         </div>
 
         <div>

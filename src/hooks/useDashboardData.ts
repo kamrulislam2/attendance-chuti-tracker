@@ -125,7 +125,7 @@ export const useDashboardData = () => {
           .from('leave_settlements')
           .select(`
             *,
-            profiles (full_name, username)
+            profiles!leave_settlements_user_id_fkey (full_name, username)
           `)
           .order('created_at', { ascending: false });
         if (!settError && settlements) {
@@ -155,7 +155,7 @@ export const useDashboardData = () => {
     }
   }, [sessionUser, profile]);
 
-  const handleSaveGlobalSettings = useCallback(async (newSettings: GlobalSettings) => {
+  const handleSaveGlobalSettings = useCallback(async (newSettings: GlobalSettings, options?: { silent?: boolean }) => {
     if (!profile) return false;
     const hasGlobalSettingsColumn = 'global_settings' in profile;
     const updates: any = {};
@@ -185,7 +185,9 @@ export const useDashboardData = () => {
     }
     
     setGlobalSettings(newSettings);
-    setMessage({ type: 'success', text: 'Leave quota settings successfully updated!' });
+    if (!options?.silent) {
+      setMessage({ type: 'success', text: 'Leave quota settings successfully updated!' });
+    }
     setLoading(false);
     fetchRecords();
 
@@ -393,43 +395,96 @@ export const useDashboardData = () => {
 
   const handleSaveLeaveSettlementsBulk = useCallback(async (
     settlementsList: Array<{
+      id?: string;
       user_id: string;
       year: string;
-      leave_category: string;
+      period: 'H1' | 'H2' | 'Instant';
+      leave_category: 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha' | 'Office Leave';
       remaining_days: number;
-      action_type: 'carry_forward' | 'payment';
-      status?: 'pending' | 'processed';
-      processed_by?: string;
+      action_type: 'carry_forward' | 'payment' | 'adjust_leave' | 'split';
+      status?: 'initiated' | 'responded' | 'processed';
+      processed_by?: string | null;
       action_by?: string;
+      carry_forward_days?: number;
+      payment_days?: number;
+      adjust_leave_days?: number;
     }>
   ) => {
     try {
       setLoading(true);
-      const formatted = settlementsList.map(item => ({
-        user_id: item.user_id,
-        year: item.year,
-        leave_category: item.leave_category,
-        remaining_days: item.remaining_days,
-        action_type: item.action_type,
-        status: item.status || 'processed',
-        processed_by: item.processed_by || null,
-        processed_at: (item.status === 'processed' || item.status === undefined) ? new Date().toISOString() : null,
-        action_by: item.action_by || item.user_id
-      }));
+      const formatted = settlementsList.map(item => {
+        // Compute splits
+        let cf = item.carry_forward_days;
+        let pay = item.payment_days;
+        let adj = item.adjust_leave_days;
+
+        // Backward compatibility fallback
+        if (cf === undefined && pay === undefined && adj === undefined) {
+          cf = item.action_type === 'carry_forward' ? item.remaining_days : 0;
+          pay = item.action_type === 'payment' ? item.remaining_days : 0;
+          adj = item.action_type === 'adjust_leave' ? item.remaining_days : 0;
+        } else {
+          cf = cf ?? 0;
+          pay = pay ?? 0;
+          adj = adj ?? 0;
+        }
+
+        // Determine action_type
+        let computedActionType: 'carry_forward' | 'payment' | 'adjust_leave' | 'split' = 'carry_forward';
+        const activeCount = [cf > 0, pay > 0, adj > 0].filter(Boolean).length;
+        if (activeCount > 1) {
+          computedActionType = 'split';
+        } else if (cf > 0) {
+          computedActionType = 'carry_forward';
+        } else if (pay > 0) {
+          computedActionType = 'payment';
+        } else if (adj > 0) {
+          computedActionType = 'adjust_leave';
+        }
+
+        return {
+          ...(item.id ? { id: item.id } : {}),
+          user_id: item.user_id,
+          year: item.year,
+          period: item.period,
+          leave_category: item.leave_category,
+          remaining_days: item.remaining_days,
+          action_type: computedActionType,
+          status: item.status || 'processed',
+          processed_by: item.processed_by || null,
+          processed_at: (item.status === 'processed') ? new Date().toISOString() : null,
+          action_by: item.action_by || item.user_id,
+          carry_forward_days: cf,
+          payment_days: pay,
+          adjust_leave_days: adj,
+        };
+      });
 
       const { error } = await supabase
         .from('leave_settlements')
         .upsert(formatted, {
-          onConflict: 'user_id,year,leave_category'
+          onConflict: 'user_id,year,period,leave_category'
         });
 
       if (error) throw error;
 
       // Trigger user push notification
-      const uniqueUserIds = Array.from(new Set(settlementsList.map(s => s.user_id)));
+      const uniqueUserIds = Array.from(new Set(formatted.map(s => s.user_id)));
       for (const targetUserId of uniqueUserIds) {
-        const userSettlements = settlementsList.filter(s => s.user_id === targetUserId);
-        const details = userSettlements.map(s => `${s.leave_category}: ${s.action_type === 'carry_forward' ? 'Carry Forward' : 'Payment'} (${s.remaining_days} days)`).join(', ');
+        const userSettlements = formatted.filter(s => s.user_id === targetUserId);
+        const details = userSettlements.map(s => {
+          let actionText = '';
+          if (s.action_type === 'split') {
+            const parts: string[] = [];
+            if (s.carry_forward_days && s.carry_forward_days > 0) parts.push(`${s.carry_forward_days}d Carry Forward`);
+            if (s.payment_days && s.payment_days > 0) parts.push(`${s.payment_days}d Payout`);
+            if (s.adjust_leave_days && s.adjust_leave_days > 0) parts.push(`${s.adjust_leave_days}d Adjusted`);
+            actionText = `Split (${parts.join(', ')})`;
+          } else {
+            actionText = s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Payment' : 'Adjust Leaves';
+          }
+          return `${s.leave_category}: ${actionText} (${s.remaining_days} days)`;
+        }).join(', ');
         
         sendPushNotification({
           userIds: [targetUserId],
@@ -439,13 +494,45 @@ export const useDashboardData = () => {
         }).catch(err => console.error('Error sending push notification for settlement:', err));
       }
 
-      setMessage({ type: 'success', text: 'Settlement choices processed successfully!' });
+      const isInitiated = formatted.every(s => s.status === 'initiated');
+      const isResponded = formatted.every(s => s.status === 'responded');
+
+      if (!isInitiated) {
+        if (isResponded) {
+          setMessage({ type: 'success', text: 'Leave preference submitted successfully!' });
+        } else {
+          setMessage({ type: 'success', text: 'Settlement choices processed successfully!' });
+        }
+      }
+
       await fetchRecords();
       setLoading(false);
       return true;
     } catch (err) {
       console.error('Error bulk saving leave settlements:', err);
       setMessage({ type: 'error', text: 'Failed to process settlements: ' + (err as Error).message });
+      setLoading(false);
+      return false;
+    }
+  }, [fetchRecords, setMessage]);
+ 
+  const handleDeleteLeaveSettlement = useCallback(async (id: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('leave_settlements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setMessage({ type: 'success', text: 'Settlement record removed successfully!' });
+      await fetchRecords();
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Error deleting leave settlement:', err);
+      setMessage({ type: 'error', text: 'Failed to delete settlement: ' + (err as Error).message });
       setLoading(false);
       return false;
     }
@@ -626,9 +713,22 @@ export const useDashboardData = () => {
       )
       .subscribe();
 
+    const settlementsChannel = supabase
+      .channel('realtime-settlement-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_settlements' },
+        (payload) => {
+          console.log('Realtime settlement change received:', payload);
+          fetchRecords();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(chutiChannel);
       supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(settlementsChannel);
     };
   }, [sessionUser, fetchRecords, router]);
 
@@ -832,6 +932,7 @@ export const useDashboardData = () => {
     leaveSettlements,
     setLeaveSettlements,
     handleSaveLeaveSettlementsBulk,
+    handleDeleteLeaveSettlement,
     initialFetchDone,
   };
 };

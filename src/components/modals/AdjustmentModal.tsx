@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { ChutiRecord } from '@/utils/offlineSync';
 import { calculateStats, GlobalSettings } from '@/utils/dashboardHelpers';
 
@@ -21,6 +21,7 @@ interface AdjustmentModalProps {
   records: ChutiRecord[];
   holidayResponses: any[];
   globalSettings: GlobalSettings;
+  submitting?: boolean;
 }
 
 export function AdjustmentModal({
@@ -37,6 +38,7 @@ export function AdjustmentModal({
   records = [],
   holidayResponses = [],
   globalSettings,
+  submitting = false,
 }: AdjustmentModalProps) {
   const [selectedCategory, setSelectedCategory] = useState('None');
 
@@ -118,20 +120,23 @@ export function AdjustmentModal({
               <div className="flex gap-3 pt-4 border-t border-slate-800/80">
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setShowAdjustmentModal(false);
                     setAdjustmentRecord(null);
                   }}
-                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-355 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => handleSaveAdjustment()}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  Adjust Leave
+                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {submitting ? 'Adjusting...' : 'Adjust Leave'}
                 </button>
               </div>
             </div>
@@ -141,31 +146,36 @@ export function AdjustmentModal({
               <div className="flex flex-col gap-2 pt-4">
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setAdjustShortLeaveOption(true);
                     handleSaveAdjustment(true);
                   }}
-                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  Yes, deduct from Short Leave
+                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {submitting ? 'Processing...' : 'Yes, deduct from Short Leave'}
                 </button>
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setAdjustShortLeaveOption(false);
                     handleSaveAdjustment(false);
                   }}
-                  className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  No, just discard Overtime
+                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {submitting ? 'Processing...' : 'No, just discard Overtime'}
                 </button>
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setShowAdjustmentModal(false);
                     setAdjustmentRecord(null);
                   }}
-                  className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="w-full flex justify-center py-2.5 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -288,20 +298,23 @@ export function AdjustmentModal({
               <div className="flex gap-3 pt-4 border-t border-slate-800/80">
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     setShowAdjustmentModal(false);
                     setAdjustmentRecord(null);
                   }}
-                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="flex-1 flex justify-center py-2 px-4 border border-slate-800 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-350 bg-slate-955 hover:bg-slate-900 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => handleSaveAdjustment(undefined, selectedCategory)}
-                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200"
+                  className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 hover:scale-[1.01] active:scale-[0.99] cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  Adjust Leave
+                  {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {submitting ? 'Adjusting...' : 'Adjust Leave'}
                 </button>
               </div>
             </div>

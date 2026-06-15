@@ -4,6 +4,7 @@ import React from 'react';
 import { AlertTriangle, RefreshCw, CheckCircle, Search } from 'lucide-react';
 import { Profile, BulkRepresentative } from '@/types';
 import { Modal } from '../Modal';
+import { CustomSelect } from '../CustomSelect';
 
 interface SupervisorApprovalModalProps {
   // Supervisor Approvals panel
@@ -71,6 +72,13 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [leaveTypeFilter, setLeaveTypeFilter] = React.useState('all');
+
+  const leaveTypeOptions = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'Short Leave', label: 'Short Leave' },
+    { value: 'Full Leave', label: 'Full Leave' },
+    { value: 'Overtime', label: 'Overtime' },
+  ];
 
   React.useEffect(() => {
     if (!showSupervisorApprovalModal) {
@@ -149,16 +157,12 @@ export const SupervisorApprovalModal: React.FC<SupervisorApprovalModalProps> = (
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider font-bold">Filter Leave Type</label>
-                <select
+                <CustomSelect
                   value={leaveTypeFilter}
-                  onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer font-sans"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="Short Leave">Short Leave</option>
-                  <option value="Full Leave">Full Leave</option>
-                  <option value="Overtime">Overtime</option>
-                </select>
+                  onChange={setLeaveTypeFilter}
+                  options={leaveTypeOptions}
+                  className="w-full"
+                />
               </div>
               {(searchQuery || leaveTypeFilter !== 'all') && (
                 <button

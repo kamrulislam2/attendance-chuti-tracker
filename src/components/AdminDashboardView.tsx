@@ -1,14 +1,14 @@
 import React from 'react';
 import {
   User,
-  Clock,
   Calendar,
   ArrowLeft,
   AlertTriangle,
   Edit,
   Trash2,
   Settings,
-  RotateCcw
+  RotateCcw,
+  Download
 } from 'lucide-react';
 import { Profile, ChutiRecordWithProfile, GovtHolidayResponse, LeaveSettlement } from '@/types';
 import { AdminSettlementsPanel } from './AdminSettlementsPanel';
@@ -24,8 +24,7 @@ import {
   parseIntervalToMinutes,
   formatDuration,
   parseHolidayItem,
-  calculateHalfYearlyOfficeLeave,
-  HalfYearlyOfficeLeaveStats
+  getSettlementSplits
 } from '@/utils/dashboardHelpers';
 import { useGovtHolidayStats, useHalfYearlyStats } from '@/hooks/useLeaveQuotaStats';
 import { AdminOfficeLeaveSettingsModal } from './modals/AdminOfficeLeaveSettingsModal';
@@ -80,7 +79,7 @@ interface AdminDashboardViewProps {
   onExportSummaryPDF: () => void;
   onAddLeaveClick: () => void;
   globalSettings: GlobalSettings;
-  onSaveGlobalSettings: (settings: GlobalSettings) => Promise<boolean>;
+  onSaveGlobalSettings: (settings: GlobalSettings, options?: { silent?: boolean }) => Promise<boolean>;
   onConvertShortLeaveToFullLeave: (userId: string, workingHours: number, shortMins: number) => void;
   holidayResponses: GovtHolidayResponse[];
   onExportHolidayResponsesExcel: (responses: GovtHolidayResponse[]) => void;
@@ -88,6 +87,7 @@ interface AdminDashboardViewProps {
   onUpdateHolidayResponse?: (targetUserId: string, holidayDate: string, holidayName: string, response: 'paid' | 'reserve') => Promise<boolean>;
   leaveSettlements: LeaveSettlement[];
   onSaveLeaveSettlementsBulk: (settlementsList: any[]) => Promise<boolean>;
+  onDeleteSettlement: (id: string) => Promise<boolean>;
   adminRecords: ChutiRecordWithProfile[];
   currentUserProfile: Profile | null;
 }
@@ -134,15 +134,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onUpdateHolidayResponse,
   leaveSettlements,
   onSaveLeaveSettlementsBulk,
+  onDeleteSettlement,
   adminRecords,
   currentUserProfile,
 }) => {
-  const staffOvertimeHours = staffStats.overtimeHours;
 
   // Local settings modals visibility
   const [showOfficeModal, setShowOfficeModal] = React.useState(false);
   const [showGovtModal, setShowGovtModal] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<'staff_master' | 'govt_responses' | 'settlement'>('staff_master');
+  const [activeTab, setActiveTab] = React.useState<'staff_master' | 'govt_responses' | 'settlement'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('adminActiveTab');
+      if (saved === 'staff_master' || saved === 'govt_responses' || saved === 'settlement') {
+        return saved;
+      }
+    }
+    return 'staff_master';
+  });
+
+  React.useEffect(() => {
+    sessionStorage.setItem('adminActiveTab', activeTab);
+  }, [activeTab]);
 
   // Holiday search filters state
   const [holidaySearchQuery, setHolidaySearchQuery] = React.useState('');
@@ -155,27 +167,26 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   // Previous year carried balances
   const prevYear = (Number(selectedYear) - 1).toString();
   const carriedOffice = leaveSettlements
-    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Office Leave' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Office Leave')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedGovt = leaveSettlements
-    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedEidFitr = leaveSettlements
-    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedEidAdha = leaveSettlements
-    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha' && s.action_type === 'carry_forward')
-    .reduce((acc, s) => acc + s.remaining_days, 0);
+    .filter((s) => s.user_id === staffProfile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha')
+    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   // Staff deduction is deleted from DB settings, default is 0
   const staffOfficeQuota = isOfficeLeaveEligible
-    ? (globalSettings.office_leave_default ?? 14) + carriedOffice + (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha
+    ? (globalSettings.office_leave_h1 + globalSettings.office_leave_h2) + carriedOffice + (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha
     : (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr + (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha;
 
-  const staffGovtQuota = isGovtHolidayEligible ? (globalSettings.govt_holidays?.length ?? 0) : 0;
 
   const approvedIndividualRecs = React.useMemo(() => {
     return unfilteredStaffRecords.filter(r => r.status === 'approved' && r.date && (selectedYear === 'all' || r.date.substring(0, 4) === selectedYear));
@@ -190,7 +201,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   }, [approvedIndividualRecs, isOfficeLeaveEligible]);
 
   // Government Holiday calculations using shared hook
-  const { userResponses: staffResponses, paidCount, reservedCount, respondedHolidays, govtHolidayStats } = useGovtHolidayStats(
+  const { respondedHolidays, govtHolidayStats } = useGovtHolidayStats(
     staffProfile?.id,
     holidayResponses,
     globalSettings,
@@ -198,17 +209,33 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     staffStats.govtHolidaysTaken || 0
   );
 
+  // Current Year settled amounts (processed or responded) to prevent double counting
+  const activeGovtSettled = leaveSettlements
+    .filter(s => s.user_id === staffProfile?.id && s.year === selectedYear && s.leave_category === 'Govt Holiday' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const activeEidFitrSettled = leaveSettlements
+    .filter(s => s.user_id === staffProfile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Fitr' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
+  const activeEidAdhaSettled = leaveSettlements
+    .filter(s => s.user_id === staffProfile?.id && s.year === selectedYear && s.leave_category === 'Eid-ul-Adha' && (s.status === 'processed' || s.status === 'responded'))
+    .reduce((acc, s) => acc + s.remaining_days, 0);
+
   const adjustedGovtHolidayStats = {
     ...govtHolidayStats,
     total: govtHolidayStats.total + carriedGovt,
-    remaining: Math.max(0, govtHolidayStats.reserved + carriedGovt - govtHolidayStats.taken)
+    remaining: Math.max(0, govtHolidayStats.reserved + carriedGovt - govtHolidayStats.taken - activeGovtSettled)
   };
 
   // Half-yearly split calculations using shared hook
   const { halfYearlyStats } = useHalfYearlyStats(
     unfilteredStaffRecords,
-    globalSettings.office_leave_default ?? 14,
-    selectedYear
+    globalSettings.office_leave_h1,
+    globalSettings.office_leave_h2,
+    selectedYear,
+    leaveSettlements,
+    staffProfile?.id
   );
 
   // Short to Full Leave Conversion Adjustments for viewed staff
@@ -293,8 +320,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             iconBgClass="bg-orange-500/10"
             iconColorClass="text-orange-400"
             iconBorderClass="border-orange-500/20"
-            title="Allocated Office Leave (Default)"
-            value={`${(globalSettings.office_leave_default ?? 14) + (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0)} days`}
+            title="Allocated Office Leave"
+            value={`${(globalSettings.office_leave_h1 + globalSettings.office_leave_h2) + (globalSettings.eid_fitr_leave ?? 0) + (globalSettings.eid_adha_leave ?? 0)} days`}
             action={
               <button
                 onClick={() => setShowOfficeModal(true)}
@@ -346,10 +373,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {staffProfile?.full_name || 'Staff User'} ({staffProfile?.username ? staffProfile.username.toUpperCase() : ''})
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
-                      ? 'bg-orange-955/60 border-orange-800 text-orange-300'
-                      : staffProfile?.role === 'supervisor'
-                        ? 'bg-amber-955/60 border-amber-805 text-amber-300'
-                        : 'bg-orange-955/60 border-orange-805 text-orange-300'
+                    ? 'bg-orange-955/60 border-orange-800 text-orange-300'
+                    : staffProfile?.role === 'supervisor'
+                      ? 'bg-amber-955/60 border-amber-805 text-amber-300'
+                      : 'bg-orange-955/60 border-orange-805 text-orange-300'
                     }`}>
                     {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                   </span>
@@ -406,9 +433,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             isAdmin={true}
             userId={viewingStaffId || undefined}
             onUpdateHolidayResponse={onUpdateHolidayResponse}
-            eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0))}
+            eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
             eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
-            eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0))}
+            eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
             eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
           />
 
@@ -447,8 +474,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button
               onClick={() => setActiveTab('staff_master')}
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'staff_master'
-                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-950/40 border border-orange-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
+                ? 'bg-orange-600 text-white shadow-lg shadow-orange-950/40 border border-orange-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
                 }`}
             >
               <User className="h-4 w-4" />
@@ -457,8 +484,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button
               onClick={() => setActiveTab('govt_responses')}
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'govt_responses'
-                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-955/40 border border-teal-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
+                ? 'bg-teal-600 text-white shadow-lg shadow-teal-955/40 border border-teal-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
                 }`}
             >
               <Calendar className="h-4 w-4" />
@@ -467,12 +494,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button
               onClick={() => setActiveTab('settlement')}
               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'settlement'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/40 border border-indigo-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/40 border border-indigo-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 border border-transparent'
                 }`}
             >
               <RotateCcw className="h-4 w-4" />
-              <span>Year-End Settlements</span>
+              <span>Staff Leave Settlements</span>
             </button>
           </div>
 
@@ -510,16 +537,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <button
                     onClick={() => onExportHolidayResponsesExcel(filteredResponses)}
                     disabled={filteredResponses.length === 0}
-                    className="px-3.5 py-1.5 bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-500 dark:text-emerald-500 hover:bg-emerald-600/10 dark:hover:bg-emerald-500/10 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
+                    className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-emerald-600 text-emerald-600 dark:border-emerald-500 dark:text-emerald-500 hover:bg-emerald-600/10 dark:hover:bg-emerald-500/10 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
                   >
-                    Excel Export
+                    <Download className="h-3.5 w-3.5" /> Excel
                   </button>
                   <button
                     onClick={() => onExportHolidayResponsesPDF(filteredResponses)}
                     disabled={filteredResponses.length === 0}
-                    className="px-3.5 py-1.5 bg-transparent border border-red-600 text-red-600 dark:border-red-500 dark:text-red-500 hover:bg-red-600/10 dark:hover:bg-red-500/10 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
+                    className="flex items-center gap-1.5 py-1.5 px-3 bg-transparent border border-red-600 text-red-600 dark:border-red-500 dark:text-red-500 hover:bg-red-600/10 dark:hover:bg-red-500/10 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-40 transition-all shadow-sm"
                   >
-                    PDF Export
+                    <Download className="h-3.5 w-3.5" /> PDF
                   </button>
                 </div>
               </div>
@@ -527,7 +554,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               {/* Search Filters */}
               <div className="flex flex-col sm:flex-row gap-3 w-full bg-slate-905/40 p-3 rounded-xl border border-slate-850">
                 <div className="flex-1 relative">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Search by holiday name or staff name (codename)</label>
+                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Search by holiday name or Name (codename)</label>
                   <div className="relative">
                     <input
                       type="text"
@@ -576,7 +603,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <tr>
                       <th className="px-4 py-3">Holiday Date</th>
                       <th className="px-4 py-3">Holiday Name</th>
-                      <th className="px-4 py-3">Staff Name (Codename)</th>
+                      <th className="px-4 py-3">Name (Codename)</th>
                       <th className="px-4 py-3">Preference/Response</th>
                       <th className="px-4 py-3 text-right">Response Time</th>
                     </tr>
@@ -600,8 +627,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${resp.response === 'paid'
-                                  ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
-                                  : 'bg-teal-955/60 border-teal-800 text-teal-300'
+                                ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
+                                : 'bg-teal-955/60 border-teal-800 text-teal-300'
                                 }`}>
                                 {resp.response === 'paid' ? 'Get Paid' : 'Reserve'}
                               </span>
@@ -624,7 +651,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
             </div>
           ) : (
-            /* ================= YEAR-END SETTLEMENTS TAB ================= */
+            /* ================= Staff Leave SETTLEMENTS TAB ================= */
             <AdminSettlementsPanel
               profilesList={profilesList}
               selectedYear={selectedYear}
@@ -634,6 +661,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               leaveSettlements={leaveSettlements}
               holidayResponses={holidayResponses}
               onSaveSettlementsBulk={onSaveLeaveSettlementsBulk}
+              onDeleteSettlement={onDeleteSettlement}
               currentUserProfile={currentUserProfile}
             />
           )}

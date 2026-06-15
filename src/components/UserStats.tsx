@@ -84,7 +84,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
 
   const handleSavePref = async () => {
     if (!userId || !onUpdateHolidayResponse || !editPrefHoliday) return;
-    
+
     // If selected preference is the same as current, close immediately without any changes
     if (selectedPref === editPrefHoliday.response) {
       setShowEditPrefModal(false);
@@ -127,15 +127,14 @@ export const UserStats: React.FC<UserStatsProps> = ({
   const showGovtCard = eligibleGovtHoliday !== false && govtHolidayStats;
 
   let officeRemainingDisplay = officeLeaveStats ? `${officeLeaveStats.remaining} days` : '0 days';
-  const officeTotalDisplay = officeLeaveStats ? `${officeLeaveStats.total} days` : '0 days';
   let officeSubtitle = officeLeaveStats ? `Total Allocated: ${officeLeaveStats.total} days (Taken: ${officeLeaveStats.taken} days)` : '';
 
   if (halfYearlyStats) {
     const isH1 = halfYearlyStats.currentHalf === 1;
-    officeRemainingDisplay = isH1 
-      ? `${halfYearlyStats.h1Remaining} days` 
+    officeRemainingDisplay = isH1
+      ? `${halfYearlyStats.h1Remaining} days`
       : `${halfYearlyStats.h2Remaining} days`;
-    
+
     officeSubtitle = isH1
       ? `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Total} days | Taken: ${halfYearlyStats.h1Taken} days`
       : `H2 (Jul-Dec) Allocated: 7 days + ${halfYearlyStats.carryForward} days Carryover | Taken: ${halfYearlyStats.h2Taken} days`;
@@ -221,7 +220,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
         iconBgClass="bg-orange-500/10"
         iconColorClass="text-orange-400"
         iconBorderClass="border-orange-500/20"
-        title="Total Short Leave (Unadjusted)"
+        title="Total Short Leave"
         value={`${stats.shortHours} hrs`}
         subtitle={convertedHours > 0 ? `Converted: ${convertedHours} hrs` : undefined}
         action={onConvertToFullLeave && hasConvertibleHours ? (
@@ -254,7 +253,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
           iconBgClass="bg-emerald-500/10"
           iconColorClass="text-emerald-400"
           iconBorderClass="border-emerald-500/20"
-          title="Overtime (Unadjusted)"
+          title="Overtime"
           value={`${stats.overtimeHours} hrs`}
         />
       )}
@@ -264,12 +263,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-teal-900/10 blur-[80px] pointer-events-none" />
-            
+
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <History className="h-4 w-4 text-teal-400" /> Govt Holiday Response History
               </h3>
-              <button 
+              <button
                 onClick={() => setShowHistoryModal(false)}
                 className="text-slate-450 hover:text-white text-sm cursor-pointer"
               >
@@ -295,11 +294,10 @@ export const UserStats: React.FC<UserStatsProps> = ({
                           <td className="py-2.5 px-3 text-slate-200">{h.name}</td>
                           <td className="py-2.5 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                h.response === 'reserve'
-                                  ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
-                                  : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
-                              }`}>
+                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${h.response === 'reserve'
+                                ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
+                                : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
+                                }`}>
                                 {h.response === 'reserve' ? 'Reserve' : 'Paid'}
                               </span>
                               {isAdmin && onUpdateHolidayResponse && userId && (
@@ -349,12 +347,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4">
           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-orange-900/10 blur-[80px] pointer-events-none" />
-            
+
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-orange-400" /> Half-Yearly Office Leave Details
               </h3>
-              <button 
+              <button
                 onClick={() => setShowOfficeDetailsModal(false)}
                 className="text-slate-450 hover:text-white text-sm cursor-pointer"
               >
@@ -437,12 +435,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-955/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl w-full max-w-md p-6 relative overflow-hidden font-sans">
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-teal-900/10 blur-[80px] pointer-events-none" />
-            
+
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Edit className="h-4 w-4 text-teal-400" /> Update Holiday Preference
               </h3>
-              <button 
+              <button
                 onClick={() => {
                   setShowEditPrefModal(false);
                   setEditPrefHoliday(null);
@@ -461,11 +459,10 @@ export const UserStats: React.FC<UserStatsProps> = ({
                     <h4 className="text-sm font-bold text-white">{editPrefHoliday.name}</h4>
                     <span className="text-[11px] font-mono text-teal-400 font-bold">{formatDate(editPrefHoliday.date)}</span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    editPrefHoliday.response === 'reserve'
-                      ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
-                      : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${editPrefHoliday.response === 'reserve'
+                    ? 'bg-teal-955/60 border border-teal-900 text-teal-400'
+                    : 'bg-emerald-955/60 border border-emerald-900 text-emerald-400'
+                    }`}>
                     Current: {editPrefHoliday.response === 'reserve' ? 'Reserve' : 'Paid'}
                   </span>
                 </div>
@@ -479,15 +476,13 @@ export const UserStats: React.FC<UserStatsProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedPref('reserve')}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      selectedPref === 'reserve'
-                        ? 'bg-teal-950/20 border-teal-500/80 shadow-[0_0_12px_rgba(20,184,166,0.15)]'
-                        : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
-                    }`}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${selectedPref === 'reserve'
+                      ? 'bg-teal-950/20 border-teal-500/80 shadow-[0_0_12px_rgba(20,184,166,0.15)]'
+                      : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                      }`}
                   >
-                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                      selectedPref === 'reserve' ? 'border-teal-400' : 'border-slate-600'
-                    }`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${selectedPref === 'reserve' ? 'border-teal-400' : 'border-slate-600'
+                      }`}>
                       {selectedPref === 'reserve' && <div className="w-2 h-2 rounded-full bg-teal-400 animate-scale-up" />}
                     </div>
                     <div>
@@ -502,15 +497,13 @@ export const UserStats: React.FC<UserStatsProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedPref('paid')}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      selectedPref === 'paid'
-                        ? 'bg-emerald-950/20 border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                        : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
-                    }`}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${selectedPref === 'paid'
+                      ? 'bg-emerald-950/20 border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                      : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                      }`}
                   >
-                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                      selectedPref === 'paid' ? 'border-emerald-400' : 'border-slate-600'
-                    }`}>
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${selectedPref === 'paid' ? 'border-emerald-400' : 'border-slate-600'
+                      }`}>
                       {selectedPref === 'paid' && <div className="w-2 h-2 rounded-full bg-emerald-400 animate-scale-up" />}
                     </div>
                     <div>

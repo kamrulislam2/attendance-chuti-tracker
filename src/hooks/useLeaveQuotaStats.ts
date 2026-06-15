@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { GlobalSettings, parseHolidayItem, calculateHalfYearlyOfficeLeave, HalfYearlyOfficeLeaveStats } from '@/utils/dashboardHelpers';
-import { GovtHolidayResponse } from '@/types';
+import { GovtHolidayResponse, LeaveSettlement } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
 
 interface GovtHolidayStats {
@@ -95,12 +95,15 @@ interface UseHalfYearlyStatsResult {
  */
 export function useHalfYearlyStats(
   records: ChutiRecord[],
-  officeLeaveDefault: number,
-  selectedYear: string
+  officeLeaveH1: number,
+  officeLeaveH2: number,
+  selectedYear: string,
+  leaveSettlements?: LeaveSettlement[],
+  userId?: string
 ): UseHalfYearlyStatsResult {
   const halfYearlyStats = useMemo(
-    () => calculateHalfYearlyOfficeLeave(records, officeLeaveDefault, selectedYear),
-    [records, officeLeaveDefault, selectedYear]
+    () => calculateHalfYearlyOfficeLeave(records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId),
+    [records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId]
   );
 
   return { halfYearlyStats };

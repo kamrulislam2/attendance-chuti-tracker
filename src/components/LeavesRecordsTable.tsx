@@ -31,6 +31,7 @@ interface LeavesRecordsTableProps {
   title: string;
   emptyMessage: string;
   showPendingBadge?: boolean;
+  initialFetchDone?: boolean;
 }
 
 export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
@@ -59,6 +60,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
   title,
   emptyMessage,
   showPendingBadge = false,
+  initialFetchDone = true,
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const yearOptions = [
@@ -147,7 +149,12 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          {filteredRecords.length === 0 ? (
+          {!initialFetchDone ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
+              <span className="text-[11px] font-semibold tracking-wider">Loading records...</span>
+            </div>
+          ) : filteredRecords.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-sm">
               {emptyMessage}
             </div>

@@ -56,9 +56,17 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
     officeTotalDisplay = isH1 
       ? `${halfYearlyStats.h1Total} days` 
       : `${halfYearlyStats.h2Total} days`;
+    const h1Carryover = halfYearlyStats.h1Total - halfYearlyStats.h1Base;
+    const hasH1Carryover = h1Carryover > 0;
+    const hasH2Carryover = halfYearlyStats.carryForward > 0;
+
     officeSubtext = isH1
-      ? 'H1 (Jan-Jun) Allowance: 7 days'
-      : `H2 (Jul-Dec) Allowance: 7 days + ${halfYearlyStats.carryForward} days carryover`;
+      ? (hasH1Carryover
+          ? `H1 (Jan-Jun) Allowance: ${halfYearlyStats.h1Base} days + ${h1Carryover} days carryover`
+          : `H1 (Jan-Jun) Allowance: ${halfYearlyStats.h1Total} days`)
+      : (hasH2Carryover
+          ? `H2 (Jul-Dec) Allowance: ${halfYearlyStats.h2Base} days + ${halfYearlyStats.carryForward} days carryover`
+          : `H2 (Jul-Dec) Allowance: ${halfYearlyStats.h2Total} days`);
   }
 
   const finalOfficeRemaining = officeRemainingVal - officeDeduction;

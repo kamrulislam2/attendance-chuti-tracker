@@ -90,6 +90,7 @@ interface AdminDashboardViewProps {
   onDeleteSettlement: (id: string) => Promise<boolean>;
   adminRecords: ChutiRecordWithProfile[];
   currentUserProfile: Profile | null;
+  initialFetchDone: boolean;
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
@@ -137,6 +138,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onDeleteSettlement,
   adminRecords,
   currentUserProfile,
+  initialFetchDone,
 }) => {
 
   // Local settings modals visibility
@@ -312,6 +314,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             title="Total Staff"
             value={`${profilesList.length} ${profilesList.length === 1 ? 'person' : 'people'}`}
             className="w-full max-w-xs"
+            loading={!initialFetchDone}
           />
 
           {/* Card 2: Office Allocated Leave */}
@@ -332,6 +335,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </button>
             }
             className="w-full max-w-xs"
+            loading={!initialFetchDone}
           />
 
           {/* Card 3: Govt Holiday */}
@@ -346,12 +350,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <button
                 onClick={() => setShowGovtModal(true)}
                 className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer border border-transparent hover:border-slate-700"
-                title="Edit Govt Holidays List"
+                title="Govt Holiday Settings"
               >
                 <Settings className="h-4 w-4" />
               </button>
             }
             className="w-full max-w-xs"
+            loading={!initialFetchDone}
           />
         </div>
       )}
@@ -437,6 +442,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
             eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
             eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
+            initialFetchDone={initialFetchDone}
           />
 
           {/* Filtering Panel for viewed staff */}
@@ -464,6 +470,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             availableYears={availableYears}
             title="Leave Records"
             emptyMessage="No leave records found for this staff member."
+            initialFetchDone={initialFetchDone}
           />
         </div>
       ) : (
@@ -517,6 +524,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               onExportExcel={onExportSummaryExcel}
               onExportPDF={onExportSummaryPDF}
               onViewDetails={setViewingStaffId}
+              initialFetchDone={initialFetchDone}
             />
           ) : activeTab === 'govt_responses' ? (
             /* ================= GOVT HOLIDAY RESPONSES TABLE REPORT ================= */
@@ -609,7 +617,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900 bg-slate-900/10">
-                    {filteredResponses.length > 0 ? (
+                    {!initialFetchDone ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
+                            <span className="text-[11px] font-semibold tracking-wider">Loading responses...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredResponses.length > 0 ? (
                       filteredResponses.map((resp) => {
                         const fullName = resp.profiles?.full_name || 'Staff';
                         const codeName = resp.profiles?.username ? resp.profiles.username.toUpperCase() : 'N/A';
@@ -663,6 +680,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               onSaveSettlementsBulk={onSaveLeaveSettlementsBulk}
               onDeleteSettlement={onDeleteSettlement}
               currentUserProfile={currentUserProfile}
+              initialFetchDone={initialFetchDone}
             />
           )}
         </div>

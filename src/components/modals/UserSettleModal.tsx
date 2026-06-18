@@ -47,9 +47,6 @@ export function UserSettleModal({
   const stats = React.useMemo(() => calculateStats(userRecords), [userRecords]);
 
   const prevYear = (Number(selectedYear) - 1).toString();
-  const carriedOffice = settlements
-    .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Office Leave')
-    .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
   const carriedGovt = settlements
     .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Govt Holiday')
@@ -63,7 +60,6 @@ export function UserSettleModal({
     .filter((s) => s.user_id === profile?.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha')
     .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
 
-  const isOfficeLeaveEligible = profile?.eligible_office_leave !== false;
   const isGovtHolidayEligible = profile?.eligible_govt_holiday !== false;
   const halfYearlyStats = React.useMemo(() => calculateHalfYearlyOfficeLeave(
     records,

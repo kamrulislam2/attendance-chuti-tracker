@@ -60,7 +60,7 @@ export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
   setFirstTimePassword,
   firstTimeConfirmPassword,
   setFirstTimeConfirmPassword,
-  profile,
+  profile: _profile,
 
   firstTimePasswordSubmitting,
   sessionUser,
@@ -94,15 +94,6 @@ export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
   };
 
   const showFirstLoginOnboarding = showOnboardingModal;
-
-  console.log('--- WelcomeModals Evaluation ---', {
-    showFirstTimePasswordModal,
-    showOnboardingModal,
-    has_changed_password: profile?.has_changed_password,
-    is_setup_completed: profile?.is_setup_completed,
-    role: profile?.role,
-    showFirstLoginOnboarding
-  });
 
   return (
     <>

@@ -41,6 +41,7 @@ interface StaffMasterTableProps {
   onExportExcel: () => void;
   onExportPDF: () => void;
   onViewDetails: (id: string) => void;
+  initialFetchDone?: boolean;
 }
 
 export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
@@ -55,6 +56,7 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
   onExportExcel,
   onExportPDF,
   onViewDetails,
+  initialFetchDone = true,
 }) => {
   const yearOptions = [
     { value: 'all', label: 'All' },
@@ -121,7 +123,12 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
       </div>
 
       <div className="overflow-x-auto">
-        {profilesList.length === 0 ? (
+        {!initialFetchDone ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
+            <span className="text-[11px] font-semibold tracking-wider">Loading staff profiles...</span>
+          </div>
+        ) : profilesList.length === 0 ? (
           <div className="py-12 text-center text-slate-500 text-sm">
             No staff profiles found.
           </div>

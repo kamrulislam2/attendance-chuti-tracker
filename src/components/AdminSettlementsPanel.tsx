@@ -22,6 +22,7 @@ interface AdminSettlementsPanelProps {
   onSaveSettlementsBulk: (settlementsList: any[]) => Promise<boolean>;
   onDeleteSettlement: (id: string) => Promise<boolean>;
   currentUserProfile: Profile | null;
+  initialFetchDone?: boolean;
 }
 
 export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
@@ -35,6 +36,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
   onSaveSettlementsBulk,
   onDeleteSettlement,
   currentUserProfile,
+  initialFetchDone = true,
 }) => {
   const [activeSettleStaff, setActiveSettleStaff] = useState<Profile | null>(null);
   const [activeSettleRecord, setActiveSettleRecord] = useState<LeaveSettlement | null>(null);
@@ -460,7 +462,16 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-850 bg-slate-900/10">
-            {filteredStaff.length === 0 ? (
+            {!initialFetchDone ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-slate-400 bg-slate-900/5">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
+                    <span className="text-[11px] font-semibold tracking-wider">Loading settlements...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredStaff.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-medium bg-slate-900/5">
                   All matching profiles settled or no unused leaves available.

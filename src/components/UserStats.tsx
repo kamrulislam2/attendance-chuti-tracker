@@ -43,6 +43,7 @@ interface UserStatsProps {
   eidFitrTotal?: number;
   eidAdhaRemaining?: number;
   eidAdhaTotal?: number;
+  initialFetchDone?: boolean;
 }
 
 export const UserStats: React.FC<UserStatsProps> = ({
@@ -65,6 +66,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
   eidFitrTotal = 0,
   eidAdhaRemaining = 0,
   eidAdhaTotal = 0,
+  initialFetchDone = true,
 }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showOfficeDetailsModal, setShowOfficeDetailsModal] = useState(false);
@@ -126,6 +128,10 @@ export const UserStats: React.FC<UserStatsProps> = ({
   const showOfficeCard = eligibleOfficeLeave !== false && officeLeaveStats;
   const showGovtCard = eligibleGovtHoliday !== false && govtHolidayStats;
 
+  const h1Carryover = halfYearlyStats ? halfYearlyStats.h1Total - halfYearlyStats.h1Base : 0;
+  const hasH1Carryover = h1Carryover > 0;
+  const hasH2Carryover = halfYearlyStats ? halfYearlyStats.carryForward > 0 : false;
+
   let officeRemainingDisplay = officeLeaveStats ? `${officeLeaveStats.remaining} days` : '0 days';
   let officeSubtitle = officeLeaveStats ? `Total Allocated: ${officeLeaveStats.total} days (Taken: ${officeLeaveStats.taken} days)` : '';
 
@@ -136,8 +142,12 @@ export const UserStats: React.FC<UserStatsProps> = ({
       : `${halfYearlyStats.h2Remaining} days`;
 
     officeSubtitle = isH1
-      ? `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Total} days | Taken: ${halfYearlyStats.h1Taken} days`
-      : `H2 (Jul-Dec) Allocated: 7 days + ${halfYearlyStats.carryForward} days Carryover | Taken: ${halfYearlyStats.h2Taken} days`;
+      ? (hasH1Carryover
+          ? `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Base} days + ${h1Carryover} days Carryover | Taken: ${halfYearlyStats.h1Taken} days`
+          : `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Total} days | Taken: ${halfYearlyStats.h1Taken} days`)
+      : (hasH2Carryover
+          ? `H2 (Jul-Dec) Allocated: ${halfYearlyStats.h2Base} days + ${halfYearlyStats.carryForward} days Carryover | Taken: ${halfYearlyStats.h2Taken} days`
+          : `H2 (Jul-Dec) Allocated: ${halfYearlyStats.h2Total} days | Taken: ${halfYearlyStats.h2Taken} days`);
   }
 
   return (
@@ -162,6 +172,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
               <Info className="h-3.5 w-3.5" />
             </button>
           ) : undefined}
+          loading={!initialFetchDone}
         />
       )}
 
@@ -185,6 +196,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
               <History className="h-3.5 w-3.5" />
             </button>
           ) : undefined}
+          loading={!initialFetchDone}
         />
       )}
 
@@ -198,6 +210,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
           title="Eid-ul-Fitr Holiday (Remaining)"
           value={`${eidFitrRemaining} days`}
           subtitle={`Total Eid-ul-Fitr Holiday: ${eidFitrTotal} days`}
+          loading={!initialFetchDone}
         />
       )}
 
@@ -211,6 +224,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
           title="Eid-ul-Adha Holiday (Remaining)"
           value={`${eidAdhaRemaining} days`}
           subtitle={`Total Eid-ul-Adha Holiday: ${eidAdhaTotal} days`}
+          loading={!initialFetchDone}
         />
       )}
 
@@ -233,6 +247,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
             Add to Full Leave
           </button>
         ) : undefined}
+        loading={!initialFetchDone}
       />
 
       {/* Full Leave */}
@@ -244,6 +259,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
         title="Total Full Leave"
         value={`${stats.fullLeaves} days`}
         subtitle={convertedDays > 0 ? `Added from Short Leave: +${convertedDays} days` : undefined}
+        loading={!initialFetchDone}
       />
 
       {/* Overtime */}
@@ -255,6 +271,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
           iconBorderClass="border-emerald-500/20"
           title="Overtime"
           value={`${stats.overtimeHours} hrs`}
+          loading={!initialFetchDone}
         />
       )}
 
@@ -364,13 +381,23 @@ export const UserStats: React.FC<UserStatsProps> = ({
               {/* H1 Section */}
               <div className="bg-slate-955/40 border border-slate-850 p-4 rounded-xl">
                 <h4 className="text-xs font-bold text-orange-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
-                  1st Half (January - June)
+                  H1 (January - June)
                 </h4>
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className={`grid ${hasH1Carryover ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-xs`}>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Allocated</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Total} days</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">
+                      {hasH1Carryover ? 'Base' : 'Allocated'}
+                    </span>
+                    <span className="text-slate-200 font-bold font-mono">
+                      {hasH1Carryover ? halfYearlyStats.h1Base : halfYearlyStats.h1Total} days
+                    </span>
                   </div>
+                  {hasH1Carryover && (
+                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                      <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
+                      <span className="text-slate-200 font-bold font-mono">+{h1Carryover} days</span>
+                    </div>
+                  )}
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
                     <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Taken} days</span>
@@ -392,17 +419,23 @@ export const UserStats: React.FC<UserStatsProps> = ({
               {/* H2 Section */}
               <div className="bg-slate-955/40 border border-slate-850 p-4 rounded-xl">
                 <h4 className="text-xs font-bold text-orange-400 mb-2 border-b border-slate-800 pb-1.5 uppercase tracking-wider">
-                  2nd Half (July - December)
+                  H2 (July - December)
                 </h4>
-                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                <div className={`grid ${hasH2Carryover ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-xs`}>
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Base</span>
-                    <span className="text-slate-200 font-bold font-mono">7 days</span>
+                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">
+                      {hasH2Carryover ? 'Base' : 'Allocated'}
+                    </span>
+                    <span className="text-slate-200 font-bold font-mono">
+                      {hasH2Carryover ? halfYearlyStats.h2Base : halfYearlyStats.h2Total} days
+                    </span>
                   </div>
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
-                    <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
-                    <span className="text-slate-200 font-bold font-mono">+{halfYearlyStats.carryForward} days</span>
-                  </div>
+                  {hasH2Carryover && (
+                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                      <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
+                      <span className="text-slate-200 font-bold font-mono">+{halfYearlyStats.carryForward} days</span>
+                    </div>
+                  )}
                   <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
                     <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h2Taken} days</span>

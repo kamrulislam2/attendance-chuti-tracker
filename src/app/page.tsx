@@ -734,6 +734,7 @@ export default function Dashboard() {
             onDeleteSettlement={handleDeleteLeaveSettlement}
             adminRecords={adminRecords}
             currentUserProfile={profile}
+            initialFetchDone={initialFetchDone}
           />
         )}
 

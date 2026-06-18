@@ -53,7 +53,7 @@ export function useDerivedState({
   lastViewedTime,
   holidayResponses,
   globalSettings,
-  loading,
+  loading: _loading,
   initialFetchDone,
   adminActiveTab,
   dismissedNotificationIds,
@@ -330,7 +330,7 @@ export function useDerivedState({
 
     const filtered = list.filter(n => !dismissedNotificationIds?.has(n.id));
     return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, loading, dismissedNotificationIds, leaveSettlements]);
+  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, initialFetchDone, adminActiveTab, profilesList, dismissedNotificationIds, leaveSettlements]);
 
   // --- Admin/Supervisor Holiday Notifications ---
   const adminHolidayNotifications = useMemo(() => {

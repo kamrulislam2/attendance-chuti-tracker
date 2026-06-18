@@ -424,10 +424,7 @@ export const useAdminStaffOperations = ({
       setProfileSignInTime(mergedProfile.default_sign_in || '09:30');
       setProfileSignOutTime(mergedProfile.default_sign_out || '19:00');
 
-      console.log('--- handleFirstTimeSetupSubmit ---', {
-        updatedProfile,
-        needsProfileSetup: true
-      });
+
 
       setShowFirstTimePasswordModal(false);
       localStorage.removeItem(`first_time_modal_start_time_${sessionUser.id}`);

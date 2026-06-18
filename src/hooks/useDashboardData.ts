@@ -43,7 +43,26 @@ export const useDashboardData = () => {
 
   // Navigation / Tab states
   const [adminActiveTab, setAdminActiveTab] = useState<'user' | 'admin'>('admin');
-  const [viewingStaffId, setViewingStaffId] = useState<string | null>(null);
+  const [viewingStaffId, setViewingStaffIdState] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('viewingStaffId') || null;
+    }
+    return null;
+  });
+
+  const setViewingStaffId = useCallback((idOrFn: string | null | ((prev: string | null) => string | null)) => {
+    setViewingStaffIdState((prev) => {
+      const next = typeof idOrFn === 'function' ? idOrFn(prev) : idOrFn;
+      if (typeof window !== 'undefined') {
+        if (next) {
+          sessionStorage.setItem('viewingStaffId', next);
+        } else {
+          sessionStorage.removeItem('viewingStaffId');
+        }
+      }
+      return next;
+    });
+  }, []);
 
   // Notification last viewed
   const [lastViewedTime, setLastViewedTime] = useState<string>('');
@@ -867,8 +886,10 @@ export const useDashboardData = () => {
       localStorage.removeItem(`session_start_time_${sessionUser.id}`);
       localStorage.removeItem(`last_access_time_${sessionUser.id}`);
     }
+    // Clear cache/sessionStorage items
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('selectedYear');
+      sessionStorage.removeItem('viewingStaffId');
     }
     setInitialFetchDone(false);
     await supabase.auth.signOut();

@@ -180,7 +180,6 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   );
 
   const currentHalfPeriod: 'H1' | 'H2' = halfYearlyStats.currentHalf === 1 ? 'H1' : 'H2';
-  const officeRemaining = halfYearlyStats.currentHalf === 1 ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
 
   const activeGovtSettledForPeriod = leaveSettlements.some(
     s => s.user_id === profile?.id && s.year === selectedYear && s.leave_category === 'Govt Holiday' && s.period === currentHalfPeriod && (s.status === 'processed' || s.status === 'responded')
@@ -406,6 +405,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
         eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (userStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
         eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
+        initialFetchDone={initialFetchDone}
       />
 
       <LeavesRecordsTable
@@ -433,6 +433,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
         title="My Annual Leave Records"
         emptyMessage="No leave records found. Submit a new entry."
         showPendingBadge={true}
+        initialFetchDone={initialFetchDone}
       />
 
       {showUserSettleModal && (

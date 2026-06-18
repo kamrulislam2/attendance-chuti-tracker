@@ -343,10 +343,12 @@ export const getDetailedLeaveLabel = (rec: { leave_type: string; reserve_holiday
 };
 
 export interface HalfYearlyOfficeLeaveStats {
+  h1Base: number;
   h1Total: number;
   h1Taken: number;
   h1Remaining: number;
   carryForward: number;
+  h2Base: number;
   h2Total: number;
   h2Taken: number;
   h2Remaining: number;
@@ -469,10 +471,12 @@ export const calculateHalfYearlyOfficeLeave = (
   }
 
   return {
+    h1Base: officeLeaveH1,
     h1Total: h1Quota,
     h1Taken,
     h1Remaining,
     carryForward,
+    h2Base: officeLeaveH2,
     h2Total,
     h2Taken,
     h2Remaining,

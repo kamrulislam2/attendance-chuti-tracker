@@ -3,6 +3,9 @@ const ASSETS_TO_CACHE = [
   '/',
   '/login',
   '/favicon.ico',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon.svg',
 ];
 
 // Install Event - Pre-cache Static Assets
@@ -75,9 +78,9 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   try {
     const data = event.data.json();
-    const title = data.title || 'ছুটি নোটিফিকেশন';
+    const title = data.title || 'Leave Tracker Notification';
     const options = {
-      body: data.body || 'নতুন নোটিফিকেশন এসেছে',
+      body: data.body || 'New notification received',
       icon: self.location.origin + '/icon-192.png',
       badge: self.location.origin + '/icon-192.png',
       vibrate: [100, 50, 100],
@@ -99,7 +102,7 @@ self.addEventListener('push', (event) => {
     // Fallback if data is not JSON
     const text = event.data.text();
     event.waitUntil(
-      self.registration.showNotification('ছুটি নোটিফিকেশন', {
+      self.registration.showNotification('Leave Tracker Notification', {
         body: text,
         icon: self.location.origin + '/icon-192.png',
         badge: self.location.origin + '/icon-192.png'

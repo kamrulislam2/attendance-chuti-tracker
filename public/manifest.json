@@ -1,6 +1,6 @@
 {
-  "name": "ছুটি - উপস্থিতি ও ছুটি ট্র্যাকার",
-  "short_name": "ছুটি",
+  "name": "Chuti - Leave Tracker",
+  "short_name": "Chuti",
   "description": "Secure attendance and leave tracking system for office staff",
   "start_url": "/",
   "display": "standalone",

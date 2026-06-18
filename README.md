@@ -270,20 +270,28 @@ To develop or build the desktop app locally, you need:
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v0.1.0`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.0.0`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
 2. Set up Rust toolchains.
 3. Compile three native target applications:
    - **Windows (x64)** `.msi` / `.exe` installer.
    - **macOS Intel (x86_64)** `.dmg` installer.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
-4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v0.1.0`).
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.0.0`).
 
 ---
 
 ## 📜 Version History / Changelog
 
-### 🚀 v0.1.7 (Latest)
+### 🚀 v1.0.0 (Latest)
+* **Delta Sync Implementation**: Integrated complete Delta sync mechanisms. On subsequent updates, the client only queries records modified since the last sync (`.gte('updated_at', lastSyncedAt)`) and merges updates dynamically into cache, significantly reducing bandwidth and payload sizes.
+* **Cache Integrity Overhaul**: Replaced destructive full cache clearing calls with targeted upserts (`upsertCacheItem` and `mergeCacheData`) to prevent losing supervisor/admin cached profiles.
+* **Graceful Offline Session Recovery**: Added resilient timeout and catch-block recovery paths in `fetchSession` to prevent redirection to `/login` when offline users experience JWT token expiration.
+* **English Conflict Resolution Toasts**: Standardized and translated all offline sync warnings and conflict notifications from Bengali to English, featuring an 8-second visibility duration.
+* **Localized App Details**: Translated all application titles, short titles, and push fallback prompts in `manifest.json` and `sw.js` to English.
+* **PWA Offline Asset Optimization**: Added PWA configuration manifest, icons, and vector logo files directly to the pre-caching asset lists in the custom Service Worker.
+
+### 🚀 v0.1.7
 * **macOS Production Network Fix**: Resolved a webview routing issue where macOS production protocol was misidentified as local dev environment, causing login failures.
 * **Tauri Native File Save**: Integrated native dialog and filesystem plugins to allow users to securely save Excel exports directly to their folder choice.
 * **Embedded Iframe PDF Printing**: Replaced popups with an embedded iframe print flow to bypass webview popup blocker limitations.

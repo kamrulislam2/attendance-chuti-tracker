@@ -265,7 +265,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             localId: record.localId || '',
             recordId: record.id,
             action: 'delete',
-            reason: 'আপনি অফলাইনে যে ছুটিটি ডিলিট করতে চেয়েছিলেন সেটি ইতিমধ্যে অ্যাডমিন/সুপারভাইজার কর্তৃক অনুমোদিত হয়েছে। ডিলিট বাতিল করা হয়েছে।',
+            reason: 'The leave request you tried to delete offline has already been approved by an admin/supervisor. Delete action cancelled.',
           });
           if (record.localId) await deleteOfflineRecord(record.localId);
           continue;
@@ -296,7 +296,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             localId: record.localId || '',
             recordId: record.id,
             action: 'update',
-            reason: 'আপনি যে রেকর্ডটি অফলাইনে এডিট করেছিলেন সেটি সার্ভার থেকে ডিলিট করা হয়েছে। আপনার পরিবর্তন বাতিল করা হয়েছে।',
+            reason: 'The record you edited offline has been deleted from the server. Your changes have been cancelled.',
           });
           if (record.localId) await deleteOfflineRecord(record.localId);
           continue;
@@ -310,7 +310,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
             localId: record.localId || '',
             recordId: record.id,
             action: 'update',
-            reason: `আপনার অফলাইন পরিবর্তনটি বাতিল করা হয়েছে কারণ অ্যাডমিন ইতিমধ্যে এই রেকর্ডের স্ট্যাটাস "${serverRecord.status}" তে পরিবর্তন করেছেন।`,
+            reason: `Your offline changes have been cancelled because the admin has already changed the status of this record to "${serverRecord.status}".`,
           });
           if (record.localId) await deleteOfflineRecord(record.localId);
           continue;

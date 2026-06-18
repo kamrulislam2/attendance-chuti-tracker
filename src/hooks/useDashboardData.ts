@@ -153,18 +153,49 @@ export const useDashboardData = () => {
       let settlementsData: LeaveSettlement[] = [];
 
       if (profile.role === 'admin' || profile.role === 'supervisor') {
-        // Fetch all user records for Admin/Supervisor
-        const { data: records, error } = await supabase
-          .from('chuti')
-          .select(`
-            *,
-            profiles (username)
-          `)
-          .order('date', { ascending: false });
+        // Delta sync: check if we have a previous sync timestamp
+        const lastChutiSync = await getSyncTimestamp('chuti');
+        
+        if (lastChutiSync) {
+          // Delta fetch: only records modified since last sync
+          const { data: deltaRecords, error } = await supabase
+            .from('chuti')
+            .select(`
+              *,
+              profiles (username)
+            `)
+            .gte('updated_at', lastChutiSync)
+            .order('date', { ascending: false });
 
-        if (!error && records) {
-          setAdminRecords(records);
-          adminRecordsData = records;
+          if (!error && deltaRecords && deltaRecords.length > 0) {
+            // Merge delta into cache
+            await mergeCacheData('chuti_cache', deltaRecords);
+            // Read the full merged cache to set UI state
+            const fullCachedChuti = await getCacheData('chuti_cache');
+            setAdminRecords(fullCachedChuti as ChutiRecordWithProfile[]);
+            adminRecordsData = fullCachedChuti as ChutiRecordWithProfile[];
+          } else if (!error) {
+            // No new changes — load from cache
+            const fullCachedChuti = await getCacheData('chuti_cache');
+            if (fullCachedChuti.length > 0) {
+              setAdminRecords(fullCachedChuti as ChutiRecordWithProfile[]);
+              adminRecordsData = fullCachedChuti as ChutiRecordWithProfile[];
+            }
+          }
+        } else {
+          // First-time full fetch (no previous sync timestamp)
+          const { data: records, error } = await supabase
+            .from('chuti')
+            .select(`
+              *,
+              profiles (username)
+            `)
+            .order('date', { ascending: false });
+
+          if (!error && records) {
+            setAdminRecords(records);
+            adminRecordsData = records;
+          }
         }
 
         // Fetch profile list for filtering
@@ -192,16 +223,46 @@ export const useDashboardData = () => {
       }
       
       if (profile.role === 'user' || profile.role === 'supervisor' || profile.role === 'admin') {
-        // Fetch only logged-in user records
-        const { data: records, error } = await supabase
-          .from('chuti')
-          .select('*')
-          .eq('user_id', sessionUser.id)
-          .order('date', { ascending: false });
+        // Delta sync for user's own records
+        const lastUserChutiSync = await getSyncTimestamp('chuti_user');
+        
+        if (lastUserChutiSync) {
+          const { data: deltaRecords, error } = await supabase
+            .from('chuti')
+            .select('*')
+            .eq('user_id', sessionUser.id)
+            .gte('updated_at', lastUserChutiSync)
+            .order('date', { ascending: false });
 
-        if (!error && records) {
-          setUserRecords(records);
-          userRecordsData = records;
+          if (!error && deltaRecords && deltaRecords.length > 0) {
+            // For user records, we need to merge carefully
+            // Get existing user records from cache, merge delta, set state
+            const cachedUserChuti = (await getCacheData('chuti_cache')).filter(r => r.user_id === sessionUser.id);
+            const mergedMap = new Map(cachedUserChuti.map(r => [r.id, r]));
+            deltaRecords.forEach(r => mergedMap.set(r.id, r));
+            const mergedUserRecords = Array.from(mergedMap.values());
+            setUserRecords(mergedUserRecords);
+            userRecordsData = mergedUserRecords;
+          } else if (!error) {
+            // No changes — use cached
+            const cachedUserChuti = (await getCacheData('chuti_cache')).filter(r => r.user_id === sessionUser.id);
+            if (cachedUserChuti.length > 0) {
+              setUserRecords(cachedUserChuti);
+              userRecordsData = cachedUserChuti;
+            }
+          }
+        } else {
+          // First-time full fetch
+          const { data: records, error } = await supabase
+            .from('chuti')
+            .select('*')
+            .eq('user_id', sessionUser.id)
+            .order('date', { ascending: false });
+
+          if (!error && records) {
+            setUserRecords(records);
+            userRecordsData = records;
+          }
         }
       }
 
@@ -260,14 +321,14 @@ export const useDashboardData = () => {
           await mergeCacheData('profiles_cache', profilesData);
         }
         
-        // Cache chuti records
+        // Cache chuti records (merge-based since we use delta sync)
         const recordsToCache = (profile.role === 'admin' || profile.role === 'supervisor')
           ? adminRecordsData
           : userRecordsData;
         if (recordsToCache.length > 0) {
-          // For chuti records, do a full setCacheData since we fetch the complete set
-          await setCacheData('chuti_cache', recordsToCache);
+          await mergeCacheData('chuti_cache', recordsToCache);
           await setSyncTimestamp('chuti', syncNow);
+          await setSyncTimestamp('chuti_user', syncNow);
         }
 
         if (responsesData.length > 0) {

@@ -70,12 +70,12 @@ jobs:
           releaseBody: |
             ### Chuti v__VERSION__ 🚀
 
-            #### 🌟 What's New in v0.1.7:
-            - **macOS Production Network Fix**: Resolved a webview routing issue where macOS production protocol was misidentified as local dev environment, causing login failures.
-            - **Tauri Native File Save**: Integrated native dialog and filesystem plugins to allow users to securely save Excel exports directly to their folder choice.
-            - **Embedded Iframe PDF Printing**: Replaced popups with an embedded iframe print flow to bypass webview popup blocker limitations.
-            - **Desktop UI Clean Up**: Hidden all download banners and links when the app is running in the desktop Tauri context.
-            - **Offline Build Speed Up**: Removed unused Google Fonts dependency for offline-compatible builds and faster compile times.
+            #### 🌟 What's New in v1.0.0:
+            - **Delta Syncing & Cache Merging**: Added incremental delta pulls using dynamic `.gte('updated_at')` sync metadata tracking to reduce bandwidth payload size, combined with non-destructive cache upserts.
+            - **Resilient Offline Auth Recovery**: Configured recovery fallbacks to gracefully recover cached profiles offline if JWT sessions time out or fail.
+            - **English Localization Sweep**: Removed all Bengali text from toast alerts, service worker notification structures, and the manifest configurations.
+            - **PWA Asset Caching**: Pre-cached configuration files and main icon assets in service worker registers for smoother offline startup.
+            - **Automated Data TTL Purge**: Automatically sweeps local entries older than 2 years to maintain IndexedDB database performance.
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

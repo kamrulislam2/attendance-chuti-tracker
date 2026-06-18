@@ -36,7 +36,7 @@ export interface ChutiRecord {
 }
 
 const DB_NAME = 'ChutiOfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'pending_chuti';
 
 // Secure context safe UUID generator helper
@@ -63,6 +63,21 @@ const openDB = (): Promise<IDBDatabase> => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'localId' });
+      }
+      if (!db.objectStoreNames.contains('profiles_cache')) {
+        db.createObjectStore('profiles_cache', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('chuti_cache')) {
+        db.createObjectStore('chuti_cache', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('holiday_responses_cache')) {
+        db.createObjectStore('holiday_responses_cache', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('settlements_cache')) {
+        db.createObjectStore('settlements_cache', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('global_settings_cache')) {
+        db.createObjectStore('global_settings_cache', { keyPath: 'key' });
       }
     };
   });
@@ -303,4 +318,95 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, syncedCount: 0, error: message };
   }
+};
+
+// Clear and save list to cache
+export const setCacheData = async (storeName: string, data: any[]): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    
+    // Clear existing cache items
+    const clearRequest = store.clear();
+    clearRequest.onsuccess = () => {
+      // If no data to add, resolve immediately
+      if (!data || data.length === 0) {
+        resolve();
+        return;
+      }
+      
+      let errorOccurred = false;
+      let pendingCount = data.length;
+      
+      data.forEach(item => {
+        if (!item) {
+          pendingCount--;
+          if (pendingCount === 0 && !errorOccurred) {
+            resolve();
+          }
+          return;
+        }
+        const request = store.put(item);
+        request.onsuccess = () => {
+          pendingCount--;
+          if (pendingCount === 0 && !errorOccurred) {
+            resolve();
+          }
+        };
+        request.onerror = () => {
+          errorOccurred = true;
+          reject(request.error);
+        };
+      });
+    };
+    clearRequest.onerror = () => reject(clearRequest.error);
+  });
+};
+
+// Retrieve list from cache
+export const getCacheData = async (storeName: string): Promise<any[]> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// Global Settings cache helpers
+export const setGlobalSettingsCache = async (settings: any): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('global_settings_cache', 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore('global_settings_cache');
+    const request = store.put({ key: 'settings', value: settings });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const getGlobalSettingsCache = async (): Promise<any | null> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('global_settings_cache', 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore('global_settings_cache');
+    const request = store.get('settings');
+    request.onsuccess = () => resolve(request.result ? request.result.value : null);
+    request.onerror = () => reject(request.error);
+  });
 };

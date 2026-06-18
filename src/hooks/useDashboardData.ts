@@ -6,7 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile, LeaveSettlement } from '@/types';
-import { ChutiRecord, getOfflineRecords, syncOfflineData } from '@/utils/offlineSync';
+import { ChutiRecord, getOfflineRecords, syncOfflineData, getCacheData, setCacheData, getGlobalSettingsCache, setGlobalSettingsCache } from '@/utils/offlineSync';
 import { checkSubscriptionStatus, sendPushNotification } from '@/utils/webPushHelper';
 import { getGlobalSettingsFromProfile, defaultGlobalSettings, GlobalSettings, formatDate, parseHolidayItem } from '@/utils/dashboardHelpers';
 
@@ -77,7 +77,81 @@ export const useDashboardData = () => {
   const fetchRecords = useCallback(async () => {
     if (!sessionUser || !profile) return;
 
+    // Check if offline
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      try {
+        console.log('App is offline, loading cached data...');
+        // Load profiles cache
+        const cachedProfiles = await getCacheData('profiles_cache');
+        if (cachedProfiles.length > 0) {
+          setProfilesList(cachedProfiles);
+        }
+        
+        // Load chuti records cache
+        const cachedChuti = await getCacheData('chuti_cache');
+        // Retrieve unsynced records
+        const unsyncedRecords = await getOfflineRecords();
+        
+        // Merge them: if we have temp local records, prepend them.
+        // Also, if any of the unsynced records are edits/deletes, handle them:
+        // - For delete: exclude from display.
+        // - For update: merge updates.
+        const deletedIds = new Set(
+          unsyncedRecords.filter(r => r.action === 'delete').map(r => r.id)
+        );
+        const updatedRecordsMap = new Map(
+          unsyncedRecords.filter(r => r.action === 'update').map(r => [r.id, r.data])
+        );
+        
+        const mergedChuti = cachedChuti
+          .filter(r => !deletedIds.has(r.id))
+          .map(r => {
+            const updates = updatedRecordsMap.get(r.id);
+            if (updates) {
+              return { ...r, ...updates };
+            }
+            return r;
+          });
+          
+        // Combine with pending inserts
+        const pendingInserts = unsyncedRecords.filter(r => r.action === 'insert' || !r.action);
+        const finalChuti = [...pendingInserts, ...mergedChuti];
+        
+        if (profile.role === 'admin' || profile.role === 'supervisor') {
+          setAdminRecords(finalChuti as ChutiRecordWithProfile[]);
+        }
+        
+        const loggedInUserChuti = finalChuti.filter(r => r.user_id === sessionUser.id);
+        setUserRecords(loggedInUserChuti);
+
+        // Load holiday responses cache
+        const cachedResponses = await getCacheData('holiday_responses_cache');
+        setHolidayResponses(cachedResponses);
+
+        // Load leave settlements cache
+        const cachedSettlements = await getCacheData('settlements_cache');
+        setLeaveSettlements(cachedSettlements);
+
+        // Load global settings cache
+        const cachedSettings = await getGlobalSettingsCache();
+        if (cachedSettings) {
+          setGlobalSettings(cachedSettings);
+        }
+      } catch (err) {
+        console.error('Error loading offline cache:', err);
+      } finally {
+        setInitialFetchDone(true);
+      }
+      return;
+    }
+
     try {
+      let profilesData: Profile[] = [];
+      let adminRecordsData: ChutiRecordWithProfile[] = [];
+      let userRecordsData: ChutiRecord[] = [];
+      let responsesData: any[] = [];
+      let settlementsData: LeaveSettlement[] = [];
+
       if (profile.role === 'admin' || profile.role === 'supervisor') {
         // Fetch all user records for Admin/Supervisor
         const { data: records, error } = await supabase
@@ -90,6 +164,7 @@ export const useDashboardData = () => {
 
         if (!error && records) {
           setAdminRecords(records);
+          adminRecordsData = records;
         }
 
         // Fetch profile list for filtering
@@ -100,6 +175,7 @@ export const useDashboardData = () => {
 
         if (profiles) {
           setProfilesList(profiles);
+          profilesData = profiles;
         }
       } else {
         // For normal users, fetch only the list of supervisors to allow routing requests
@@ -111,6 +187,7 @@ export const useDashboardData = () => {
 
         if (supervisors) {
           setProfilesList(supervisors as any[]);
+          profilesData = supervisors as any[];
         }
       }
       
@@ -124,6 +201,7 @@ export const useDashboardData = () => {
 
         if (!error && records) {
           setUserRecords(records);
+          userRecordsData = records;
         }
       }
 
@@ -138,6 +216,7 @@ export const useDashboardData = () => {
           .order('created_at', { ascending: false });
         if (!respError && responses) {
           setHolidayResponses(responses);
+          responsesData = responses;
         }
 
         const { data: settlements, error: settError } = await supabase
@@ -149,6 +228,7 @@ export const useDashboardData = () => {
           .order('created_at', { ascending: false });
         if (!settError && settlements) {
           setLeaveSettlements(settlements);
+          settlementsData = settlements;
         }
       } else {
         const { data: responses, error: respError } = await supabase
@@ -158,6 +238,7 @@ export const useDashboardData = () => {
           .order('created_at', { ascending: false });
         if (!respError && responses) {
           setHolidayResponses(responses);
+          responsesData = responses;
         }
 
         const { data: settlements, error: settError } = await supabase
@@ -167,8 +248,38 @@ export const useDashboardData = () => {
           .order('created_at', { ascending: false });
         if (!settError && settlements) {
           setLeaveSettlements(settlements);
+          settlementsData = settlements;
         }
       }
+
+      // Asynchronously cache all fetched data in IndexedDB
+      try {
+        if (profilesData.length > 0) {
+          await setCacheData('profiles_cache', profilesData);
+        }
+        
+        // Cache chuti records
+        const recordsToCache = (profile.role === 'admin' || profile.role === 'supervisor')
+          ? adminRecordsData
+          : userRecordsData;
+        await setCacheData('chuti_cache', recordsToCache);
+
+        if (responsesData.length > 0) {
+          await setCacheData('holiday_responses_cache', responsesData);
+        }
+        if (settlementsData.length > 0) {
+          await setCacheData('settlements_cache', settlementsData);
+        }
+        
+        // Store current globalSettings to cache if they are derived
+        const currentGlobalSettings = (profile.role === 'admin' || profile.role === 'supervisor')
+          ? getGlobalSettingsFromProfile(profilesData.find(p => p.role === 'admin') || profile)
+          : getGlobalSettingsFromProfile(profile);
+        await setGlobalSettingsCache(currentGlobalSettings);
+      } catch (cacheErr) {
+        console.error('Failed to update IndexedDB cache:', cacheErr);
+      }
+
     } finally {
       setInitialFetchDone(true);
     }
@@ -814,11 +925,45 @@ export const useDashboardData = () => {
         }
 
         // Fetch user profile
-        const { data: userProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        let userProfile = null;
+        let profileError = null;
+
+        if (typeof window !== 'undefined' && navigator.onLine) {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            userProfile = data;
+            profileError = error;
+
+            if (!profileError && userProfile) {
+              // Asynchronously update profile cache
+              try {
+                await setCacheData('profiles_cache', [userProfile]);
+              } catch (cacheErr) {
+                console.error('Failed to cache user profile:', cacheErr);
+              }
+            }
+          } catch (netErr) {
+            console.error('Network error during profile fetch:', netErr);
+          }
+        }
+
+        // Fallback to cache if offline or query failed
+        if (!userProfile) {
+          try {
+            const cachedProfiles = await getCacheData('profiles_cache');
+            userProfile = cachedProfiles.find(p => p.id === session.user.id) || null;
+            if (userProfile) {
+              console.log('Successfully loaded profile from local cache offline:', userProfile);
+              profileError = null; // Clear error since we got it from cache
+            }
+          } catch (cacheErr) {
+            console.error('Failed to load profile from cache:', cacheErr);
+          }
+        }
 
         if (profileError || !userProfile) {
           console.error('User profile not found. Logging out.', profileError);

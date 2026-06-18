@@ -6,7 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile, LeaveSettlement } from '@/types';
-import { ChutiRecord, getOfflineRecords, syncOfflineData, getCacheData, setCacheData, mergeCacheData, upsertCacheItem, getGlobalSettingsCache, setGlobalSettingsCache, getSyncTimestamp, setSyncTimestamp, purgeStaleCacheData } from '@/utils/offlineSync';
+import { ChutiRecord, SyncConflict, getOfflineRecords, syncOfflineData, getCacheData, setCacheData, mergeCacheData, upsertCacheItem, getGlobalSettingsCache, setGlobalSettingsCache, getSyncTimestamp, setSyncTimestamp, purgeStaleCacheData } from '@/utils/offlineSync';
 import { checkSubscriptionStatus, sendPushNotification } from '@/utils/webPushHelper';
 import { getGlobalSettingsFromProfile, defaultGlobalSettings, GlobalSettings, formatDate, parseHolidayItem } from '@/utils/dashboardHelpers';
 
@@ -784,6 +784,12 @@ export const useDashboardData = () => {
       checkOfflineQueue();
       fetchRecords();
     }
+    // Show conflict notifications if any
+    if (res.conflicts && res.conflicts.length > 0) {
+      res.conflicts.forEach((c: SyncConflict) => {
+        toast.error(c.reason, { duration: 8000, id: `conflict-${c.recordId}` });
+      });
+    }
   }, [checkOfflineQueue, fetchRecords]);
 
   // Auto Sync on Mount / Login
@@ -894,6 +900,23 @@ export const useDashboardData = () => {
         
         if (sessionError) {
           console.error('Supabase session fetch error:', sessionError);
+          // If offline, try to continue with cached profile instead of redirecting to login
+          if (typeof window !== 'undefined' && !navigator.onLine) {
+            console.log('Session error while offline, attempting cached profile recovery...');
+            try {
+              const cachedProfiles = await getCacheData('profiles_cache');
+              // Find any cached profile to use as the session user
+              if (cachedProfiles.length > 0) {
+                const cachedProfile = cachedProfiles[0];
+                setSessionUser({ id: cachedProfile.id } as any);
+                setProfile(cachedProfile);
+                setLoading(false);
+                return;
+              }
+            } catch (cacheErr) {
+              console.error('Failed to recover from cache:', cacheErr);
+            }
+          }
           setInitialFetchDone(false);
           setLoading(false);
           router.push('/login');
@@ -902,6 +925,21 @@ export const useDashboardData = () => {
 
         const session = data?.session;
         if (!session) {
+          // If offline and no session, try cache recovery
+          if (typeof window !== 'undefined' && !navigator.onLine) {
+            try {
+              const cachedProfiles = await getCacheData('profiles_cache');
+              if (cachedProfiles.length > 0) {
+                const cachedProfile = cachedProfiles[0];
+                setSessionUser({ id: cachedProfile.id } as any);
+                setProfile(cachedProfile);
+                setLoading(false);
+                return;
+              }
+            } catch (cacheErr) {
+              console.error('Failed to recover from cache:', cacheErr);
+            }
+          }
           setInitialFetchDone(false);
           setLoading(false);
           router.push('/login');
@@ -1017,6 +1055,22 @@ export const useDashboardData = () => {
         setLoading(false);
       } catch (err) {
         console.error('Fatal exception in fetchSession:', err);
+        // If offline, attempt to recover from cached profile instead of redirecting
+        if (typeof window !== 'undefined' && !navigator.onLine) {
+          try {
+            const cachedProfiles = await getCacheData('profiles_cache');
+            if (cachedProfiles.length > 0) {
+              const cachedProfile = cachedProfiles[0];
+              console.log('Recovered from cache after session timeout (offline):', cachedProfile.username);
+              setSessionUser({ id: cachedProfile.id } as any);
+              setProfile(cachedProfile);
+              setLoading(false);
+              return;
+            }
+          } catch (cacheErr) {
+            console.error('Cache recovery failed:', cacheErr);
+          }
+        }
         setInitialFetchDone(false);
         setLoading(false);
         router.push('/login');
@@ -1037,7 +1091,15 @@ export const useDashboardData = () => {
     setLoading(false);
     
     if (res.success) {
-      setMessage({ type: 'success', text: `${res.syncedCount} offline records synced!` });
+      const conflictCount = res.conflicts?.length || 0;
+      if (conflictCount > 0) {
+        setMessage({ type: 'error', text: `${res.syncedCount} records synced, ${conflictCount} conflicts detected.` });
+        res.conflicts.forEach((c: SyncConflict) => {
+          toast.error(c.reason, { duration: 8000, id: `conflict-${c.recordId}` });
+        });
+      } else {
+        setMessage({ type: 'success', text: `${res.syncedCount} offline records synced!` });
+      }
       checkOfflineQueue();
       fetchRecords();
     } else {

@@ -219,24 +219,58 @@ export const deleteOfflineRecord = async (localId: string): Promise<void> => {
   });
 };
 
-// Sync all local records to Supabase
-export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => void): Promise<{ success: boolean; syncedCount: number; error?: string }> => {
+// Conflict info returned to the caller for UI notification
+export interface SyncConflict {
+  localId: string;
+  recordId: string;
+  action: 'update' | 'delete';
+  reason: string; // Human-readable reason
+}
+
+// Sync all local records to Supabase with conflict resolution
+export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => void): Promise<{ success: boolean; syncedCount: number; conflicts: SyncConflict[]; error?: string }> => {
   if (typeof window === 'undefined' || !navigator.onLine) {
-    return { success: false, syncedCount: 0, error: 'Device is offline' };
+    return { success: false, syncedCount: 0, conflicts: [], error: 'Device is offline' };
   }
 
   try {
     const offlineRecords = await getOfflineRecords();
     if (offlineRecords.length === 0) {
-      return { success: true, syncedCount: 0 };
+      return { success: true, syncedCount: 0, conflicts: [] };
     }
 
     let syncedCount = 0;
+    const conflicts: SyncConflict[] = [];
+
     for (const record of offlineRecords) {
       let isSyncedSuccessfully = false;
 
       if (record.action === 'delete' && record.id) {
-        // Sync offline delete
+        // Check if the record still exists before deleting
+        const { data: serverRecord } = await supabase
+          .from('chuti')
+          .select('id, status')
+          .eq('id', record.id)
+          .maybeSingle();
+
+        if (!serverRecord) {
+          // Record already deleted on server — just clean up local
+          if (record.localId) await deleteOfflineRecord(record.localId);
+          continue;
+        }
+
+        // If server already approved/rejected it while user was offline, flag a conflict
+        if (serverRecord.status === 'approved' || serverRecord.status === 'approved_by_supervisor') {
+          conflicts.push({
+            localId: record.localId || '',
+            recordId: record.id,
+            action: 'delete',
+            reason: 'আপনি অফলাইনে যে ছুটিটি ডিলিট করতে চেয়েছিলেন সেটি ইতিমধ্যে অ্যাডমিন/সুপারভাইজার কর্তৃক অনুমোদিত হয়েছে। ডিলিট বাতিল করা হয়েছে।',
+          });
+          if (record.localId) await deleteOfflineRecord(record.localId);
+          continue;
+        }
+
         const { error: deleteError } = await supabase
           .from('chuti')
           .delete()
@@ -244,11 +278,44 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
 
         if (deleteError) {
           console.error('Error syncing offline delete:', deleteError);
-          continue; // Skip this one, try the next
+          continue;
         }
         isSyncedSuccessfully = true;
+
       } else if (record.action === 'update' && record.id && record.data) {
-        // Sync offline update
+        // Conflict detection: check if server record has been modified since offline edit
+        const { data: serverRecord } = await supabase
+          .from('chuti')
+          .select('id, status, created_at')
+          .eq('id', record.id)
+          .maybeSingle();
+
+        if (!serverRecord) {
+          // Record deleted on server while user was offline
+          conflicts.push({
+            localId: record.localId || '',
+            recordId: record.id,
+            action: 'update',
+            reason: 'আপনি যে রেকর্ডটি অফলাইনে এডিট করেছিলেন সেটি সার্ভার থেকে ডিলিট করা হয়েছে। আপনার পরিবর্তন বাতিল করা হয়েছে।',
+          });
+          if (record.localId) await deleteOfflineRecord(record.localId);
+          continue;
+        }
+
+        // Server Wins: If the status changed on server (e.g., admin rejected it), skip local update
+        const localStatusUpdate = record.data?.status;
+        if (localStatusUpdate && serverRecord.status !== 'pending_supervisor' && serverRecord.status !== 'needs_review') {
+          // Server has already been acted upon (approved/rejected) — don't overwrite with local change
+          conflicts.push({
+            localId: record.localId || '',
+            recordId: record.id,
+            action: 'update',
+            reason: `আপনার অফলাইন পরিবর্তনটি বাতিল করা হয়েছে কারণ অ্যাডমিন ইতিমধ্যে এই রেকর্ডের স্ট্যাটাস "${serverRecord.status}" তে পরিবর্তন করেছেন।`,
+          });
+          if (record.localId) await deleteOfflineRecord(record.localId);
+          continue;
+        }
+
         const { error: updateError } = await supabase
           .from('chuti')
           .update(record.data)
@@ -256,12 +323,12 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
 
         if (updateError) {
           console.error('Error syncing offline update:', updateError);
-          continue; // Skip this one, try the next
+          continue;
         }
         isSyncedSuccessfully = true;
+
       } else {
         // Sync offline insert
-        // Check if there is already a record for this user and date in the db (duplicate prevention)
         const { data: existing } = await supabase
           .from('chuti')
           .select('id')
@@ -270,7 +337,6 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
           .maybeSingle();
 
         if (!existing) {
-          // Insert record without the local metadata fields
           const { error: insertError } = await supabase.from('chuti').insert({
             user_id: record.user_id,
             date: record.date,
@@ -290,13 +356,12 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
 
           if (insertError) {
             console.error('Error syncing record:', insertError);
-            continue; // Skip this one, try the next
+            continue;
           }
           isSyncedSuccessfully = true;
         } else {
-          // If already exists in DB, discard local one as duplicate (but don't count it as newly synced)
+          // Duplicate — clean up
           isSyncedSuccessfully = true;
-          // We can delete it from local IndexedDB, but don't increment syncedCount
           if (record.localId) {
             await deleteOfflineRecord(record.localId);
           }
@@ -315,11 +380,11 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
       onSyncSuccess(syncedCount);
     }
 
-    return { success: true, syncedCount };
+    return { success: true, syncedCount, conflicts };
   } catch (err) {
     console.error('Offline sync failed:', err);
     const message = err instanceof Error ? err.message : String(err);
-    return { success: false, syncedCount: 0, error: message };
+    return { success: false, syncedCount: 0, conflicts: [], error: message };
   }
 };
 

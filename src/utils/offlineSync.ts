@@ -36,7 +36,7 @@ export interface ChutiRecord {
 }
 
 const DB_NAME = 'ChutiOfflineDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'pending_chuti';
 
 // Secure context safe UUID generator helper
@@ -78,6 +78,9 @@ const openDB = (): Promise<IDBDatabase> => {
       }
       if (!db.objectStoreNames.contains('global_settings_cache')) {
         db.createObjectStore('global_settings_cache', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('sync_metadata')) {
+        db.createObjectStore('sync_metadata', { keyPath: 'table_name' });
       }
     };
   });
@@ -379,6 +382,129 @@ export const getCacheData = async (storeName: string): Promise<any[]> => {
     const request = store.getAll();
     request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
+  });
+};
+
+// Upsert a single item into a cache store without clearing existing data
+export const upsertCacheItem = async (storeName: string, item: any): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    const request = store.put(item); // put = upsert (insert or update by keyPath)
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// Merge new data into cache without clearing — upserts each item individually
+export const mergeCacheData = async (storeName: string, data: any[]): Promise<void> => {
+  if (!data || data.length === 0) return;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    let errorOccurred = false;
+    let pendingCount = data.length;
+
+    data.forEach(item => {
+      if (!item) {
+        pendingCount--;
+        if (pendingCount === 0 && !errorOccurred) resolve();
+        return;
+      }
+      const request = store.put(item);
+      request.onsuccess = () => {
+        pendingCount--;
+        if (pendingCount === 0 && !errorOccurred) resolve();
+      };
+      request.onerror = () => {
+        errorOccurred = true;
+        reject(request.error);
+      };
+    });
+  });
+};
+
+// Delta Sync metadata helpers
+export const getSyncTimestamp = async (tableName: string): Promise<string | null> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('sync_metadata', 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore('sync_metadata');
+    const request = store.get(tableName);
+    request.onsuccess = () => resolve(request.result ? request.result.last_synced_at : null);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const setSyncTimestamp = async (tableName: string, timestamp: string): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('sync_metadata', 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore('sync_metadata');
+    const request = store.put({ table_name: tableName, last_synced_at: timestamp });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// TTL Cache Purge — remove records older than maxAgeDays from a cache store
+export const purgeStaleCacheData = async (storeName: string, dateField: string, maxAgeDays: number = 730): Promise<number> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+    const cutoffStr = cutoffDate.toISOString();
+
+    const getAllReq = store.getAll();
+    getAllReq.onsuccess = () => {
+      const all = getAllReq.result || [];
+      let purgedCount = 0;
+      let pendingDeletes = 0;
+      const staleItems = all.filter(item => {
+        const dateVal = item[dateField];
+        return dateVal && dateVal < cutoffStr;
+      });
+
+      if (staleItems.length === 0) {
+        resolve(0);
+        return;
+      }
+
+      pendingDeletes = staleItems.length;
+      staleItems.forEach(item => {
+        const keyPath = store.keyPath as string;
+        const deleteReq = store.delete(item[keyPath]);
+        deleteReq.onsuccess = () => {
+          purgedCount++;
+          pendingDeletes--;
+          if (pendingDeletes === 0) resolve(purgedCount);
+        };
+        deleteReq.onerror = () => {
+          pendingDeletes--;
+          if (pendingDeletes === 0) resolve(purgedCount);
+        };
+      });
+    };
+    getAllReq.onerror = () => reject(getAllReq.error);
   });
 };
 

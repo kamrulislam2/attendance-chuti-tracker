@@ -6,7 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { Profile, ChutiRecordWithProfile, LeaveSettlement } from '@/types';
-import { ChutiRecord, getOfflineRecords, syncOfflineData, getCacheData, setCacheData, getGlobalSettingsCache, setGlobalSettingsCache } from '@/utils/offlineSync';
+import { ChutiRecord, getOfflineRecords, syncOfflineData, getCacheData, setCacheData, mergeCacheData, upsertCacheItem, getGlobalSettingsCache, setGlobalSettingsCache, getSyncTimestamp, setSyncTimestamp, purgeStaleCacheData } from '@/utils/offlineSync';
 import { checkSubscriptionStatus, sendPushNotification } from '@/utils/webPushHelper';
 import { getGlobalSettingsFromProfile, defaultGlobalSettings, GlobalSettings, formatDate, parseHolidayItem } from '@/utils/dashboardHelpers';
 
@@ -252,30 +252,50 @@ export const useDashboardData = () => {
         }
       }
 
-      // Asynchronously cache all fetched data in IndexedDB
+      // Asynchronously merge fetched data into IndexedDB cache (non-destructive upsert)
       try {
+        const syncNow = new Date().toISOString();
+
         if (profilesData.length > 0) {
-          await setCacheData('profiles_cache', profilesData);
+          await mergeCacheData('profiles_cache', profilesData);
         }
         
         // Cache chuti records
         const recordsToCache = (profile.role === 'admin' || profile.role === 'supervisor')
           ? adminRecordsData
           : userRecordsData;
-        await setCacheData('chuti_cache', recordsToCache);
+        if (recordsToCache.length > 0) {
+          // For chuti records, do a full setCacheData since we fetch the complete set
+          await setCacheData('chuti_cache', recordsToCache);
+          await setSyncTimestamp('chuti', syncNow);
+        }
 
         if (responsesData.length > 0) {
           await setCacheData('holiday_responses_cache', responsesData);
+          await setSyncTimestamp('govt_holiday_responses', syncNow);
         }
         if (settlementsData.length > 0) {
           await setCacheData('settlements_cache', settlementsData);
+          await setSyncTimestamp('leave_settlements', syncNow);
         }
+
+        await setSyncTimestamp('profiles', syncNow);
         
         // Store current globalSettings to cache if they are derived
         const currentGlobalSettings = (profile.role === 'admin' || profile.role === 'supervisor')
           ? getGlobalSettingsFromProfile(profilesData.find(p => p.role === 'admin') || profile)
           : getGlobalSettingsFromProfile(profile);
         await setGlobalSettingsCache(currentGlobalSettings);
+
+        // TTL: Purge chuti records older than 2 years from cache
+        try {
+          const purgedCount = await purgeStaleCacheData('chuti_cache', 'date', 730);
+          if (purgedCount > 0) {
+            console.log(`TTL: Purged ${purgedCount} stale chuti records (>2 years old) from cache.`);
+          }
+        } catch (ttlErr) {
+          console.error('TTL purge failed (non-critical):', ttlErr);
+        }
       } catch (cacheErr) {
         console.error('Failed to update IndexedDB cache:', cacheErr);
       }
@@ -941,7 +961,7 @@ export const useDashboardData = () => {
             if (!profileError && userProfile) {
               // Asynchronously update profile cache
               try {
-                await setCacheData('profiles_cache', [userProfile]);
+                await upsertCacheItem('profiles_cache', userProfile);
               } catch (cacheErr) {
                 console.error('Failed to cache user profile:', cacheErr);
               }

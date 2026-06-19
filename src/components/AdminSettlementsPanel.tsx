@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { Modal } from './Modal';
 import { CustomSelect } from './CustomSelect';
 import { exportHelper } from '@/utils/exportHelper';
+import { SkeletonLoader } from './SkeletonLoader';
 
 interface AdminSettlementsPanelProps {
   profilesList: Profile[];
@@ -450,238 +451,234 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
       </div>
 
       {/* Main Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-800">
-          <thead className="bg-slate-955/60">
-            <tr>
-              <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff member</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unused Balance</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">User Preference</th>
-              <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-850 bg-slate-900/10">
-            {!initialFetchDone ? (
+      {!initialFetchDone ? (
+        <SkeletonLoader variant="settlements-table" rows={5} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-800">
+            <thead className="bg-slate-955/60">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-400 bg-slate-900/5">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
-                    <span className="text-[11px] font-semibold tracking-wider">Loading settlements...</span>
-                  </div>
-                </td>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff member</th>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unused Balance</th>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">User Preference</th>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action</th>
               </tr>
-            ) : filteredStaff.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-medium bg-slate-900/5">
-                  All matching profiles settled or no unused leaves available.
-                </td>
-              </tr>
-            ) : (
-              filteredStaff.map((staff) => {
-                const remaining = getRemainingDaysForCategoryPeriod(staff, selectedPeriod, selectedCategory);
-              
-              // Find matching settlement record
-              const settlement = leaveSettlements.find(
-                (s) =>
-                  s.user_id === staff.id &&
-                  s.year === selectedYear &&
-                  s.period === selectedPeriod &&
-                  s.leave_category === selectedCategory
-              );
-
-              return (
-                <tr key={staff.id} className="hover:bg-slate-900/30 transition-all">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-bold text-white text-sm">{staff.full_name || '-'}</div>
-                    <div className="text-[10px] text-slate-455 font-mono mt-0.5 uppercase tracking-wide">
-                      {staff.username} • {staff.job_role || (staff.role === 'supervisor' ? 'Supervisor' : 'Staff')}
-                    </div>
-                  </td>
-                                   <td className={`px-6 py-4 whitespace-nowrap font-mono font-bold text-sm ${remaining < 0 ? 'text-red-500 font-extrabold' : 'text-orange-400'}`}>
-                    {remaining < 0 ? `${Math.abs(remaining)} days` : `${remaining} days`}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    {!settlement || settlement.status === 'initiated' ? (
-                      <span className="text-slate-500 italic text-[11px]">Not chosen yet</span>
-                    ) : settlement.action_type === 'split' ? (
-                      <div className="flex flex-wrap gap-1.5 max-w-[240px]">
-                        {(settlement.carry_forward_days && settlement.carry_forward_days > 0) ? (
-                          <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-indigo-955/20 border-indigo-900/60 text-indigo-400">
-                            <FolderPlus className="h-2.5 w-2.5" /> {settlement.carry_forward_days}d Carry Forward
-                          </span>
-                        ) : null}
-                        {(settlement.payment_days && settlement.payment_days > 0) ? (
-                          <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-emerald-950/20 border-emerald-900/60 text-emerald-400">
-                            <DollarSign className="h-2.5 w-2.5" /> {settlement.payment_days}d Cash Out
-                          </span>
-                        ) : null}
-                        {(settlement.adjust_leave_days && settlement.adjust_leave_days > 0) ? (
-                          <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-amber-955/20 border-amber-900/60 text-amber-400">
-                            <ArrowRightLeft className="h-2.5 w-2.5" /> {settlement.adjust_leave_days}d Adjust
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span
-                        className={`px-2 py-1 rounded border text-[10px] font-semibold flex items-center gap-1.5 w-fit ${
-                          settlement.remaining_days < 0
-                            ? 'bg-rose-955/20 border-rose-900/60 text-rose-400'
-                            : settlement.action_type === 'carry_forward'
-                            ? 'bg-indigo-955/20 border-indigo-900/60 text-indigo-400'
-                            : settlement.action_type === 'payment'
-                            ? 'bg-teal-955/20 border-teal-900/60 text-teal-400'
-                            : 'bg-amber-955/20 border-amber-900/60 text-amber-400'
-                        }`}
-                      >
-                        {settlement.remaining_days < 0 ? (
-                          <>
-                            <DollarSign className="h-3 w-3" /> Salary Deduction
-                          </>
-                        ) : settlement.action_type === 'carry_forward' ? (
-                          <>
-                            <FolderPlus className="h-3 w-3" /> Carry Forward
-                          </>
-                        ) : settlement.action_type === 'payment' ? (
-                          <>
-                            <DollarSign className="h-3 w-3" /> Cash Payment
-                          </>
-                        ) : (
-                          <>
-                            <ArrowRightLeft className="h-3 w-3" /> Adjust Leaves
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {!settlement ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] ${
-                        remaining < 0
-                          ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
-                          : 'bg-slate-955 border border-slate-800 text-slate-500'
-                      }`}>
-                        {remaining < 0 ? 'Outstanding Unpaid' : 'Not Initiated'}
-                      </span>
-                    ) : settlement.status === 'initiated' ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] animate-pulse ${
-                        remaining < 0
-                          ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
-                          : 'bg-amber-955/25 border-amber-900/40 text-amber-400'
-                      }`}>
-                        <AlertCircle className="h-3 w-3" /> {remaining < 0 ? 'Outstanding Unpaid' : 'Preference Pending'}
-                      </span>
-                    ) : settlement.status === 'responded' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-955/25 border border-indigo-900/40 text-indigo-400 rounded font-semibold text-[10px]">
-                        <HelpCircle className="h-3 w-3" /> Preference Submitted
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-950/20 border border-emerald-900/40 text-emerald-400 rounded font-semibold text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" /> Processed
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center gap-2">
-                    {!settlement ? (
-                      <>
-                        {remaining > 0 && (
-                          <button
-                            type="button"
-                            disabled={initiatingId === staff.id}
-                            onClick={() => handleInitiatePreferenceRequest(staff, remaining)}
-                            title="Ask for Preference"
-                            className="p-2 bg-indigo-650/15 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl border border-indigo-500/20 disabled:bg-slate-900/40 disabled:border-slate-850 disabled:text-slate-600 transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
-                          >
-                            <Send className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={remaining === 0 || initiatingId === staff.id}
-                          onClick={() => {
-                            const mockSettlement: LeaveSettlement = {
-                              id: undefined as any,
-                              user_id: staff.id,
-                              year: selectedYear,
-                              period: selectedPeriod,
-                              leave_category: selectedCategory,
-                              remaining_days: remaining,
-                              action_type: 'carry_forward',
-                              status: 'initiated',
-                              processed_by: null,
-                              processed_at: null,
-                              action_by: staff.id,
-                              created_at: new Date().toISOString()
-                            };
-                            setActiveSettleStaff(staff);
-                            setActiveSettleRecord(mockSettlement);
-                            setShowSettleModal(true);
-                          }}
-                          title={remaining < 0 ? "Settle Unpaid/Deduction" : "Direct Settle"}
-                          className={`p-2 rounded-xl border transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center ${
-                            remaining < 0
-                              ? 'bg-rose-655/15 hover:bg-rose-600 text-rose-400 hover:text-white border-rose-500/20'
-                              : 'bg-orange-655/15 hover:bg-orange-655 text-orange-400 hover:text-white border-orange-500/20'
-                          }`}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {settlement.status === 'processed' ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveSettleStaff(staff);
-                              setActiveSettleRecord({
-                                ...settlement,
-                                remaining_days: remaining
-                              });
-                              setShowSettleModal(true);
-                            }}
-                            title="Re-process"
-                            className="p-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700/50 transition-all cursor-pointer flex items-center justify-center"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveSettleStaff(staff);
-                              setActiveSettleRecord({
-                                ...settlement,
-                                remaining_days: remaining
-                              });
-                              setShowSettleModal(true);
-                            }}
-                            title="Settle Leaves"
-                            className="p-2 bg-orange-655/15 hover:bg-orange-655 text-orange-400 hover:text-white rounded-xl border border-orange-500/20 transition-all cursor-pointer flex items-center justify-center"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSettlement(settlement.id)}
-                          title="Remove Settlement"
-                          className="p-2 bg-rose-600/15 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
+            </thead>
+            <tbody className="divide-y divide-slate-850 bg-slate-900/10">
+              {filteredStaff.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-medium bg-slate-900/5">
+                    All matching profiles settled or no unused leaves available.
                   </td>
                 </tr>
-              );
-            }))}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                filteredStaff.map((staff) => {
+                  const remaining = getRemainingDaysForCategoryPeriod(staff, selectedPeriod, selectedCategory);
+                
+                  // Find matching settlement record
+                  const settlement = leaveSettlements.find(
+                    (s) =>
+                      s.user_id === staff.id &&
+                      s.year === selectedYear &&
+                      s.period === selectedPeriod &&
+                      s.leave_category === selectedCategory
+                  );
+
+                  return (
+                    <tr key={staff.id} className="hover:bg-slate-900/30 transition-all">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-bold text-white text-sm">{staff.full_name || '-'}</div>
+                        <div className="text-[10px] text-slate-455 font-mono mt-0.5 uppercase tracking-wide">
+                          {staff.username} • {staff.job_role || (staff.role === 'supervisor' ? 'Supervisor' : 'Staff')}
+                        </div>
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap font-mono font-bold text-sm ${remaining < 0 ? 'text-red-500 font-extrabold' : 'text-orange-400'}`}>
+                        {remaining < 0 ? `${Math.abs(remaining)} days` : `${remaining} days`}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {!settlement || settlement.status === 'initiated' ? (
+                          <span className="text-slate-500 italic text-[11px]">Not chosen yet</span>
+                        ) : settlement.action_type === 'split' ? (
+                          <div className="flex flex-wrap gap-1.5 max-w-[240px]">
+                            {(settlement.carry_forward_days && settlement.carry_forward_days > 0) ? (
+                              <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-indigo-955/20 border-indigo-900/60 text-indigo-400">
+                                <FolderPlus className="h-2.5 w-2.5" /> {settlement.carry_forward_days}d Carry Forward
+                              </span>
+                            ) : null}
+                            {(settlement.payment_days && settlement.payment_days > 0) ? (
+                              <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-emerald-950/20 border-emerald-900/60 text-emerald-400">
+                                <DollarSign className="h-2.5 w-2.5" /> {settlement.payment_days}d Cash Out
+                              </span>
+                            ) : null}
+                            {(settlement.adjust_leave_days && settlement.adjust_leave_days > 0) ? (
+                              <span className="px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-1 bg-amber-955/20 border-amber-900/60 text-amber-400">
+                                <ArrowRightLeft className="h-2.5 w-2.5" /> {settlement.adjust_leave_days}d Adjust
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span
+                            className={`px-2 py-1 rounded border text-[10px] font-semibold flex items-center gap-1.5 w-fit ${
+                              settlement.remaining_days < 0
+                                ? 'bg-rose-955/20 border-rose-900/60 text-rose-400'
+                                : settlement.action_type === 'carry_forward'
+                                ? 'bg-indigo-955/20 border-indigo-900/60 text-indigo-400'
+                                : settlement.action_type === 'payment'
+                                ? 'bg-teal-955/20 border-teal-900/60 text-teal-400'
+                                : 'bg-amber-955/20 border-amber-900/60 text-amber-400'
+                            }`}
+                          >
+                            {settlement.remaining_days < 0 ? (
+                              <>
+                                <DollarSign className="h-3 w-3" /> Salary Deduction
+                              </>
+                            ) : settlement.action_type === 'carry_forward' ? (
+                              <>
+                                <FolderPlus className="h-3 w-3" /> Carry Forward
+                              </>
+                            ) : settlement.action_type === 'payment' ? (
+                              <>
+                                <DollarSign className="h-3 w-3" /> Cash Payment
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRightLeft className="h-3 w-3" /> Adjust Leaves
+                              </>
+                            )}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {!settlement ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] ${
+                            remaining < 0
+                              ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
+                              : 'bg-slate-955 border border-slate-800 text-slate-500'
+                          }`}>
+                            {remaining < 0 ? 'Outstanding Unpaid' : 'Not Initiated'}
+                          </span>
+                        ) : settlement.status === 'initiated' ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] animate-pulse ${
+                            remaining < 0
+                              ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
+                              : 'bg-amber-955/25 border-amber-900/40 text-amber-400'
+                          }`}>
+                            <AlertCircle className="h-3 w-3" /> {remaining < 0 ? 'Outstanding Unpaid' : 'Preference Pending'}
+                          </span>
+                        ) : settlement.status === 'responded' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-955/25 border border-indigo-900/40 text-indigo-400 rounded font-semibold text-[10px]">
+                            <HelpCircle className="h-3 w-3" /> Preference Submitted
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-950/20 border border-emerald-900/40 text-emerald-400 rounded font-semibold text-[10px]">
+                            <CheckCircle2 className="h-3 w-3" /> Processed
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center gap-2">
+                        {!settlement ? (
+                          <>
+                            {remaining > 0 && (
+                              <button
+                                type="button"
+                                disabled={initiatingId === staff.id}
+                                onClick={() => handleInitiatePreferenceRequest(staff, remaining)}
+                                title="Ask for Preference"
+                                className="p-2 bg-indigo-650/15 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl border border-indigo-500/20 disabled:bg-slate-900/40 disabled:border-slate-855 disabled:text-slate-600 transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
+                              >
+                                <Send className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={remaining === 0 || initiatingId === staff.id}
+                              onClick={() => {
+                                const mockSettlement: LeaveSettlement = {
+                                  id: undefined as any,
+                                  user_id: staff.id,
+                                  year: selectedYear,
+                                  period: selectedPeriod,
+                                  leave_category: selectedCategory,
+                                  remaining_days: remaining,
+                                  action_type: 'carry_forward',
+                                  status: 'initiated',
+                                  processed_by: null,
+                                  processed_at: null,
+                                  action_by: staff.id,
+                                  created_at: new Date().toISOString()
+                                };
+                                setActiveSettleStaff(staff);
+                                setActiveSettleRecord(mockSettlement);
+                                setShowSettleModal(true);
+                              }}
+                              title={remaining < 0 ? "Settle Unpaid/Deduction" : "Direct Settle"}
+                              className={`p-2 rounded-xl border transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center ${
+                                remaining < 0
+                                  ? 'bg-rose-655/15 hover:bg-rose-600 text-rose-400 hover:text-white border-rose-500/20'
+                                  : 'bg-orange-655/15 hover:bg-orange-655 text-orange-400 hover:text-white border-orange-500/20'
+                              }`}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {settlement.status === 'processed' ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSettleStaff(staff);
+                                  setActiveSettleRecord({
+                                    ...settlement,
+                                    remaining_days: remaining
+                                  });
+                                  setShowSettleModal(true);
+                                }}
+                                title="Re-process"
+                                className="p-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700/50 transition-all cursor-pointer flex items-center justify-center"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSettleStaff(staff);
+                                  setActiveSettleRecord({
+                                    ...settlement,
+                                    remaining_days: remaining
+                                  });
+                                  setShowSettleModal(true);
+                                }}
+                                title="Settle Leaves"
+                                className="p-2 bg-orange-655/15 hover:bg-orange-655 text-orange-400 hover:text-white rounded-xl border border-orange-500/20 transition-all cursor-pointer flex items-center justify-center"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSettlement(settlement.id)}
+                              title="Remove Settlement"
+                              className="p-2 bg-rose-600/15 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Settle User Modal */}
       {showSettleModal && activeSettleStaff && activeSettleRecord && (

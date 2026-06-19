@@ -32,6 +32,7 @@ import { AdminGovtHolidaysSettingsModal } from './modals/AdminGovtHolidaysSettin
 import { StatCard } from './StatCard';
 import { UserStats } from './UserStats';
 import { DateInput } from './DateInput';
+import { SkeletonLoader } from './SkeletonLoader';
 
 interface AdminDashboardViewProps {
   profilesList: Profile[];
@@ -163,6 +164,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [holidaySearchDate, setHolidaySearchDate] = React.useState('');
 
   // Eligibility & Deduction for viewed staff
+  const viewingProfile = profilesList.find((p) => p.id === viewingStaffId);
   const isOfficeLeaveEligible = staffProfile?.eligible_office_leave !== false;
   const isGovtHolidayEligible = staffProfile?.eligible_govt_holiday !== false;
 
@@ -365,113 +367,125 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {viewingStaffId ? (
         <div className="flex flex-col gap-6">
           {/* Individual Profile Top Box */}
-          <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-850 shadow-2xl rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setViewingStaffId(null)}
-                className="p-2.5 bg-slate-855 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
-                title="Go Back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  {staffProfile?.full_name || 'Staff User'} ({staffProfile?.username ? staffProfile.username.toUpperCase() : ''})
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
-                    ? 'bg-orange-955/60 border-orange-800 text-orange-300'
-                    : staffProfile?.role === 'supervisor'
-                      ? 'bg-amber-955/60 border-amber-805 text-amber-300'
-                      : 'bg-orange-955/60 border-orange-805 text-orange-300'
-                    }`}>
-                    {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
-                  </span>
-                </h2>
-                <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
-                  <div>Working Hours: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
-                  <div>Break Time: <strong className="text-white">{staffProfile?.break_time || 0} mins</strong></div>
+          {!staffProfile ? (
+            <SkeletonLoader variant="profile-header" />
+          ) : (
+            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-850 shadow-2xl rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setViewingStaffId(null)}
+                  className="p-2.5 bg-slate-855 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
+                  title="Go Back"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    {staffProfile?.full_name || 'Staff User'}{staffProfile?.username ? ` (${staffProfile.username.toUpperCase()})` : ''}
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
+                      ? 'bg-orange-955/60 border-orange-800 text-orange-300'
+                      : staffProfile?.role === 'supervisor'
+                        ? 'bg-amber-955/60 border-amber-805 text-amber-300'
+                        : 'bg-orange-955/60 border-orange-805 text-orange-300'
+                      }`}>
+                      {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
+                    </span>
+                  </h2>
+                  <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
+                    <div>Working Hours: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
+                    <div>Break Time: <strong className="text-white">{staffProfile?.break_time || 0} mins</strong></div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => onChangePasswordClick(staffProfile?.id || '', staffProfile?.username || '')}
-                className="px-3.5 py-2 bg-slate-855 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
-              >
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Change Password
-              </button>
-              <button
-                onClick={() => staffProfile && onEditProfileClick(staffProfile)}
-                className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-orange-950/10 border border-orange-700 flex items-center gap-1.5"
-              >
-                <Edit className="h-3.5 w-3.5" /> Edit Profile
-              </button>
-              {staffProfile?.role !== 'admin' && (
+              <div className="flex gap-2">
                 <button
-                  onClick={() => staffProfile && onDeleteUserClick(staffProfile)}
-                  className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                  onClick={() => onChangePasswordClick(staffProfile?.id || '', staffProfile?.username || '')}
+                  className="px-3.5 py-2 bg-slate-855 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Delete User
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Change Password
                 </button>
-              )}
+                <button
+                  onClick={() => staffProfile && onEditProfileClick(staffProfile)}
+                  className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-orange-950/10 border border-orange-700 flex items-center gap-1.5"
+                >
+                  <Edit className="h-3.5 w-3.5" /> Edit Profile
+                </button>
+                {staffProfile?.role !== 'admin' && (
+                  <button
+                    onClick={() => staffProfile && onDeleteUserClick(staffProfile)}
+                    className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete User
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Stats for the viewed staff */}
-          <UserStats
-            stats={{
-              shortHours: displayShortHours,
-              fullLeaves: displayFullLeaves,
-              overtimeHours: staffStats.overtimeHours
-            }}
-            officeLeaveStats={officeLeaveStats}
-            govtHolidayStats={adjustedGovtHolidayStats}
-            allowOvertime={staffProfile?.allow_overtime}
-            respondedHolidays={respondedHolidays}
-            convertedDays={convertedDays}
-            convertedHours={convertedHours}
-            onConvertToFullLeave={handleConvertToFullLeave}
-            hasConvertibleHours={hasConvertibleHours}
-            eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
-            eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
-            halfYearlyStats={halfYearlyStats}
-            isAdmin={true}
-            userId={viewingStaffId || undefined}
-            onUpdateHolidayResponse={onUpdateHolidayResponse}
-            eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
-            eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
-            eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
-            eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
-            initialFetchDone={initialFetchDone}
-          />
+          {!staffProfile ? (
+            <SkeletonLoader variant="stats" cards={4} />
+          ) : (
+            <UserStats
+              stats={{
+                shortHours: displayShortHours,
+                fullLeaves: displayFullLeaves,
+                overtimeHours: staffStats.overtimeHours
+              }}
+              officeLeaveStats={officeLeaveStats}
+              govtHolidayStats={adjustedGovtHolidayStats}
+              allowOvertime={staffProfile?.allow_overtime}
+              respondedHolidays={respondedHolidays}
+              convertedDays={convertedDays}
+              convertedHours={convertedHours}
+              onConvertToFullLeave={handleConvertToFullLeave}
+              hasConvertibleHours={hasConvertibleHours}
+              eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
+              eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
+              halfYearlyStats={halfYearlyStats}
+              isAdmin={true}
+              userId={viewingStaffId || undefined}
+              onUpdateHolidayResponse={onUpdateHolidayResponse}
+              eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
+              eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
+              eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
+              eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
+              initialFetchDone={initialFetchDone}
+            />
+          )}
 
           {/* Filtering Panel for viewed staff */}
-          <LeavesRecordsTable
-            records={individualRecords}
-            allowOvertime={staffProfile?.allow_overtime}
-            filterType={filterType}
-            setFilterType={setFilterType}
-            filterStartDate={filterStartDate}
-            setFilterStartDate={setFilterStartDate}
-            filterEndDate={filterEndDate}
-            setFilterEndDate={setFilterEndDate}
-            onResetFilters={onResetFilters}
-            onExportExcel={onExportIndividualExcel}
-            onExportPDF={onExportIndividualPDF}
-            onToggleAdjustment={onToggleAdjustment}
-            onEditClick={onEditClick}
-            onDeleteClick={onDeleteClick}
-            onAddLeaveClick={onAddLeaveClick}
-            formatDate={formatDate}
-            formatTimeToAMPM={formatTimeToAMPM}
-            getCleanComment={getCleanComment}
-            selectedYear={selectedYear}
-            setSelectedYear={setSelectedYear}
-            availableYears={availableYears}
-            title="Leave Records"
-            emptyMessage="No leave records found for this staff member."
-            initialFetchDone={initialFetchDone}
-          />
+          {!staffProfile ? (
+            <SkeletonLoader variant="leaves-table" rows={5} allowOvertime={viewingProfile?.allow_overtime} />
+          ) : (
+            <LeavesRecordsTable
+              records={individualRecords}
+              allowOvertime={staffProfile?.allow_overtime}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              filterStartDate={filterStartDate}
+              setFilterStartDate={setFilterStartDate}
+              filterEndDate={filterEndDate}
+              setFilterEndDate={setFilterEndDate}
+              onResetFilters={onResetFilters}
+              onExportExcel={onExportIndividualExcel}
+              onExportPDF={onExportIndividualPDF}
+              onToggleAdjustment={onToggleAdjustment}
+              onEditClick={onEditClick}
+              onDeleteClick={onDeleteClick}
+              onAddLeaveClick={onAddLeaveClick}
+              formatDate={formatDate}
+              formatTimeToAMPM={formatTimeToAMPM}
+              getCleanComment={getCleanComment}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              availableYears={availableYears}
+              title="Leave Records"
+              emptyMessage="No leave records found for this staff member."
+              initialFetchDone={initialFetchDone}
+            />
+          )}
         </div>
       ) : (
         /* ================= STAFF MASTER DATABASE SUMMARY TABLE ================= */
@@ -605,67 +619,62 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               </div>
 
               {/* Table Container */}
-              <div className="overflow-x-auto rounded-xl border border-slate-900 bg-slate-955/20">
-                <table className="min-w-full divide-y divide-slate-900 text-left text-xs text-slate-300">
-                  <thead className="bg-slate-955/60 text-slate-400 font-semibold uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Holiday Date</th>
-                      <th className="px-4 py-3">Holiday Name</th>
-                      <th className="px-4 py-3">Name (Codename)</th>
-                      <th className="px-4 py-3">Preference/Response</th>
-                      <th className="px-4 py-3 text-right">Response Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-900 bg-slate-900/10">
-                    {!initialFetchDone ? (
+              {!initialFetchDone ? (
+                <SkeletonLoader variant="responses-table" rows={5} />
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-900 bg-slate-955/20">
+                  <table className="min-w-full divide-y divide-slate-900 text-left text-xs text-slate-300">
+                    <thead className="bg-slate-955/60 text-slate-400 font-semibold uppercase tracking-wider">
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
-                            <span className="text-[11px] font-semibold tracking-wider">Loading responses...</span>
-                          </div>
-                        </td>
+                        <th className="px-4 py-3">Holiday Date</th>
+                        <th className="px-4 py-3">Holiday Name</th>
+                        <th className="px-4 py-3">Name (Codename)</th>
+                        <th className="px-4 py-3">Preference/Response</th>
+                        <th className="px-4 py-3 text-right">Response Time</th>
                       </tr>
-                    ) : filteredResponses.length > 0 ? (
-                      filteredResponses.map((resp) => {
-                        const fullName = resp.profiles?.full_name || 'Staff';
-                        const codeName = resp.profiles?.username ? resp.profiles.username.toUpperCase() : 'N/A';
+                    </thead>
+                    <tbody className="divide-y divide-slate-900 bg-slate-900/10">
+                      {filteredResponses.length > 0 ? (
+                        filteredResponses.map((resp) => {
+                          const fullName = resp.profiles?.full_name || 'Staff';
+                          const codeName = resp.profiles?.username ? resp.profiles.username.toUpperCase() : 'N/A';
 
-                        return (
-                          <tr key={resp.id} className="hover:bg-slate-800/40 transition-colors">
-                            <td className="px-4 py-3 font-semibold text-slate-200">
-                              {formatDate(resp.holiday_date)}
-                            </td>
-                            <td className="px-4 py-3 text-slate-300">
-                              {resp.holiday_name}
-                            </td>
-                            <td className="px-4 py-3 font-medium text-teal-400">
-                              {fullName} ({codeName})
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${resp.response === 'paid'
-                                ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
-                                : 'bg-teal-955/60 border-teal-800 text-teal-300'
-                                }`}>
-                                {resp.response === 'paid' ? 'Get Paid' : 'Reserve'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-500">
-                              {resp.created_at ? new Date(resp.created_at).toLocaleString('en-US', { hour12: true }) : '-'}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                          No holiday response records found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                          return (
+                            <tr key={resp.id} className="hover:bg-slate-800/40 transition-colors">
+                              <td className="px-4 py-3 font-semibold text-slate-200">
+                                {formatDate(resp.holiday_date)}
+                              </td>
+                              <td className="px-4 py-3 text-slate-300">
+                                {resp.holiday_name}
+                              </td>
+                              <td className="px-4 py-3 font-medium text-teal-400">
+                                {fullName} ({codeName})
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${resp.response === 'paid'
+                                  ? 'bg-emerald-955/60 border-emerald-800 text-emerald-300'
+                                  : 'bg-teal-955/60 border-teal-800 text-teal-300'
+                                  }`}>
+                                  {resp.response === 'paid' ? 'Get Paid' : 'Reserve'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right text-slate-500">
+                                {resp.created_at ? new Date(resp.created_at).toLocaleString('en-US', { hour12: true }) : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                            No holiday response records found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           ) : (
             /* ================= Staff Leave SETTLEMENTS TAB ================= */

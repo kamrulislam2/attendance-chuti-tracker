@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { UserDashboardView } from '@/components/UserDashboardView';
 import { AdminDashboardView } from '@/components/AdminDashboardView';
+import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { WelcomeModals } from '@/components/modals/WelcomeModals';
 import { SupervisorApprovalModal } from '@/components/modals/SupervisorApprovalModal';
 import { AddLeaveModal } from '@/components/modals/AddLeaveModal';
@@ -579,13 +580,33 @@ export default function Dashboard() {
 
   if (loading && !initialFetchDone) {
     return (
-      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center relative overflow-hidden">
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+        {/* Glow backgrounds */}
         <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
-        <div className="flex flex-col items-center gap-3 z-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
-          <span className="text-slate-400 text-xs font-semibold tracking-wider">Loading, please wait...</span>
+
+        {/* Placeholder Navbar */}
+        <div className="w-full bg-slate-900/40 backdrop-blur-xl border-b border-slate-850 px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 bg-slate-800 rounded-xl"></div>
+            <div className="h-4 w-32 bg-slate-800 rounded"></div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="h-8 w-8 bg-slate-800 rounded-full"></div>
+          </div>
         </div>
+
+        {/* Placeholder Main Content Area */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 flex flex-col gap-6">
+          {/* Mock Profile Header */}
+          <SkeletonLoader variant="profile-header" />
+
+          {/* Mock Stats Grid */}
+          <SkeletonLoader variant="stats" cards={4} />
+
+          {/* Mock Records Table */}
+          <SkeletonLoader variant="leaves-table" rows={5} />
+        </main>
       </div>
     );
   }

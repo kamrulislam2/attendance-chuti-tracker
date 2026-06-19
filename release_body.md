@@ -1,20 +1,20 @@
-# Release Notes — Chuti v1.0.0 (Major Release)
+# Release Notes — Chuti v1.1.0
 
-We are excited to announce the release of **Chuti v1.0.0**, a major release bringing production-grade offline-first stability, robust delta synchronization, localized conflict resolution, and performance optimizations.
+We are excited to announce the release of **Chuti v1.1.0**, featuring premium skeleton loading views, layout stabilization improvements, and crucial UI formatting bug fixes.
 
-## 🚀 Key Achievements
+## 🚀 Key Improvements
 
-### 📶 Delta Sync & Cache Optimizations
-* **Incremental Delta Syncing**: The client now tracks sync timestamps in the local database (`sync_metadata`) and queries only records modified since the last sync using `.gte('updated_at', lastSyncedAt)` filters, reducing network payload sizes.
-* **Non-Destructive Cache Merges**: Overwrote full-clearing IndexedDB cache calls with targeted upserts (`upsertCacheItem`) and merges (`mergeCacheData`). This prevents the application from dropping cached supervisor or admin profiles during routine background operations.
-* **TTL Cache Expirations**: Integrated automatic database purging of leave records older than 2 years (730 days) to prevent local database bloat.
+### 💫 High-Fidelity Skeleton Loaders
+* **Shimmering UI Loaders**: Replaced all full-screen loaders and simple inline spin elements with layout-specific, shimmering skeletons. This includes customized variants for:
+  - Leaves Records Table
+  - Staff Leave Master Table
+  - Settlements Panel
+  - Govt Holiday Responses Table
+  - Dashboard Page Loading Shell (instant shell mock layout before initial fetch)
 
-### 🛡️ Graceful Offline Session Recovery
-* **JWT Expiration Fallbacks**: Configured multiple recovery entry points in the session hooks. If an offline user's session token expires or is rejected by Supabase API timeouts, the client gracefully recovers the logged profile from local IndexedDB cache, allowing the user to view cached data without a force-redirect to the login screen.
+### 🧩 Layout Shift Prevention
+* **Rendering Gates**: Wrapped rendering blocks in strict conditional boundaries so dashboard metrics and data tables don't render empty configurations or cause sudden layout shifts during asynchronous state loading.
 
-### 💬 English Conflict Resolution & Localizations (Zero Bengali)
-* **Conflict Resolution warnings**: Implemented "Server Wins" policy for offline sync updates, with warnings showing as 8-second toast errors.
-* **Localization Sweep**: Translated all user-facing strings, conflict notification bodies, fallback push notification structures, and the PWA manifest details to English.
-
-### 🌐 PWA Asset Pre-caching
-* The Custom Service Worker now pre-caches critical offline assets, including the Web App Manifest, favicon, and app icons.
+### 🐛 Bug Fixes
+* **Admin Profile Header Formatting**: Resolved a bug in the profile header where empty parentheses `()` were rendered on load/reload before profile data resolved. 
+* **Syntax & Compile Errors**: Corrected a typo/syntax issue (`v>`) inside the settlements layout and verified zero TypeScript warnings.

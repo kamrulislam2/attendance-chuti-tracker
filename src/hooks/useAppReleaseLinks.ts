@@ -9,7 +9,7 @@ export interface ReleaseLinks {
 }
 
 const REPO = 'kamrulislam2/chuti-leave-tracker';
-const DEFAULT_VERSION = '1.0.0';
+const DEFAULT_VERSION = '1.1.0';
 
 export function useAppReleaseLinks(): ReleaseLinks {
   const [links, setLinks] = useState<ReleaseLinks>({

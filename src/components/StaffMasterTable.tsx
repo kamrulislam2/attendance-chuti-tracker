@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Plus, Download, Search } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
+import { SkeletonLoader } from './SkeletonLoader';
 
 export interface Profile {
   id: string;
@@ -124,9 +125,8 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
 
       <div className="overflow-x-auto">
         {!initialFetchDone ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500 animate-duration-1000"></div>
-            <span className="text-[11px] font-semibold tracking-wider">Loading staff profiles...</span>
+          <div className="p-6">
+            <SkeletonLoader variant="staff-table" rows={5} />
           </div>
         ) : profilesList.length === 0 ? (
           <div className="py-12 text-center text-slate-500 text-sm">

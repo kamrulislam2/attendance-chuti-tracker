@@ -270,20 +270,26 @@ To develop or build the desktop app locally, you need:
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.0.0`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.1.0`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
 2. Set up Rust toolchains.
 3. Compile three native target applications:
    - **Windows (x64)** `.msi` / `.exe` installer.
    - **macOS Intel (x86_64)** `.dmg` installer.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
-4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.0.0`).
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.1.0`).
 
 ---
 
 ## 📜 Version History / Changelog
 
-### 🚀 v1.0.0 (Latest)
+### 🚀 v1.1.0 (Latest)
+* **Premium Skeleton Loaders**: Replaced full-screen and inline spinners with high-fidelity, shimmering table and dashboard skeletons across all major sections (Leaves, Staff list, Settlements, and Admin dashboard).
+* **Layout Shift Prevention**: Prevented page shifts on reload/load by properly gating layout renders with conditional loading blocks.
+* **Profile Header Parentheses Bug Fix**: Resolved empty parenthesis `()` text rendering in the Admin dashboard profile header when loading profiles.
+* **Syntax & Type Safety Checks**: Fixed small syntax bugs and fully validated build compile checks.
+
+### 🚀 v1.0.0
 * **Delta Sync Implementation**: Integrated complete Delta sync mechanisms. On subsequent updates, the client only queries records modified since the last sync (`.gte('updated_at', lastSyncedAt)`) and merges updates dynamically into cache, significantly reducing bandwidth and payload sizes.
 * **Cache Integrity Overhaul**: Replaced destructive full cache clearing calls with targeted upserts (`upsertCacheItem` and `mergeCacheData`) to prevent losing supervisor/admin cached profiles.
 * **Graceful Offline Session Recovery**: Added resilient timeout and catch-block recovery paths in `fetchSession` to prevent redirection to `/login` when offline users experience JWT token expiration.

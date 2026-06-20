@@ -283,7 +283,11 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v1.1.0 (Latest)
+### 🚀 v1.1.1 (Latest)
+* **Unified Database Schema**: Consolidated all database migration SQL scripts into the base `supabase/schema.sql` file and removed redundant migration files.
+* **Database Default Bug Fix**: Fixed a mismatch where `leave_settlements.status` defaulted to `'pending'` in the schema but was restricted to `('initiated', 'responded', 'processed')` in constraints, changing the default to `'initiated'`.
+
+### 🚀 v1.1.0
 * **Premium Skeleton Loaders**: Replaced full-screen and inline spinners with high-fidelity, shimmering table and dashboard skeletons across all major sections (Leaves, Staff list, Settlements, and Admin dashboard).
 * **Layout Shift Prevention**: Prevented page shifts on reload/load by properly gating layout renders with conditional loading blocks.
 * **Profile Header Parentheses Bug Fix**: Resolved empty parenthesis `()` text rendering in the Admin dashboard profile header when loading profiles.

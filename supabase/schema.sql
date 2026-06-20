@@ -24,6 +24,7 @@ DROP FUNCTION IF EXISTS public.get_user_ids_by_roles(TEXT[]) CASCADE;
 DROP FUNCTION IF EXISTS public.get_push_subscriptions_for_users(UUID[]) CASCADE;
 DROP FUNCTION IF EXISTS public.delete_push_subscription(UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.register_push_subscription(UUID, TEXT, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.update_chuti_updated_at() CASCADE;
 
 -- ==========================================
 -- 1. Create Profiles Table (Stores user roles: admin, supervisor, or user)
@@ -92,6 +93,8 @@ CREATE TABLE public.chuti (
   comment TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   bulk_id UUID, -- Group identifier for bulk leave submissions
+  updated_at TIMESTAMPTZ DEFAULT NOW(), -- Required for offline delta sync
+  deleted_at TIMESTAMPTZ DEFAULT NULL, -- Required for soft-delete support
   
   -- Prevent same user from submitting duplicate dates
   CONSTRAINT unique_user_date UNIQUE (user_id, date)
@@ -99,6 +102,21 @@ CREATE TABLE public.chuti (
 
 -- Enable RLS on Chuti
 ALTER TABLE public.chuti ENABLE ROW LEVEL SECURITY;
+
+-- Trigger to auto-update updated_at on chuti table modifications
+CREATE OR REPLACE FUNCTION public.update_chuti_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS chuti_set_updated_at ON public.chuti;
+CREATE TRIGGER chuti_set_updated_at
+  BEFORE UPDATE ON public.chuti
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_chuti_updated_at();
 
 -- ==========================================
 -- 3. Helper Functions
@@ -693,15 +711,19 @@ CREATE TABLE public.leave_settlements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   year VARCHAR(4) NOT NULL,
+  period VARCHAR(10) NOT NULL DEFAULT 'H2' CHECK (period IN ('H1', 'H2', 'Instant')),
   leave_category TEXT NOT NULL CHECK (leave_category IN ('Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Office Leave')),
   remaining_days NUMERIC(4, 1) NOT NULL,
-  action_type TEXT NOT NULL CHECK (action_type IN ('carry_forward', 'payment')),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed')),
+  action_type TEXT NOT NULL CHECK (action_type IN ('carry_forward', 'payment', 'adjust_leave', 'split')),
+  status TEXT NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated', 'responded', 'processed')),
   processed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   processed_at TIMESTAMPTZ,
   action_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT unique_user_year_category UNIQUE (user_id, year, leave_category)
+  carry_forward_days NUMERIC(4, 1) DEFAULT 0,
+  payment_days NUMERIC(4, 1) DEFAULT 0,
+  adjust_leave_days NUMERIC(4, 1) DEFAULT 0,
+  CONSTRAINT unique_user_year_period_category UNIQUE (user_id, year, period, leave_category)
 );
 
 -- Enable Row Level Security (RLS)
@@ -721,8 +743,8 @@ CREATE POLICY "Users can insert own settlements"
 CREATE POLICY "Users can update own settlements"
   ON public.leave_settlements
   FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING (auth.uid() = user_id AND status <> 'processed')
+  WITH CHECK (auth.uid() = user_id AND status <> 'processed');
 
 CREATE POLICY "Admins/supervisors can manage settlements"
   ON public.leave_settlements
@@ -734,10 +756,10 @@ CREATE POLICY "Admins/supervisors can manage settlements"
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_chuti_bulk_id ON public.chuti(bulk_id) WHERE bulk_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_leave_settlements_user_year ON public.leave_settlements(user_id, year);
+CREATE INDEX IF NOT EXISTS idx_chuti_updated_at ON public.chuti(updated_at);
+CREATE INDEX IF NOT EXISTS idx_chuti_deleted_at ON public.chuti(deleted_at);
 
 -- Enable Realtime for chuti, profiles, and leave_settlements tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.leave_settlements;
-
-

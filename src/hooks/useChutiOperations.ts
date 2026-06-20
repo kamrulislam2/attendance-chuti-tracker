@@ -370,7 +370,8 @@ export const useChutiOperations = ({
         .from('chuti')
         .select('date')
         .eq('user_id', sessionUser.id)
-        .in('date', allDates);
+        .in('date', allDates)
+        .is('deleted_at', null);
 
       if (checkError) throw checkError;
 
@@ -446,7 +447,11 @@ export const useChutiOperations = ({
         return;
       }
 
-      const { data, error } = await supabase.from('chuti').delete().eq('id', record.id || '').select();
+      const { data, error } = await supabase
+        .from('chuti')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', record.id || '')
+        .select();
       if (error) throw error;
       
       if (!data || data.length === 0) {

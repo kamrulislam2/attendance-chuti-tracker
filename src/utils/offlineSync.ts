@@ -30,6 +30,7 @@ export interface ChutiRecord {
   adjust_short_leave?: boolean;
   comment: string | null;
   synced: boolean;
+  deleted_at?: string | null;
   bulk_id?: string | null;
   action?: 'insert' | 'update' | 'delete';
   data?: Partial<Omit<ChutiRecord, 'localId' | 'synced'>>;
@@ -93,7 +94,7 @@ export const saveOfflineRecord = async (record: Omit<ChutiRecord, 'localId' | 's
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => db.close();
-    
+
     const store = transaction.objectStore(STORE_NAME);
     const localId = generateUUID();
     const newRecord: ChutiRecord = {
@@ -116,7 +117,7 @@ export const saveOfflineUpdate = async (id: string, updates: Partial<Omit<ChutiR
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => db.close();
-    
+
     const store = transaction.objectStore(STORE_NAME);
     const localId = generateUUID();
     const newRecord: ChutiRecord = {
@@ -162,7 +163,7 @@ export const saveOfflineDelete = async (id: string): Promise<string> => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => db.close();
-    
+
     const store = transaction.objectStore(STORE_NAME);
     const localId = generateUUID();
     const newRecord: ChutiRecord = {
@@ -194,7 +195,7 @@ export const getOfflineRecords = async (): Promise<ChutiRecord[]> => {
     const transaction = db.transaction(STORE_NAME, 'readonly');
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => db.close();
-    
+
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
 
@@ -210,7 +211,7 @@ export const deleteOfflineRecord = async (localId: string): Promise<void> => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     transaction.oncomplete = () => db.close();
     transaction.onerror = () => db.close();
-    
+
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(localId);
 
@@ -271,9 +272,12 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
           continue;
         }
 
+        // Soft delete: set deleted_at instead of hard-deleting so the change is
+        // captured by delta sync (updated_at bumps via trigger) and other clients
+        // can purge the row from their local cache.
         const { error: deleteError } = await supabase
           .from('chuti')
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq('id', record.id);
 
         if (deleteError) {
@@ -334,6 +338,7 @@ export const syncOfflineData = async (onSyncSuccess?: (syncedCount: number) => v
           .select('id')
           .eq('user_id', record.user_id)
           .eq('date', record.date)
+          .is('deleted_at', null)
           .maybeSingle();
 
         if (!existing) {
@@ -397,7 +402,7 @@ export const setCacheData = async (storeName: string, data: any[]): Promise<void
     transaction.onerror = () => db.close();
 
     const store = transaction.objectStore(storeName);
-    
+
     // Clear existing cache items
     const clearRequest = store.clear();
     clearRequest.onsuccess = () => {
@@ -406,10 +411,10 @@ export const setCacheData = async (storeName: string, data: any[]): Promise<void
         resolve();
         return;
       }
-      
+
       let errorOccurred = false;
       let pendingCount = data.length;
-      
+
       data.forEach(item => {
         if (!item) {
           pendingCount--;
@@ -485,6 +490,39 @@ export const mergeCacheData = async (storeName: string, data: any[]): Promise<vo
         return;
       }
       const request = store.put(item);
+      request.onsuccess = () => {
+        pendingCount--;
+        if (pendingCount === 0 && !errorOccurred) resolve();
+      };
+      request.onerror = () => {
+        errorOccurred = true;
+        reject(request.error);
+      };
+    });
+  });
+};
+
+// Remove a set of items (by key) from a cache store. Used to purge rows that
+// were soft-deleted on the server (deleted_at is set) from the local cache.
+export const removeCacheItems = async (storeName: string, keys: string[]): Promise<void> => {
+  if (!keys || keys.length === 0) return;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+
+    const store = transaction.objectStore(storeName);
+    let errorOccurred = false;
+    let pendingCount = keys.length;
+
+    keys.forEach(key => {
+      if (key === undefined || key === null) {
+        pendingCount--;
+        if (pendingCount === 0 && !errorOccurred) resolve();
+        return;
+      }
+      const request = store.delete(key);
       request.onsuccess = () => {
         pendingCount--;
         if (pendingCount === 0 && !errorOccurred) resolve();

@@ -745,6 +745,7 @@ export const useAdminStaffOperations = ({
           .select('id')
           .eq('user_id', targetUserId)
           .eq('date', dateStr)
+          .is('deleted_at', null)
           .maybeSingle();
           
         if (!existingEntry) {

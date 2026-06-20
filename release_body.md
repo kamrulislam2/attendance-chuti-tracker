@@ -1,20 +1,12 @@
-# Release Notes — Chuti v1.1.0
+# Release Notes — Chuti v1.1.1
 
-We are excited to announce the release of **Chuti v1.1.0**, featuring premium skeleton loading views, layout stabilization improvements, and crucial UI formatting bug fixes.
+We are pleased to announce the release of **Chuti v1.1.1**, a maintenance update focusing on database schema consolidation and robustness.
 
 ## 🚀 Key Improvements
 
-### 💫 High-Fidelity Skeleton Loaders
-* **Shimmering UI Loaders**: Replaced all full-screen loaders and simple inline spin elements with layout-specific, shimmering skeletons. This includes customized variants for:
-  - Leaves Records Table
-  - Staff Leave Master Table
-  - Settlements Panel
-  - Govt Holiday Responses Table
-  - Dashboard Page Loading Shell (instant shell mock layout before initial fetch)
+### 🗃️ Unified Database Schema
+* **Consolidated Schema**: Merged all outstanding PostgreSQL migrations (`migration_delta_sync.sql`, `migration_soft_delete.sql`, `migration_settlements.sql`, and `migration_splits.sql`) directly into the base `supabase/schema.sql` script.
+* **Cleanup**: Removed redundant migration files from the repository to prevent confusion and ensure a clean single-file database initialization.
 
-### 🧩 Layout Shift Prevention
-* **Rendering Gates**: Wrapped rendering blocks in strict conditional boundaries so dashboard metrics and data tables don't render empty configurations or cause sudden layout shifts during asynchronous state loading.
-
-### 🐛 Bug Fixes
-* **Admin Profile Header Formatting**: Resolved a bug in the profile header where empty parentheses `()` were rendered on load/reload before profile data resolved. 
-* **Syntax & Compile Errors**: Corrected a typo/syntax issue (`v>`) inside the settlements layout and verified zero TypeScript warnings.
+### 🐛 Database Constraint Alignment & Bug Fix
+* **Leave Settlements Default Status**: Resolved a mismatch where `leave_settlements.status` defaulted to `'pending'` in the table definition but was restricted to `('initiated', 'responded', 'processed')` in the check constraints. The default has been aligned to `'initiated'` to prevent potential database level constraint violations.

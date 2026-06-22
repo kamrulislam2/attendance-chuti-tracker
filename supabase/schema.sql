@@ -94,10 +94,7 @@ CREATE TABLE public.chuti (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   bulk_id UUID, -- Group identifier for bulk leave submissions
   updated_at TIMESTAMPTZ DEFAULT NOW(), -- Required for offline delta sync
-  deleted_at TIMESTAMPTZ DEFAULT NULL, -- Required for soft-delete support
-  
-  -- Prevent same user from submitting duplicate dates
-  CONSTRAINT unique_user_date UNIQUE (user_id, date)
+  deleted_at TIMESTAMPTZ DEFAULT NULL -- Required for soft-delete support
 );
 
 -- Enable RLS on Chuti
@@ -758,6 +755,7 @@ CREATE INDEX IF NOT EXISTS idx_chuti_bulk_id ON public.chuti(bulk_id) WHERE bulk
 CREATE INDEX IF NOT EXISTS idx_leave_settlements_user_year ON public.leave_settlements(user_id, year);
 CREATE INDEX IF NOT EXISTS idx_chuti_updated_at ON public.chuti(updated_at);
 CREATE INDEX IF NOT EXISTS idx_chuti_deleted_at ON public.chuti(deleted_at);
+CREATE UNIQUE INDEX IF NOT EXISTS unique_user_date ON public.chuti (user_id, date) WHERE (deleted_at IS NULL);
 
 -- Enable Realtime for chuti, profiles, and leave_settlements tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.chuti;

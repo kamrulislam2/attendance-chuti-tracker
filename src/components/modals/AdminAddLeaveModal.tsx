@@ -222,6 +222,12 @@ export function AdminAddLeaveModal({
       return;
     }
 
+    if (!isFullLeave && leaveHour === '00:00') {
+      setError(`${leaveType} requests cannot be submitted with 00:00 hours. Please adjust Sign-in and Sign-out times.`);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       // Direct Admin bulk insertion (bypasses regular user submission logic)
       const adjustedArr = datesWithAdjustment.map(item => item.adjustment);

@@ -7,21 +7,8 @@ import { Navbar } from '@/components/Navbar';
 import { UserDashboardView } from '@/components/UserDashboardView';
 import { AdminDashboardView } from '@/components/AdminDashboardView';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
-import { WelcomeModals } from '@/components/modals/WelcomeModals';
-import { SupervisorApprovalModal } from '@/components/modals/SupervisorApprovalModal';
-import { AddLeaveModal } from '@/components/modals/AddLeaveModal';
-import { UserRevisionModal } from '@/components/modals/UserRevisionModal';
-import { UserNotificationsModal } from '@/components/modals/UserNotificationsModal';
-import { DeleteConfirmModal } from '@/components/modals/DeleteConfirmModal';
-import { AdjustmentModal } from '@/components/modals/AdjustmentModal';
-import { AdminProfileSettingsModal } from '@/components/modals/AdminProfileSettingsModal';
-import { AdminLeaveApprovalModal } from '@/components/modals/AdminLeaveApprovalModal';
-import { AdminEditRecordModal } from '@/components/modals/AdminEditRecordModal';
-import { AdminCancelAdjustmentModal } from '@/components/modals/AdminCancelAdjustmentModal';
-import { AdminCreateUserModal } from '@/components/modals/AdminCreateUserModal';
-import { AdminCredentialsModal } from '@/components/modals/AdminCredentialsModal';
-import { AdminDeleteUserModal } from '@/components/modals/AdminDeleteUserModal';
-import { AdminAddLeaveModal } from '@/components/modals/AdminAddLeaveModal';
+import { DashboardProvider } from '@/contexts/DashboardContext';
+import { DashboardModals } from '@/components/DashboardModals';
 
 
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -611,13 +598,24 @@ export default function Dashboard() {
     );
   }
 
-  return (
-    <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
-      {/* Glow backgrounds */}
-      <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+  const contextValue = {
+    dashboardData,
+    derivedState,
+    chutiOps,
+    adjustmentOps,
+    adminStaffOps,
+    exportOps,
+    modalHandlers
+  };
 
-      {/* 1. Header Bar */}
+  return (
+    <DashboardProvider value={contextValue}>
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+        {/* Glow backgrounds */}
+        <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+
+        {/* 1. Header Bar */}
       <Navbar
         profile={profile}
         isOnline={isOnline}
@@ -761,341 +759,8 @@ export default function Dashboard() {
 
       </main>
       
-      {/* Welcome Modals (Onboarding & Password Reset) */}
-      <WelcomeModals
-        showWelcomePopup={showWelcomePopup}
-        setShowWelcomePopup={setShowWelcomePopup}
-        showFirstTimePasswordModal={showFirstTimePasswordModal}
-        showOnboardingModal={showOnboardingModal}
-        firstTimePasswordError={firstTimePasswordError || null}
-        firstTimePassword={firstTimePassword}
-        setFirstTimePassword={setFirstTimePassword}
-        firstTimeConfirmPassword={firstTimeConfirmPassword}
-        setFirstTimeConfirmPassword={setFirstTimeConfirmPassword}
-        profile={profile}
-
-        firstTimePasswordSubmitting={firstTimePasswordSubmitting}
-        sessionUser={sessionUser}
-        handleFirstTimeSetupSubmit={handleFirstTimeSetupSubmit}
-        handleLogout={handleLogout}
-        setupError={setupError || null}
-        setupFullName={setupFullName}
-        setSetupFullName={setSetupFullName}
-        setupUsername={setupUsername}
-        setupJobRole={setupJobRole}
-        setSetupJobRole={setSetupJobRole}
-        setupWorkingHours={setupWorkingHours}
-        setSetupWorkingHours={setSetupWorkingHours}
-        setupBreakTime={setupBreakTime}
-        setSetupBreakTime={setSetupBreakTime}
-        setupSignInTime={setupSignInTime}
-        setSetupSignInTime={setSetupSignInTime}
-        setupSignOutTime={setupSignOutTime}
-        setSetupSignOutTime={setSetupSignOutTime}
-        setupSubmitting={setupSubmitting}
-        handleSetupSubmit={handleSetupSubmit}
-      />
-
-      {/* Admin Add Leave Modal */}
-      <AdminAddLeaveModal
-        showModal={showAdminAddLeaveModal}
-        setShowModal={setShowAdminAddLeaveModal}
-        staffProfile={staffProfile}
-        onSuccess={fetchRecords}
-        records={viewingStaffId ? adminRecords.filter(r => r.user_id === viewingStaffId) : []}
-        globalSettings={globalSettings}
-      />
-
-      {/* User Leave & Personal Notifications Modals */}
-      <AddLeaveModal
-        showAddLeaveModal={showAddLeaveModal}
-        setShowAddLeaveModal={setShowAddLeaveModal}
-        date={date}
-        setDate={setDate}
-        leaveType={leaveType}
-        setLeaveType={setLeaveType}
-        adjustment={adjustment}
-        setAdjustment={setAdjustment}
-        adjustmentCategory={adjustmentCategory}
-        setAdjustmentCategory={setAdjustmentCategory}
-        adjustShortLeave={adjustShortLeave}
-        setAdjustShortLeave={setAdjustShortLeave}
-        signInTime={signInTime}
-        setSignInTime={setSignInTime}
-        signOutTime={signOutTime}
-        setSignOutTime={setSignOutTime}
-        leaveHour={leaveHour}
-        setLeaveHour={setLeaveHour}
-        comment={comment}
-        setComment={setComment}
-        bulkDates={bulkDates}
-        bulkAdjustments={bulkAdjustments}
-        handleAddBulkDate={handleAddBulkDate}
-        handleUpdateBulkDate={handleUpdateBulkDate}
-        handleUpdateBulkAdjustment={handleUpdateBulkAdjustment}
-        handleRemoveBulkDate={handleRemoveBulkDate}
-        profile={profile}
-        submitting={submitting}
-        handleSubmit={handleSubmit}
-        records={userRecords}
-        profilesList={profilesList}
-        selectedSupervisors={selectedSupervisors}
-        setSelectedSupervisors={setSelectedSupervisors}
-        globalSettings={globalSettings}
-      />
-
-      <UserRevisionModal
-        showUserRevisionModal={showUserRevisionModal}
-        setShowUserRevisionModal={setShowUserRevisionModal}
-        revisionRecord={revisionRecord}
-        setRevisionRecord={setRevisionRecord}
-        revisionDate={revisionDate}
-        setRevisionDate={setRevisionDate}
-        revisionLeaveType={revisionLeaveType}
-        setRevisionLeaveType={setRevisionLeaveType}
-        revisionAdjustment={revisionAdjustment}
-        setRevisionAdjustment={setRevisionAdjustment}
-        revisionAdjustShortLeave={revisionAdjustShortLeave}
-        setRevisionAdjustShortLeave={setRevisionAdjustShortLeave}
-        revisionSignInTime={revisionSignInTime}
-        setRevisionSignInTime={setRevisionSignInTime}
-        revisionSignOutTime={revisionSignOutTime}
-        setRevisionSignOutTime={setRevisionSignOutTime}
-        revisionLeaveHour={revisionLeaveHour}
-        setRevisionLeaveHour={setRevisionLeaveHour}
-        revisionComment={revisionComment}
-        setRevisionComment={setRevisionComment}
-        handleUserSubmitRevision={handleUserSubmitRevision}
-        profile={profile}
-        submitting={submitting}
-      />
-
-      <UserNotificationsModal
-        showUserNotificationsModal={showUserNotificationsModal}
-        setShowUserNotificationsModal={(val) => {
-          if (!val) {
-            handleDismissNotifications('user');
-          }
-          setShowUserNotificationsModal(val);
-        }}
-        userNotificationsList={userNotificationsList}
-        adminActiveTab={adminActiveTab}
-        setShowLeaveApprovalModal={setShowLeaveApprovalModal}
-        setShowSupervisorApprovalModal={setShowSupervisorApprovalModal}
-        profile={profile}
-        setRevisionRecord={setRevisionRecord}
-        setRevisionDate={setRevisionDate}
-        setRevisionLeaveType={setRevisionLeaveType}
-        setRevisionAdjustment={setRevisionAdjustment}
-        setRevisionAdjustShortLeave={setRevisionAdjustShortLeave}
-        setRevisionSignInTime={setRevisionSignInTime}
-        setRevisionSignOutTime={setRevisionSignOutTime}
-        setRevisionLeaveHour={setRevisionLeaveHour}
-        setRevisionComment={setRevisionComment}
-        setShowUserRevisionModal={setShowUserRevisionModal}
-        onSaveHolidayResponse={handleSaveHolidayResponse}
-      />
-
-      <DeleteConfirmModal
-        showDeleteModal={showDeleteModal}
-        setShowDeleteModal={setShowDeleteModal}
-        recordToDelete={recordToDelete}
-        setRecordToDelete={setRecordToDelete}
-        deletingRecord={deletingRecord}
-        handleConfirmDelete={handleConfirmDelete}
-      />
-
-      <AdjustmentModal
-        showAdjustmentModal={showAdjustmentModal}
-        setShowAdjustmentModal={setShowAdjustmentModal}
-        adjustmentRecord={adjustmentRecord}
-        setAdjustmentRecord={setAdjustmentRecord}
-        adjustmentType={adjustmentType}
-        setAdjustmentType={setAdjustmentType}
-        partialAdjustmentTime={partialAdjustmentTime}
-        setPartialAdjustmentTime={setPartialAdjustmentTime}
-        setAdjustShortLeaveOption={setAdjustShortLeaveOption}
-        handleSaveAdjustment={handleSaveAdjustment}
-        records={adjustmentRecord ? (adminActiveTab === 'admin' ? adminRecords : userRecords).filter(r => r.user_id === adjustmentRecord.user_id) : []}
-        holidayResponses={adjustmentRecord ? holidayResponses.filter(r => r.user_id === adjustmentRecord.user_id) : []}
-        globalSettings={globalSettings}
-        submitting={submitting}
-      />
-
-      {/* Supervisor Approval & Revision Prompt Modals */}
-      <SupervisorApprovalModal
-        showSupervisorApprovalModal={showSupervisorApprovalModal}
-        setShowSupervisorApprovalModal={setShowSupervisorApprovalModal}
-        groupedSupervisorRequests={groupedSupervisorRequests}
-        profilesList={profilesList}
-        reviewingIds={reviewingIds}
-        approvedIds={approvedIds}
-        approvingIds={approvingIds}
-        handleSupervisorApproveChuti={handleSupervisorApproveChuti}
-        profile={profile}
-        showRevisionPromptModal={showRevisionPromptModal}
-        setShowRevisionPromptModal={setShowRevisionPromptModal}
-        submittingRevision={submittingRevision}
-        setRevisionPromptChutiId={setRevisionPromptChutiId}
-        setRevisionPromptText={setRevisionPromptText}
-        revisionPromptText={revisionPromptText}
-        submitRevisionWithReason={submitRevisionWithReason}
-      />
-
-      {/* Admin Modals */}
-      <AdminProfileSettingsModal
-        showProfileSettingsModal={showProfileSettingsModal}
-        setShowProfileSettingsModal={setShowProfileSettingsModal}
-        profile={profile}
-        editingStaffProfileId={editingStaffProfileId}
-        sessionUser={sessionUser}
-        isPushSubscribed={isPushSubscribed}
-        setIsPushSubscribed={setIsPushSubscribed}
-        isPushLoading={isPushLoading}
-        setIsPushLoading={setIsPushLoading}
-        adminActiveTab={adminActiveTab}
-        setAdminActiveTab={setAdminActiveTab}
-        setViewingStaffId={setViewingStaffId}
-        isCodenameEditable={isCodenameEditable}
-        setIsCodenameEditable={setIsCodenameEditable}
-        editUsername={editUsername}
-        setEditUsername={setEditUsername}
-        editFullName={editFullName}
-        setEditFullName={setEditFullName}
-        editJobRole={editJobRole}
-        setEditJobRole={setEditJobRole}
-        editWorkingHours={editWorkingHours}
-        setEditWorkingHours={setEditWorkingHours}
-        editBreakTime={editBreakTime}
-        setEditBreakTime={setEditBreakTime}
-        profileSignInTime={profileSignInTime}
-        setProfileSignInTime={setProfileSignInTime}
-        profileSignOutTime={profileSignOutTime}
-        setProfileSignOutTime={setProfileSignOutTime}
-        editNeedsApproval={editNeedsApproval}
-        setEditNeedsApproval={setEditNeedsApproval}
-        editAllowReserve={editAllowReserve}
-        setEditAllowReserve={setEditAllowReserve}
-        editAllowOvertime={editAllowOvertime}
-        setEditAllowOvertime={setEditAllowOvertime}
-        editEligibleOfficeLeave={editEligibleOfficeLeave}
-        setEditEligibleOfficeLeave={setEditEligibleOfficeLeave}
-        editEligibleGovtHoliday={editEligibleGovtHoliday}
-        setEditEligibleGovtHoliday={setEditEligibleGovtHoliday}
-        isEditRequestMode={isEditRequestMode}
-        setIsEditRequestMode={setIsEditRequestMode}
-        setupSubmitting={setupSubmitting}
-        handleUpdateSettings={handleUpdateSettings}
-      />
-
-      <AdminLeaveApprovalModal
-        showLeaveApprovalModal={showLeaveApprovalModal}
-        setShowLeaveApprovalModal={(val) => {
-          if (!val) {
-            handleDismissNotifications('admin');
-          }
-          setShowLeaveApprovalModal(val);
-        }}
-        profile={profile}
-        groupedChutiRequests={groupedChutiRequests}
-        profilesList={profilesList}
-        reviewingIds={reviewingIds}
-        approvedIds={approvedIds}
-        approvingIds={approvingIds}
-        handleApproveChutiRequest={handleApproveChutiRequest}
-        pendingReserveRequests={pendingReserveRequests}
-        handleApproveReserveAdjustment={handleApproveReserveAdjustment}
-        pendingProfileRequests={pendingProfileRequests}
-        handleApproveProfileChangeRequest={handleApproveProfileChangeRequest}
-        adminHolidayNotifications={adminHolidayNotifications}
-      />
-
-      <AdminEditRecordModal
-        showAdminEditModal={showAdminEditModal}
-        setShowAdminEditModal={setShowAdminEditModal}
-        profile={profile}
-        profilesList={profilesList}
-        adminEditRecord={adminEditRecord}
-        adminEditDate={adminEditDate}
-        setAdminEditDate={setAdminEditDate}
-        adminEditLeaveType={adminEditLeaveType}
-        setAdminEditLeaveType={setAdminEditLeaveType}
-        adminEditSignInTime={adminEditSignInTime}
-        setAdminEditSignInTime={setAdminEditSignInTime}
-        adminEditSignOutTime={adminEditSignOutTime}
-        setAdminEditSignOutTime={setAdminEditSignOutTime}
-        adminEditLeaveHour={adminEditLeaveHour}
-        setAdminEditLeaveHour={setAdminEditLeaveHour}
-        adminEditAdjustment={adminEditAdjustment}
-        setAdminEditAdjustment={setAdminEditAdjustment}
-        adminEditAdjustShortLeave={adminEditAdjustShortLeave}
-        setAdminEditAdjustShortLeave={setAdminEditAdjustShortLeave}
-        adminEditComment={adminEditComment}
-        setAdminEditComment={setAdminEditComment}
-        handleAdminSaveEdit={handleAdminSaveEdit}
-        submitting={submitting}
-      />
-
-      <AdminCancelAdjustmentModal
-        showCancelAdjustmentModal={showCancelAdjustmentModal}
-        setShowCancelAdjustmentModal={setShowCancelAdjustmentModal}
-        cancelAdjustmentRecord={cancelAdjustmentRecord}
-        setCancelAdjustmentRecord={setCancelAdjustmentRecord}
-        handleConfirmCancelAdjustment={handleConfirmCancelAdjustment}
-        profile={profile}
-        adminActiveTab={adminActiveTab}
-        submitting={submitting}
-      />
-
-      <AdminCreateUserModal
-        showCreateUserModal={showCreateUserModal}
-        setShowCreateUserModal={setShowCreateUserModal}
-        profile={profile}
-        setNewStaffPassword={setNewStaffPassword}
-        newStaffUsername={newStaffUsername}
-        setNewStaffUsername={setNewStaffUsername}
-        newStaffRole={newStaffRole}
-        setNewStaffRole={setNewStaffRole}
-        newStaffNeedsApproval={newStaffNeedsApproval}
-        setNewStaffNeedsApproval={setNewStaffNeedsApproval}
-        newStaffAllowReserve={newStaffAllowReserve}
-        setNewStaffAllowReserve={setNewStaffAllowReserve}
-        newStaffAllowOvertime={newStaffAllowOvertime}
-        setNewStaffAllowOvertime={setNewStaffAllowOvertime}
-        creatingUser={creatingUser}
-        setNewStaffConfirmPassword={setNewStaffConfirmPassword}
-        handleCreateNewUser={handleCreateNewUser}
-        newStaffEligibleOfficeLeave={newStaffEligibleOfficeLeave}
-        setNewStaffEligibleOfficeLeave={setNewStaffEligibleOfficeLeave}
-        newStaffEligibleGovtHoliday={newStaffEligibleGovtHoliday}
-        setNewStaffEligibleGovtHoliday={setNewStaffEligibleGovtHoliday}
-      />
-
-      <AdminCredentialsModal
-        showCredentialsModal={showCredentialsModal}
-        setShowCredentialsModal={setShowCredentialsModal}
-        profile={profile}
-        credTargetUserId={credTargetUserId}
-        setCredTargetUserId={setCredTargetUserId}
-        credNewUsername={credNewUsername}
-        setCredNewUsername={setCredNewUsername}
-        credNewPassword={credNewPassword}
-        setCredNewPassword={setCredNewPassword}
-        credConfirmPassword={credConfirmPassword}
-        setCredConfirmPassword={setCredConfirmPassword}
-        updatingCredentials={updatingCredentials}
-        handleUpdateCredentials={handleUpdateCredentials}
-      />
-
-      <AdminDeleteUserModal
-        showDeleteUserModal={showDeleteUserModal}
-        setShowDeleteUserModal={setShowDeleteUserModal}
-        deleteTargetUser={deleteTargetUser}
-        setDeleteTargetUser={setDeleteTargetUser}
-        deletingUser={deletingUser}
-        handleDeleteUser={handleDeleteUser}
-        profile={profile}
-      />
-    </div>
+      <DashboardModals />
+      </div>
+    </DashboardProvider>
   );
 }

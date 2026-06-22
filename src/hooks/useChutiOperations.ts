@@ -224,6 +224,12 @@ export const useChutiOperations = ({
       return;
     }
 
+    if (!isFullLeave && leaveHour === '00:00') {
+      setMessage({ type: 'error', text: `${leaveType} requests cannot be submitted with 00:00 hours. Please adjust your Sign-in and Sign-out times.` });
+      setSubmitting(false);
+      return;
+    }
+
     const bulkId = allDates.length > 1 ? generateUUID() : null;
 
     const bypassSupervisor = 
@@ -481,6 +487,12 @@ export const useChutiOperations = ({
     try {
       const isFullLeave = revisionLeaveType === 'Full Leave';
 
+      if (!isFullLeave && revisionLeaveHour === '00:00') {
+        setMessage({ type: 'error', text: `${revisionLeaveType} requests cannot be submitted with 00:00 hours. Please adjust your Sign-in and Sign-out times.` });
+        setSubmitting(false);
+        return;
+      }
+
       const bypassSupervisor = 
         profile?.needs_supervisor_approval === false ||
         profile?.role === 'admin' ||
@@ -538,6 +550,12 @@ export const useChutiOperations = ({
     
     try {
       const isFullLeave = adminEditLeaveType === 'Full Leave';
+
+      if (!isFullLeave && adminEditLeaveHour === '00:00') {
+        setMessage({ type: 'error', text: `${adminEditLeaveType} requests cannot be submitted with 00:00 hours. Please adjust Sign-in and Sign-out times.` });
+        setSubmitting(false);
+        return;
+      }
       
       const newNotification = createNotification(
         'edited',

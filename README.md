@@ -98,13 +98,13 @@ The database is built on PostgreSQL with strict Row Level Security (RLS) policie
 
 ### Tables
 1.  **`public.profiles`**: Contains employee metadata (roles, usernames, default sign-in/out times, and supervisor requirements). Linked to `auth.users` via a Postgres trigger (`on_auth_user_created`) that auto-populates the profile upon signup.
-2.  **`public.chuti`**: Holds attendance logs and leave records. Contains date-uniqueness constraints (`unique_user_date`) to prevent duplicate entries and fields utilizing Postgres `INTERVAL` types for precise hour calculations.
+2.  **`public.Chuti`**: Holds attendance logs and leave records. Contains date-uniqueness constraints (`unique_user_date`) to prevent duplicate entries and fields utilizing Postgres `INTERVAL` types for precise hour calculations.
 3.  **`public.push_subscriptions`**: Holds VAPID push endpoints, auth tokens, and browser public keys for individual users.
 
 ### Row Level Security (RLS) Summary
 *   **Users**: Can read/write their own profiles and chuti entries.
-*   **Supervisors**: Can read all profiles/chuti and approve/reject entries for their staff.
-*   **Admins**: Possess full read/write permissions for all profiles, chuti entries, and system configurations.
+*   **Supervisors**: Can read all profiles/Chuti and approve/reject entries for their staff.
+*   **Admins**: Possess full read/write permissions for all profiles, Chuti entries, and system configurations.
 
 ---
 
@@ -270,20 +270,24 @@ To develop or build the desktop app locally, you need:
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.1.0`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.2.0`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
 2. Set up Rust toolchains.
 3. Compile three native target applications:
    - **Windows (x64)** `.msi` / `.exe` installer.
    - **macOS Intel (x86_64)** `.dmg` installer.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
-4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.1.0`).
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.2.0`).
 
 ---
 
 ## 📜 Version History / Changelog
 
-### 🚀 v1.1.1 (Latest)
+### 🚀 v1.2.0 (Latest)
+* **System Tray & Background Execution**: Added minimize-to-tray capability, keeping the application active in the system tray when closed.
+* **Native OS Desktop Notifications**: Integrated `@tauri-apps/plugin-notification` and Supabase Realtime Broadcasts to deliver native system notifications in real-time.
+
+### 🚀 v1.1.1
 * **Unified Database Schema**: Consolidated all database migration SQL scripts into the base `supabase/schema.sql` file and removed redundant migration files.
 * **Database Default Bug Fix**: Fixed a mismatch where `leave_settlements.status` defaulted to `'pending'` in the schema but was restricted to `('initiated', 'responded', 'processed')` in constraints, changing the default to `'initiated'`.
 
@@ -318,7 +322,7 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.
 ### 🚀 v0.1.5
 * **Windows/macOS Startup Hang Fix**: Disabled PWA Service Worker (`sw.js`) registration in the Tauri desktop app context and added automatic unregistration of any old service worker instances to resolve cold boot white-screen issues.
 * **Safe Session Initialization**: Added a 4-second timeout protection (`Promise.race`) in Supabase getSession calls to prevent loading overlays from hanging indefinitely during poor network start-up.
-* **macOS Bundle Warning Fix**: Changed tauri bundle identifier to `com.chuti.tracker` to avoid collision warnings.
+* **macOS Bundle Warning Fix**: Changed tauri bundle identifier to `com.Chuti.tracker` to avoid collision warnings.
 * **Dynamic Eid Holiday Remaining Cards**: User dashboard now dynamically displays stats cards for Eid-ul-Fitr and Eid-ul-Adha holiday quotas if the user has remaining days (auto-hiding when fully adjusted or 0).
 * **Modal Loader Integrations**: Added loading spinner states inside AddLeaveModal and AdminAddLeaveModal to prevent async rendering glitches.
 * **Database Schema Fix**: Relocated ALTER PUBLICATION statement in schema.sql to prevent database query errors on clean setup.

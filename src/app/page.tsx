@@ -18,7 +18,7 @@ import { useAdminStaffOperations } from '@/hooks/useAdminStaffOperations';
 import { useDerivedState } from '@/hooks/useDerivedState';
 import { useExportOperations } from '@/hooks/useExportOperations';
 import { useModalHandlers } from '@/hooks/useModalHandlers';
-
+import { useDesktopNotifications } from '@/hooks/useDesktopNotifications';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -120,6 +120,9 @@ export default function Dashboard() {
       console.error('Failed to load dismissed notifications:', e);
     }
   }, []);
+
+  // Start Tauri Desktop Notification Listener
+  useDesktopNotifications(profile?.id);
 
   // Derived state (filtering, grouping, notifications, stats)
   const derivedState = useDerivedState({

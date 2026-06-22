@@ -71,8 +71,8 @@ jobs:
             ### Chuti v__VERSION__ 🚀
 
             #### 🌟 What's New in v__VERSION__:
-            - **Unified Database Schema**: Consolidated all database migration SQL scripts into the base `supabase/schema.sql` file and removed redundant migration files.
-            - **Database Default Bug Fix**: Fixed a mismatch where `leave_settlements.status` defaulted to `'pending'` in the schema but was restricted to `('initiated', 'responded', 'processed')` in constraints, changing the default to `'initiated'`.
+            - **System Tray & Background Execution**: Added minimize-to-tray capability, keeping the application active in the system tray when closed.
+            - **Native OS Desktop Notifications**: Integrated `@tauri-apps/plugin-notification` and Supabase Realtime Broadcasts to deliver native system notifications in real-time.
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

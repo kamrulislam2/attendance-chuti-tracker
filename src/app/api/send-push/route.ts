@@ -235,6 +235,24 @@ export async function POST(request: NextRequest) {
 
     console.log(`[SendPush] Sending completed. Success: ${successfulSends}/${subscriptions.length}`);
 
+    // BROADCAST TO ACTIVE DESKTOP CLIENTS (TAURI)
+    // Even if they don't have a web push subscription, active desktop users will receive this broadcast
+    try {
+      const channel = supabaseServer.channel('desktop-notifications');
+      await channel.send({
+        type: 'broadcast',
+        event: 'os-push',
+        payload: {
+          targetUserIds,
+          title,
+          body
+        }
+      });
+      console.log('[SendPush] Broadcasted notification to desktop clients.');
+    } catch (broadcastErr) {
+      console.warn('[SendPush] Failed to broadcast to desktop clients:', broadcastErr);
+    }
+
     return NextResponse.json({
       success: true,
       sentCount: successfulSends,

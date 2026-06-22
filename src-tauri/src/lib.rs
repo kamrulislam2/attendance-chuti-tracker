@@ -1,6 +1,10 @@
+use tauri::{Manager, WindowEvent};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -13,7 +17,30 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            
+            // Set up system tray
+            let _tray = TrayIconBuilder::new()
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap();
+                        }
+                    }
+                })
+                .build(app)?;
+                
             Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { api, .. } => {
+                // Prevent window from closing completely
+                api.prevent_close();
+                // Hide it to the system tray
+                window.hide().unwrap();
+            }
+            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

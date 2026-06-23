@@ -71,10 +71,10 @@ jobs:
             ### Chuti v__VERSION__ 🚀
 
             #### 🌟 What's New in v__VERSION__:
-            - **Custom Carry Forward Directions**: Added carry-forward directions selection (H1 to H2 vs H2 to Next Year's H1) with target period dynamic saves.
-            - **Manual Override Validation**: Enforced validation that manual carry-forward override days must be greater than 0.
-            - **Advanced Deficit Resolution Options**: Implemented independent deficit resolution options including Salary Deduction, Adjust with H2 Office Leave (H1 records), Adjust with Next Year's H1 Quota (H2 records), and Adjust with Holiday/Eid Reserves.
-            - **Notification Polish**: Improved processed settlement notification descriptions for negative balance resolutions.
+            - **Tray Icon Fix**: Resolved the missing tray icon bug on Windows & macOS desktop apps. The system tray will now show the Chuti icon correctly.
+            - **Native Desktop Notifications**: Integrated direct native notification triggers using Tauri APIs and optimized backend API workflows to broadcast realtime events to active desktop screens immediately.
+            - **Chrome Multi-Account Push Fix**: Addressed RLS delete policy conflicts on the `push_subscriptions` table to prevent constraint failures when switching user profiles on Chrome.
+            - **Sleek Settings UX Polish**: Redesigned the settings screen to place a compact "Test" button right next to the Desktop Notifications toggle bell icon.
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

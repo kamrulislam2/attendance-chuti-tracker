@@ -112,6 +112,26 @@ export function AdminProfileSettingsModal({
     if (!sessionUser) return;
     setTestingPush(true);
     try {
+      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+      if (isTauri) {
+        const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification');
+        let permissionGranted = await isPermissionGranted();
+        if (!permissionGranted) {
+          const permission = await requestPermission();
+          permissionGranted = permission === 'granted';
+        }
+        if (permissionGranted) {
+          sendNotification({
+            title: 'Notification Test 🧪',
+            body: 'Desktop notifications are working perfectly on this device!'
+          });
+          toast.success('Test notification triggered locally!');
+        } else {
+          toast.error('OS Notification permission denied. Please allow in System Settings.');
+        }
+        return;
+      }
+
       const success = await sendPushNotification({
         userIds: [sessionUser.id],
         title: 'Notification Test 🧪',
@@ -220,8 +240,23 @@ export function AdminProfileSettingsModal({
             <div className="push-notification-banner flex flex-col gap-3 p-3 bg-orange-955/45 rounded-lg border border-orange-900/35 mb-4 shadow-inner">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="block text-sm font-semibold text-white">Desktop Notifications 🔔</span>
-                  <span className="block text-[11px] text-slate-400">Receive instant alerts for leave updates and new requests</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">Desktop Notifications 🔔</span>
+                    {isPushSubscribed && (
+                      <button
+                        type="button"
+                        disabled={testingPush}
+                        onClick={handleTestPushNotification}
+                        className="px-2 py-0.5 bg-orange-650 hover:bg-orange-550 text-white rounded text-[10px] font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1 font-sans"
+                      >
+                        {testingPush ? (
+                          <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                        ) : null}
+                        <span>Test</span>
+                      </button>
+                    )}
+                  </div>
+                  <span className="block text-[11px] text-slate-400 mt-0.5">Receive instant alerts for leave updates and new requests</span>
                 </div>
                 <button
                   type="button"
@@ -275,26 +310,6 @@ export function AdminProfileSettingsModal({
                   />
                 </button>
               </div>
-
-              {isPushSubscribed && (
-                <div className="flex justify-start border-t border-orange-900/20 pt-2">
-                  <button
-                    type="button"
-                    disabled={testingPush}
-                    onClick={handleTestPushNotification}
-                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5 font-sans"
-                  >
-                    {testingPush ? (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                        Sending Test...
-                      </>
-                    ) : (
-                      'Test Notification 🧪'
-                    )}
-                  </button>
-                </div>
-              )}
             </div>
           )}
 

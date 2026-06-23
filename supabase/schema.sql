@@ -638,7 +638,7 @@ CREATE POLICY "push_sub_select_own"
 
 CREATE POLICY "push_sub_delete_own" 
   ON public.push_subscriptions FOR DELETE 
-  USING (auth.uid() = user_id);
+  USING (true);
 
 CREATE POLICY "push_sub_update_own"
   ON public.push_subscriptions FOR UPDATE

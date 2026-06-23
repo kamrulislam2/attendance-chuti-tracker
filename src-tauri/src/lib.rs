@@ -18,8 +18,12 @@ pub fn run() {
                 )?;
             }
             
-            // Set up system tray
-            let _tray = TrayIconBuilder::new()
+            // Set up system tray with default icon if available
+            let mut tray_builder = TrayIconBuilder::new();
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+            let _tray = tray_builder
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click { .. } = event {
                         let app = tray.app_handle();

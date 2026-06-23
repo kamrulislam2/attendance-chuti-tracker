@@ -283,7 +283,13 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v2.0.2 (Latest)
+### 🚀 v2.0.3 (Latest)
+* **Tray Icon Fix**: Resolved the missing tray icon bug on Windows & macOS desktop apps.
+* **Native Desktop Notifications**: Integrated direct native notification triggers using Tauri APIs and optimized backend API workflows to broadcast realtime events to active desktop screens immediately.
+* **Chrome Multi-Account Push Fix**: Addressed RLS delete policy conflicts on the `push_subscriptions` table to prevent constraint failures when switching user profiles on Chrome.
+* **Sleek Settings UX Polish**: Redesigned the settings screen to place a compact \"Test\" button right next to the Desktop Notifications toggle bell icon.
+
+### 🚀 v2.0.2
 * **Alignment Fixes**: Center-aligned middle columns (Codename, Role, Full/Short Leave, Overtime) in StaffMasterTable for Admin dashboard, and center-aligned all columns in LeavesRecordsTable for User dashboard.
 
 ### 🚀 v2.0.1

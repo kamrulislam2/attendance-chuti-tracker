@@ -270,20 +270,23 @@ To develop or build the desktop app locally, you need:
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.0.1`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.0.2`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
 2. Set up Rust toolchains.
 3. Compile three native target applications:
    - **Windows (x64)** `.msi` / `.exe` installer.
    - **macOS Intel (x86_64)** `.dmg` installer.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
-4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v2.0.1`).
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v2.0.2`).
 
 ---
 
 ## 📜 Version History / Changelog
 
-### 🚀 v2.0.1 (Latest)
+### 🚀 v2.0.2 (Latest)
+* **Alignment Fixes**: Center-aligned middle columns (Codename, Role, Full/Short Leave, Overtime) in StaffMasterTable for Admin dashboard, and center-aligned all columns in LeavesRecordsTable for User dashboard.
+
+### 🚀 v2.0.1
 * **Visual Polish**: Fixed a loading spinner bug where container backgrounds caused a dark grey horizontal shadow band overlay by changing the layout and loading class wrappers to match the body's pure black background perfectly.
 
 ### 🚀 v2.0.0

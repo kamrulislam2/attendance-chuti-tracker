@@ -161,17 +161,17 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
             </div>
           ) : (
             <table className="min-w-full divide-y divide-slate-800">
-              <thead className="bg-slate-950/60">
+              <thead className="bg-slate-955/60">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Adjustment</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign In/Out</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Hours</th>
-                  {allowOvertime && <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>}
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Comment</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Action</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Adjustment</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign In/Out</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Leave Hours</th>
+                  {allowOvertime && <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>}
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Comment</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850 bg-slate-900/20">
@@ -179,7 +179,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                   const isTemp = typeof r.id === 'string' && r.id.startsWith('temp-');
                   return (
                     <tr key={r.id} className="hover:bg-slate-900/30 transition-all">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white flex items-center gap-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white flex items-center justify-center gap-2">
                         {formatDate(r.date)}
                         {showPendingBadge && isTemp && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-955/80 border border-amber-800 text-amber-400 animate-pulse">
@@ -187,7 +187,7 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                           r.leave_type === 'Full Leave' 
                             ? 'bg-red-955/50 border border-red-800 text-red-300' 
@@ -198,8 +198,8 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           {r.leave_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355">
-                        <div className="flex items-center gap-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => onToggleAdjustment(r)}
@@ -228,23 +228,23 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 font-mono text-center">
                         {r.leave_type === 'Full Leave' ? '-' : `${formatTimeToAMPM(r.sign_in_time)} / ${formatTimeToAMPM(r.sign_out_time)}`}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold text-center">
                         {r.leave_type === 'Full Leave' || r.leave_type === 'Overtime' ? '-' : (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-')}
                       </td>
                       {allowOvertime && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono font-bold text-center">
                           {r.leave_type === 'Overtime' ? (r.leave_hour ? r.leave_hour.toString().split('.')[0].substring(0, 5) : '-') : '-'}
                         </td>
                       )}
                       {/* Comment Column */}
-                      <td className="px-6 py-4 text-sm text-slate-400 max-w-[150px] truncate" title={getCleanComment(r.comment)}>
+                      <td className="px-6 py-4 text-sm text-slate-400 max-w-[150px] truncate text-center" title={getCleanComment(r.comment)}>
                         {getCleanComment(r.comment) || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-                        <div className="flex gap-1.5">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex justify-center gap-1.5">
                           {r.status === 'needs_review' && onRevisionClick && (
                             <button
                               onClick={() => onRevisionClick(r)}
@@ -272,8 +272,8 @@ export const LeavesRecordsTable: React.FC<LeavesRecordsTableProps> = ({
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <div className="flex flex-col gap-1 items-end">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                        <div className="flex flex-col gap-1 items-center">
                           <StatusBadge record={r} />
                           {r.is_edited && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-955/40 border border-orange-800 text-orange-400">

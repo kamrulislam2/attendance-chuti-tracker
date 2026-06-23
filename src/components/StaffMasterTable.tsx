@@ -137,11 +137,11 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
             <thead className="bg-slate-955/60">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Codename</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Leave</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Short Leave</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Codename</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Leave</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Short Leave</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Overtime</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -158,21 +158,21 @@ export const StaffMasterTable: React.FC<StaffMasterTableProps> = ({
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">
                         {p.full_name || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 font-mono text-center">
                         {p.username ? p.username.toUpperCase() : ''}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-350">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-355 text-center">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-900 border-slate-800 text-slate-300">
                           {p.job_role || (p.role === 'admin' ? 'Admin' : (p.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono text-center">
                         {stats.full} days
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono text-center">
                         {stats.short} hrs
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-bold font-mono text-center">
                         {p.allow_overtime ? `${stats.overtime} hrs` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

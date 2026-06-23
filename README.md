@@ -283,7 +283,12 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v2.0.4 (Latest)
+### 🚀 v2.0.5 (Latest)
+* **OS-Specific Tray Customizations**: Added a dynamic Open/Close Chuti option depending on whether the application window is visible or hidden.
+* **Windows Click Handler**: Set Windows double-left click to open the app window, single-left click to do nothing, and single-right click to show the tray menu.
+* **macOS Click Handler**: Left or right single-click on the tray menu icon will only display the context menu rather than automatically opening the app.
+
+### 🚀 v2.0.4
 * **Background Executions**: Enabled background persistence in Tauri on Windows and macOS. When the window is closed, it hides to the tray and remains active to deliver real-time notifications.
 * **Tray Context Menu**: Implemented a system tray/menu bar right-click menu with "Open Chuti" (shows and focuses window) and "Exit" (quits application completely) options.
 * **macOS Dynamic Dock Management**: Seamlessly show/hide the macOS Dock icon matching window visibility (hides Dock icon in `Accessory` mode when hidden, shows Dock icon in `Regular` mode when window is opened) to maintain a premium macOS native utility design.

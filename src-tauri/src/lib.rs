@@ -1,6 +1,12 @@
-use tauri::{Manager, WindowEvent};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WindowEvent, State};
+use tauri::tray::TrayIconBuilder;
+#[cfg(target_os = "windows")]
+use tauri::tray::TrayIconEvent;
 use tauri::menu::{Menu, MenuItem};
+
+struct TrayMenuState {
+    open_item: MenuItem<tauri::Wry>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,6 +30,11 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
 
+            // Store the open_item in state so we can dynamically change its text
+            app.manage(TrayMenuState {
+                open_item: open_item.clone(),
+            });
+
             // Set up system tray with default icon if available
             let mut tray_builder = TrayIconBuilder::new();
             if let Some(icon) = app.default_window_icon() {
@@ -34,11 +45,28 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            #[cfg(target_os = "macos")]
-                            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                            
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
+                            let is_visible = window.is_visible().unwrap_or(false);
+                            if is_visible {
+                                // Hide the window
+                                window.hide().unwrap();
+                                #[cfg(target_os = "macos")]
+                                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                                
+                                // Update menu text to "Open Chuti"
+                                let state: State<TrayMenuState> = app.state();
+                                let _ = state.open_item.set_text("Open Chuti");
+                            } else {
+                                // Show the window
+                                #[cfg(target_os = "macos")]
+                                let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                                
+                                window.show().unwrap();
+                                window.set_focus().unwrap();
+                                
+                                // Update menu text to "Close Chuti"
+                                let state: State<TrayMenuState> = app.state();
+                                let _ = state.open_item.set_text("Close Chuti");
+                            }
                         }
                     }
                     "quit" => {
@@ -46,15 +74,19 @@ pub fn run() {
                     }
                     _ => {}
                 })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { .. } = event {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            #[cfg(target_os = "macos")]
-                            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                            
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
+                .on_tray_icon_event(|_tray, _event| {
+                    #[cfg(target_os = "windows")]
+                    if let TrayIconEvent::DoubleClick { button, .. } = _event {
+                        if button == tauri::tray::MouseButton::Left {
+                            let app = _tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                window.show().unwrap();
+                                window.set_focus().unwrap();
+                                
+                                // Update menu text to "Close Chuti"
+                                let state: State<TrayMenuState> = app.state();
+                                let _ = state.open_item.set_text("Close Chuti");
+                            }
                         }
                     }
                 })
@@ -72,6 +104,10 @@ pub fn run() {
                 // Hide dock icon on macOS
                 #[cfg(target_os = "macos")]
                 let _ = window.app_handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+                
+                // Update menu text to "Open Chuti"
+                let state: State<TrayMenuState> = window.state();
+                let _ = state.open_item.set_text("Open Chuti");
             }
             _ => {}
         })
@@ -85,6 +121,10 @@ pub fn run() {
                 let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Regular);
                 window.show().unwrap();
                 let _ = window.set_focus();
+                
+                // Update menu text to "Close Chuti"
+                let state: State<TrayMenuState> = app_handle.state();
+                let _ = state.open_item.set_text("Close Chuti");
             }
         }
         _ => {}

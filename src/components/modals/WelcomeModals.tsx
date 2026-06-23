@@ -11,6 +11,7 @@ interface WelcomeModalsProps {
   // Onboarding welcome popup
   showWelcomePopup: boolean;
   setShowWelcomePopup: (show: boolean) => void;
+  welcomePopupType?: 'onboarding' | 'password_reset';
 
   // Onboarding details modal
   showOnboardingModal: boolean;
@@ -51,6 +52,7 @@ interface WelcomeModalsProps {
 export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
   showWelcomePopup,
   setShowWelcomePopup,
+  welcomePopupType = 'onboarding',
 
   showOnboardingModal,
 
@@ -101,22 +103,37 @@ export const WelcomeModals: React.FC<WelcomeModalsProps> = ({
       <Modal
         isOpen={showWelcomePopup}
         onClose={handleCloseWelcome}
-        title="Welcome to your Profile! 🎉"
-        icon={<CheckCircle className="h-5 w-5 text-emerald-500" />}
+        title={welcomePopupType === 'password_reset' ? 'Password Updated! 🔒' : 'Welcome to your Profile! 🎉'}
+        icon={welcomePopupType === 'password_reset' ? <Lock className="h-5 w-5 text-emerald-500" /> : <CheckCircle className="h-5 w-5 text-emerald-500" />}
         maxWidthClass="max-w-sm"
         glowClass="bg-emerald-900/10"
       >
         <div className="text-center font-sans">
           <div className="inline-flex p-3 bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 rounded-2xl mb-4">
-            <CheckCircle className="h-8 w-8 text-emerald-500" />
+            {welcomePopupType === 'password_reset' ? (
+              <Lock className="h-8 w-8 text-emerald-500" />
+            ) : (
+              <CheckCircle className="h-8 w-8 text-emerald-500" />
+            )}
           </div>
 
           <p className="text-xs text-slate-355 leading-relaxed mb-4">
-            Your password change and profile setup have been successfully completed!
+            {welcomePopupType === 'password_reset'
+              ? 'Your password has been successfully updated and secured!'
+              : 'Your password change and profile setup have been successfully completed!'}
           </p>
           <div className="p-3.5 bg-slate-955/60 rounded-xl border border-slate-800/80 text-left text-xs text-slate-400 leading-relaxed space-y-2">
-            <p className="font-semibold text-orange-400 font-sans">💡 How to update details:</p>
-            <p>If needed in the future, you can update your profile info again by clicking on <span className="font-bold text-white">Profile Settings</span> (user/gear icon) located at the top-left of the dashboard.</p>
+            {welcomePopupType === 'password_reset' ? (
+              <>
+                <p className="font-semibold text-orange-400 font-sans">🔒 Security Confirmation:</p>
+                <p>Your login credentials have been successfully updated. Use your new password to sign in next time.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-orange-400 font-sans">💡 How to update details:</p>
+                <p>If needed in the future, you can update your profile info again by clicking on <span className="font-bold text-white">Profile Settings</span> (user/gear icon) located at the top-left of the dashboard.</p>
+              </>
+            )}
           </div>
 
           <button

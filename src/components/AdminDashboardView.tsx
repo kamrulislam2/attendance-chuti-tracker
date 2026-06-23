@@ -363,128 +363,125 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
       )}
 
-      {/* Conditional Rendering: Individual Staff Profile Detail View OR Staff Master Database Table */}
       {viewingStaffId ? (
         <div className="flex flex-col gap-6">
-          {/* Individual Profile Top Box */}
           {!staffProfile ? (
-            <SkeletonLoader variant="profile-header" />
+            <div className="flex flex-col gap-6 w-full">
+              <SkeletonLoader variant="profile-header" />
+              <SkeletonLoader variant="stats" cards={4} />
+              <SkeletonLoader variant="leaves-table" rows={5} />
+            </div>
           ) : (
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-850 shadow-2xl rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setViewingStaffId(null)}
-                  className="p-2.5 bg-slate-855 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
-                  title="Go Back"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-                <div>
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    {staffProfile?.full_name || 'Staff User'}{staffProfile?.username ? ` (${staffProfile.username.toUpperCase()})` : ''}
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
-                      ? 'bg-orange-955/60 border-orange-800 text-orange-300'
-                      : staffProfile?.role === 'supervisor'
-                        ? 'bg-amber-955/60 border-amber-805 text-amber-300'
-                        : 'bg-orange-955/60 border-orange-805 text-orange-300'
-                      }`}>
-                      {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
-                    </span>
-                  </h2>
-                  <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
-                    <div>Working Hours: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
-                    <div>Break Time: <strong className="text-white">{staffProfile?.break_time || 0} mins</strong></div>
+            <>
+              {/* Individual Profile Top Box */}
+              <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-850 shadow-2xl rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setViewingStaffId(null)}
+                    className="p-2.5 bg-slate-855 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-700 transition-all cursor-pointer"
+                    title="Go Back"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      {staffProfile?.full_name || 'Staff User'}{staffProfile?.username ? ` (${staffProfile.username.toUpperCase()})` : ''}
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${staffProfile?.role === 'admin'
+                        ? 'bg-orange-955/60 border-orange-800 text-orange-300'
+                        : staffProfile?.role === 'supervisor'
+                          ? 'bg-amber-955/60 border-amber-805 text-amber-300'
+                          : 'bg-orange-955/60 border-orange-805 text-orange-300'
+                        }`}>
+                        {staffProfile?.job_role || (staffProfile?.role === 'admin' ? 'Admin' : (staffProfile?.role === 'supervisor' ? 'Supervisor' : 'Staff'))}
+                      </span>
+                    </h2>
+                    <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-400">
+                      <div>Working Hours: <strong className="text-white">{formatWorkingHours(staffProfile?.working_hours || 9.5)}</strong></div>
+                      <div>Break Time: <strong className="text-white">{staffProfile?.break_time || 0} mins</strong></div>
+                    </div>
                   </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onChangePasswordClick(staffProfile?.id || '', staffProfile?.username || '')}
+                    className="px-3.5 py-2 bg-slate-855 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Change Password
+                  </button>
+                  <button
+                    onClick={() => staffProfile && onEditProfileClick(staffProfile)}
+                    className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-orange-950/10 border border-orange-700 flex items-center gap-1.5"
+                  >
+                    <Edit className="h-3.5 w-3.5" /> Edit Profile
+                  </button>
+                  {staffProfile?.role !== 'admin' && (
+                    <button
+                      onClick={() => staffProfile && onDeleteUserClick(staffProfile)}
+                      className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete User
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onChangePasswordClick(staffProfile?.id || '', staffProfile?.username || '')}
-                  className="px-3.5 py-2 bg-slate-855 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Change Password
-                </button>
-                <button
-                  onClick={() => staffProfile && onEditProfileClick(staffProfile)}
-                  className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md shadow-orange-950/10 border border-orange-700 flex items-center gap-1.5"
-                >
-                  <Edit className="h-3.5 w-3.5" /> Edit Profile
-                </button>
-                {staffProfile?.role !== 'admin' && (
-                  <button
-                    onClick={() => staffProfile && onDeleteUserClick(staffProfile)}
-                    className="px-3.5 py-2 bg-red-600/90 hover:bg-red-700 border border-red-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-md flex items-center gap-1.5"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete User
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+              {/* Stats for the viewed staff */}
+              <UserStats
+                stats={{
+                  shortHours: displayShortHours,
+                  fullLeaves: displayFullLeaves,
+                  overtimeHours: staffStats.overtimeHours
+                }}
+                officeLeaveStats={officeLeaveStats}
+                govtHolidayStats={adjustedGovtHolidayStats}
+                allowOvertime={staffProfile?.allow_overtime}
+                respondedHolidays={respondedHolidays}
+                convertedDays={convertedDays}
+                convertedHours={convertedHours}
+                onConvertToFullLeave={handleConvertToFullLeave}
+                hasConvertibleHours={hasConvertibleHours}
+                eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
+                eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
+                halfYearlyStats={halfYearlyStats}
+                isAdmin={true}
+                userId={viewingStaffId || undefined}
+                onUpdateHolidayResponse={onUpdateHolidayResponse}
+                eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
+                eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
+                eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
+                eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
+                initialFetchDone={initialFetchDone}
+              />
 
-          {/* Stats for the viewed staff */}
-          {!staffProfile ? (
-            <SkeletonLoader variant="stats" cards={4} />
-          ) : (
-            <UserStats
-              stats={{
-                shortHours: displayShortHours,
-                fullLeaves: displayFullLeaves,
-                overtimeHours: staffStats.overtimeHours
-              }}
-              officeLeaveStats={officeLeaveStats}
-              govtHolidayStats={adjustedGovtHolidayStats}
-              allowOvertime={staffProfile?.allow_overtime}
-              respondedHolidays={respondedHolidays}
-              convertedDays={convertedDays}
-              convertedHours={convertedHours}
-              onConvertToFullLeave={handleConvertToFullLeave}
-              hasConvertibleHours={hasConvertibleHours}
-              eligibleOfficeLeave={staffProfile?.eligible_office_leave !== false}
-              eligibleGovtHoliday={staffProfile?.eligible_govt_holiday !== false}
-              halfYearlyStats={halfYearlyStats}
-              isAdmin={true}
-              userId={viewingStaffId || undefined}
-              onUpdateHolidayResponse={onUpdateHolidayResponse}
-              eidFitrRemaining={Math.max(0, (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr - (staffStats.eidFitrTaken ?? 0) - activeEidFitrSettled)}
-              eidFitrTotal={(globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr}
-              eidAdhaRemaining={Math.max(0, (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha - (staffStats.eidAdhaTaken ?? 0) - activeEidAdhaSettled)}
-              eidAdhaTotal={(globalSettings.eid_adha_leave ?? 0) + carriedEidAdha}
-              initialFetchDone={initialFetchDone}
-            />
-          )}
-
-          {/* Filtering Panel for viewed staff */}
-          {!staffProfile ? (
-            <SkeletonLoader variant="leaves-table" rows={5} allowOvertime={viewingProfile?.allow_overtime} />
-          ) : (
-            <LeavesRecordsTable
-              records={individualRecords}
-              allowOvertime={staffProfile?.allow_overtime}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              filterStartDate={filterStartDate}
-              setFilterStartDate={setFilterStartDate}
-              filterEndDate={filterEndDate}
-              setFilterEndDate={setFilterEndDate}
-              onResetFilters={onResetFilters}
-              onExportExcel={onExportIndividualExcel}
-              onExportPDF={onExportIndividualPDF}
-              onToggleAdjustment={onToggleAdjustment}
-              onEditClick={onEditClick}
-              onDeleteClick={onDeleteClick}
-              onAddLeaveClick={onAddLeaveClick}
-              formatDate={formatDate}
-              formatTimeToAMPM={formatTimeToAMPM}
-              getCleanComment={getCleanComment}
-              selectedYear={selectedYear}
-              setSelectedYear={setSelectedYear}
-              availableYears={availableYears}
-              title="Leave Records"
-              emptyMessage="No leave records found for this staff member."
-              initialFetchDone={initialFetchDone}
-            />
+              {/* Filtering Panel for viewed staff */}
+              <LeavesRecordsTable
+                records={individualRecords}
+                allowOvertime={staffProfile?.allow_overtime}
+                filterType={filterType}
+                setFilterType={setFilterType}
+                filterStartDate={filterStartDate}
+                setFilterStartDate={setFilterStartDate}
+                filterEndDate={filterEndDate}
+                setFilterEndDate={setFilterEndDate}
+                onResetFilters={onResetFilters}
+                onExportExcel={onExportIndividualExcel}
+                onExportPDF={onExportIndividualPDF}
+                onToggleAdjustment={onToggleAdjustment}
+                onEditClick={onEditClick}
+                onDeleteClick={onDeleteClick}
+                onAddLeaveClick={onAddLeaveClick}
+                formatDate={formatDate}
+                formatTimeToAMPM={formatTimeToAMPM}
+                getCleanComment={getCleanComment}
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
+                availableYears={availableYears}
+                title="Leave Records"
+                emptyMessage="No leave records found for this staff member."
+                initialFetchDone={initialFetchDone}
+              />
+            </>
           )}
         </div>
       ) : (
@@ -500,7 +497,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 }`}
             >
               <User className="h-4 w-4" />
-              <span>Staff Leave Master Database</span>
+              <span>Leave Dashboard</span>
             </button>
             <button
               onClick={() => setActiveTab('govt_responses')}
@@ -510,7 +507,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 }`}
             >
               <Calendar className="h-4 w-4" />
-              <span>Govt Holiday Response Report</span>
+              <span>Govt Holiday Response</span>
             </button>
             <button
               onClick={() => setActiveTab('settlement')}
@@ -520,7 +517,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 }`}
             >
               <RotateCcw className="h-4 w-4" />
-              <span>Staff Leave Settlements</span>
+              <span>Review & Settlements</span>
             </button>
           </div>
 

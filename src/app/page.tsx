@@ -9,6 +9,7 @@ import { AdminDashboardView } from '@/components/AdminDashboardView';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { DashboardModals } from '@/components/DashboardModals';
+import LoginPage from '@/app/login/page';
 
 
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -152,6 +153,7 @@ export default function Dashboard() {
     userStats,
     getUserSummaryStats,
     pendingProfileRequests,
+    pendingPasswordResetRequests,
     pendingReserveRequests,
     groupedSupervisorRequests,
     groupedChutiRequests,
@@ -469,6 +471,10 @@ export default function Dashboard() {
     handleUpdateSettings,
     handleApproveProfileChangeRequest,
     handleConvertShortLeaveToFullLeave,
+    newStaffSupervisorIds,
+    setNewStaffSupervisorIds,
+    editSupervisorIds,
+    setEditSupervisorIds,
   } = adminStaffOps;
 
   // Export operations
@@ -541,6 +547,7 @@ export default function Dashboard() {
     setEditEligibleOfficeLeave,
     setEditEligibleGovtHoliday,
     setEditMaxFullLeaves,
+    setEditSupervisorIds,
     setCredTargetUserId,
     setCredNewUsername,
     setCredNewPassword,
@@ -566,9 +573,140 @@ export default function Dashboard() {
     handleResetFilters,
   } = modalHandlers;
 
+  const contextValue = {
+    dashboardData,
+    derivedState,
+    chutiOps: {
+      ...chutiOps,
+      showAdminAddLeaveModal,
+      setShowAdminAddLeaveModal
+    },
+    adjustmentOps,
+    adminStaffOps,
+    exportOps,
+    modalHandlers
+  };
 
+  if (!sessionUser && !loading) {
+    return <LoginPage />;
+  }
+
+  if (sessionUser && !profile) {
+    return (
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          <p className="text-sm font-medium tracking-wide">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profile && (profile.has_changed_password === false || !profile.is_setup_completed)) {
+    return (
+      <DashboardProvider value={contextValue}>
+        <div className="flex-1 min-h-screen flex flex-col bg-slate-955 relative overflow-hidden justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
+          {/* Background gradients */}
+          <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-amber-600/10 blur-[120px] pointer-events-none" />
+          
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#0f172a',
+                color: '#cbd5e1',
+                border: '1px solid #1e293b',
+                fontSize: '12px',
+                borderRadius: '12px',
+                fontFamily: 'sans-serif',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              },
+            }}
+          />
+
+          <DashboardModals />
+        </div>
+      </DashboardProvider>
+    );
+  }
 
   if (loading && !initialFetchDone) {
+    if (!sessionUser) {
+      return (
+        <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center">
+          <div className="flex flex-col items-center gap-4 text-slate-400">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            <p className="text-sm font-medium tracking-wide">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (profile && profile.role === 'admin') {
+      if (viewingStaffId) {
+        return (
+          <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+            {/* Glow backgrounds */}
+            <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+
+            {/* Placeholder Navbar */}
+            <div className="w-full bg-slate-900/40 backdrop-blur-xl border-b border-slate-850 px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 bg-slate-800 rounded-xl"></div>
+                <div className="h-4 w-32 bg-slate-800 rounded"></div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-8 w-8 bg-slate-800 rounded-full"></div>
+              </div>
+            </div>
+
+            {/* Placeholder Main Content Area for Staff Details */}
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 flex flex-col gap-6">
+              {/* Mock Profile Header */}
+              <SkeletonLoader variant="profile-header" />
+
+              {/* Mock Stats Grid */}
+              <SkeletonLoader variant="stats" cards={4} />
+
+              {/* Mock Records Table */}
+              <SkeletonLoader variant="leaves-table" rows={5} />
+            </main>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+          {/* Glow backgrounds */}
+          <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
+
+          {/* Placeholder Navbar */}
+          <div className="w-full bg-slate-900/40 backdrop-blur-xl border-b border-slate-850 px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-slate-800 rounded-xl"></div>
+              <div className="h-4 w-32 bg-slate-800 rounded"></div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-8 bg-slate-800 rounded-full"></div>
+            </div>
+          </div>
+
+          {/* Placeholder Main Content Area */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 flex flex-col gap-6">
+            {/* Mock Stats Grid */}
+            <SkeletonLoader variant="stats" cards={3} />
+
+            {/* Mock Records Table */}
+            <SkeletonLoader variant="staff-table" rows={6} />
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
         {/* Glow backgrounds */}
@@ -588,28 +726,14 @@ export default function Dashboard() {
 
         {/* Placeholder Main Content Area */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 flex flex-col gap-6">
-          {/* Mock Profile Header */}
           <SkeletonLoader variant="profile-header" />
-
-          {/* Mock Stats Grid */}
           <SkeletonLoader variant="stats" cards={4} />
-
-          {/* Mock Records Table */}
           <SkeletonLoader variant="leaves-table" rows={5} />
         </main>
       </div>
     );
   }
 
-  const contextValue = {
-    dashboardData,
-    derivedState,
-    chutiOps,
-    adjustmentOps,
-    adminStaffOps,
-    exportOps,
-    modalHandlers
-  };
 
   return (
     <DashboardProvider value={contextValue}>
@@ -636,6 +760,7 @@ export default function Dashboard() {
         pendingProfileRequestsCount={pendingProfileRequests.length}
         adminActiveTab={adminActiveTab}
         adminHolidayNotificationsCount={adminHolidayNotifications.length}
+        pendingPasswordResetRequestsCount={pendingPasswordResetRequests.length}
       />
 
       {/* Alert Messages */}

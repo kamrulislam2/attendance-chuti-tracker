@@ -680,14 +680,14 @@ export const useDashboardData = () => {
 
         // Determine action_type
         let computedActionType: 'carry_forward' | 'payment' | 'adjust_leave' | 'split' = 'carry_forward';
-        const activeCount = [cf > 0, pay > 0, adj > 0].filter(Boolean).length;
+        const activeCount = [Math.abs(cf) > 0.01, Math.abs(pay) > 0.01, Math.abs(adj) > 0.01].filter(Boolean).length;
         if (activeCount > 1) {
           computedActionType = 'split';
-        } else if (cf > 0) {
+        } else if (Math.abs(cf) > 0.01) {
           computedActionType = 'carry_forward';
-        } else if (pay > 0) {
+        } else if (Math.abs(pay) > 0.01) {
           computedActionType = 'payment';
-        } else if (adj > 0) {
+        } else if (Math.abs(adj) > 0.01) {
           computedActionType = 'adjust_leave';
         }
 
@@ -717,30 +717,73 @@ export const useDashboardData = () => {
 
       if (error) throw error;
 
-      // Trigger user push notification
+      // Trigger push notifications conditionally based on status
       const uniqueUserIds = Array.from(new Set(formatted.map(s => s.user_id)));
       for (const targetUserId of uniqueUserIds) {
         const userSettlements = formatted.filter(s => s.user_id === targetUserId);
+        const firstSettle = userSettlements[0];
+        if (!firstSettle) continue;
+
+        const staff = profilesList.find(p => p.id === targetUserId);
+        const staffName = staff?.full_name || staff?.username || 'Staff';
+        const periodLabel = firstSettle.period === 'H1' ? 'January-June (H1)' : firstSettle.period === 'H2' ? 'July-December (H2)' : 'Instant';
+
         const details = userSettlements.map(s => {
           let actionText = '';
-          if (s.action_type === 'split') {
-            const parts: string[] = [];
-            if (s.carry_forward_days && s.carry_forward_days > 0) parts.push(`${s.carry_forward_days}d Carry Forward`);
-            if (s.payment_days && s.payment_days > 0) parts.push(`${s.payment_days}d Payout`);
-            if (s.adjust_leave_days && s.adjust_leave_days > 0) parts.push(`${s.adjust_leave_days}d Adjusted`);
-            actionText = `Split (${parts.join(', ')})`;
+          const cf = s.carry_forward_days ?? 0;
+          const pay = s.payment_days ?? 0;
+          const adj = s.adjust_leave_days ?? 0;
+
+          if (s.remaining_days < 0) {
+            if (s.action_type === 'payment') {
+              actionText = 'Salary Deduction';
+            } else if (s.action_type === 'carry_forward') {
+              actionText = s.period === 'H1' ? 'Adjust with H2 Office Leave' : "Adjust with Next Year's H1";
+            } else if (s.action_type === 'adjust_leave') {
+              actionText = 'Adjust with Holiday/Eid Reserve';
+            }
           } else {
-            actionText = s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Payment' : 'Adjust Leaves';
+            if (s.action_type === 'split') {
+              const parts: string[] = [];
+              if (cf > 0) parts.push(`${cf}d Carry Forward`);
+              if (pay > 0) parts.push(`${pay}d Payout`);
+              if (adj > 0) parts.push(`${adj}d Adjusted`);
+              actionText = `Split (${parts.join(', ')})`;
+            } else {
+              actionText = s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Payment' : 'Adjust Leaves';
+            }
           }
           return `${s.leave_category}: ${actionText} (${s.remaining_days} days)`;
         }).join(', ');
 
-        sendPushNotification({
-          userIds: [targetUserId],
-          title: 'Leave Settlements Processed 📅',
-          body: `Your leave settlements have been processed: ${details}.`,
-          url: '/'
-        }).catch(err => console.error('Error sending push notification for settlement:', err));
+        if (firstSettle.status === 'processed') {
+          // Notify the user that their choices are processed
+          sendPushNotification({
+            userIds: [targetUserId],
+            title: 'Leave Settlement Processed ✅',
+            body: `Your leave preference/settlement for ${firstSettle.leave_category} (${periodLabel}) has been processed: ${details}.`,
+            url: '/'
+          }).catch(err => console.error('Error sending push notification to user:', err));
+        } else if (firstSettle.status === 'initiated') {
+          // Notify the user that preference is requested
+          sendPushNotification({
+            userIds: [targetUserId],
+            title: 'Leave Preference Required 📥',
+            body: `Admin requested your choice for ${firstSettle.leave_category} (${periodLabel}) leave settlement.`,
+            url: '/'
+          }).catch(err => console.error('Error sending push notification to user:', err));
+        } else if (firstSettle.status === 'responded') {
+          // Notify the admins/supervisors that user submitted preference
+          const adminIds = profilesList.filter(p => p.role === 'admin').map(p => p.id);
+          if (adminIds.length > 0) {
+            sendPushNotification({
+              userIds: adminIds,
+              title: 'Leave Preference Submitted 📥',
+              body: `${staffName} submitted choice for ${firstSettle.leave_category} (${periodLabel}): ${details}.`,
+              url: '/?tab=admin'
+            }).catch(err => console.error('Error sending push notification to admins:', err));
+          }
+        }
       }
 
       const isInitiated = formatted.every(s => s.status === 'initiated');
@@ -763,7 +806,7 @@ export const useDashboardData = () => {
       setLoading(false);
       return false;
     }
-  }, [fetchRecords, setMessage]);
+  }, [fetchRecords, setMessage, profilesList]);
 
   const handleDeleteLeaveSettlement = useCallback(async (id: string) => {
     try {
@@ -838,13 +881,6 @@ export const useDashboardData = () => {
   const [reviewingIds, setReviewingIds] = useState<Set<string>>(new Set());
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
 
-  // Auto-dismiss messages after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
 
   // Sync Check Loop
   const checkOfflineQueue = useCallback(async () => {
@@ -955,7 +991,8 @@ export const useDashboardData = () => {
               }
               localStorage.removeItem(`session_start_time_${sessionUser.id}`);
               localStorage.removeItem(`last_access_time_${sessionUser.id}`);
-              router.push('/login');
+              setSessionUser(null);
+              setProfile(null);
             };
             handleForceLogout();
             return;
@@ -985,44 +1022,49 @@ export const useDashboardData = () => {
       supabase.removeChannel(profilesChannel);
       supabase.removeChannel(settlementsChannel);
     };
-  }, [sessionUser, fetchRecords, router]);
+  }, [sessionUser, fetchRecords]);
 
-  // Check Authentication and Fetch Profile on Mount
+  // Check Authentication and Fetch Profile on Mount and Auth Changes
   useEffect(() => {
-    const fetchSession = async () => {
+    const fetchSession = async (sessionParam?: any) => {
       try {
-        const getSessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<any>((_, reject) =>
-          setTimeout(() => reject(new Error('Supabase session fetch timed out')), 4000)
-        );
-        const { data, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
+        setLoading(true);
+        let session = sessionParam;
+        if (session === undefined) {
+          const getSessionPromise = supabase.auth.getSession();
+          const timeoutPromise = new Promise<any>((_, reject) =>
+            setTimeout(() => reject(new Error('Supabase session fetch timed out')), 4000)
+          );
+          const { data, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
 
-        if (sessionError) {
-          console.error('Supabase session fetch error:', sessionError);
-          // If offline, try to continue with cached profile instead of redirecting to login
-          if (typeof window !== 'undefined' && !navigator.onLine) {
-            console.log('Session error while offline, attempting cached profile recovery...');
-            try {
-              const cachedProfiles = await getCacheData('profiles_cache');
-              // Find any cached profile to use as the session user
-              if (cachedProfiles.length > 0) {
-                const cachedProfile = cachedProfiles[0];
-                setSessionUser({ id: cachedProfile.id } as any);
-                setProfile(cachedProfile);
-                setLoading(false);
-                return;
+          if (sessionError) {
+            console.error('Supabase session fetch error:', sessionError);
+            // If offline, try to continue with cached profile instead of redirecting to login
+            if (typeof window !== 'undefined' && !navigator.onLine) {
+              console.log('Session error while offline, attempting cached profile recovery...');
+              try {
+                const cachedProfiles = await getCacheData('profiles_cache');
+                // Find any cached profile to use as the session user
+                if (cachedProfiles.length > 0) {
+                  const cachedProfile = cachedProfiles[0];
+                  setSessionUser({ id: cachedProfile.id } as any);
+                  setProfile(cachedProfile);
+                  setLoading(false);
+                  return;
+                }
+              } catch (cacheErr) {
+                console.error('Failed to recover from cache:', cacheErr);
               }
-            } catch (cacheErr) {
-              console.error('Failed to recover from cache:', cacheErr);
             }
+            setInitialFetchDone(false);
+            setSessionUser(null);
+            setProfile(null);
+            setLoading(false);
+            return;
           }
-          setInitialFetchDone(false);
-          setLoading(false);
-          router.push('/login');
-          return;
+          session = data?.session;
         }
 
-        const session = data?.session;
         if (!session) {
           // If offline and no session, try cache recovery
           if (typeof window !== 'undefined' && !navigator.onLine) {
@@ -1040,8 +1082,9 @@ export const useDashboardData = () => {
             }
           }
           setInitialFetchDone(false);
+          setSessionUser(null);
+          setProfile(null);
           setLoading(false);
-          router.push('/login');
           return;
         }
 
@@ -1064,7 +1107,9 @@ export const useDashboardData = () => {
             } catch (signOutError) {
               console.error('Error signing out expired session:', signOutError);
             }
-            router.push('/login');
+            setSessionUser(null);
+            setProfile(null);
+            setLoading(false);
             return;
           }
         }
@@ -1131,7 +1176,9 @@ export const useDashboardData = () => {
           } catch (e) {
             console.error(e);
           }
-          router.push('/login');
+          setSessionUser(null);
+          setProfile(null);
+          setLoading(false);
           return;
         }
 
@@ -1171,13 +1218,30 @@ export const useDashboardData = () => {
           }
         }
         setInitialFetchDone(false);
+        setSessionUser(null);
+        setProfile(null);
         setLoading(false);
-        router.push('/login');
       }
     };
 
     fetchSession();
-  }, [router]);
+
+    // Subscribe to auth state changes to detect login/logout in real-time
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Real-time auth state changed:', event, session?.user?.id);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        setSessionUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Manual Sync Button Handler
   const handleManualSync = async () => {
@@ -1217,9 +1281,16 @@ export const useDashboardData = () => {
       sessionStorage.removeItem('selectedYear');
       sessionStorage.removeItem('viewingStaffId');
     }
-    setInitialFetchDone(false);
     await supabase.auth.signOut();
-    router.push('/login');
+    setSessionUser(null);
+    setProfile(null);
+    setInitialFetchDone(false);
+    setUserRecords([]);
+    setAdminRecords([]);
+    setProfilesList([]);
+    setHolidayResponses([]);
+    setLeaveSettlements([]);
+    setViewingStaffIdState(null);
   };
 
   return {

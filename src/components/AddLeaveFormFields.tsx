@@ -4,7 +4,7 @@ import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { DateInput } from '@/components/DateInput';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { formatDate } from '@/utils/dashboardHelpers';
+import { formatDate, formatTimeToAMPM } from '@/utils/dashboardHelpers';
 import { CustomSelect } from './CustomSelect';
 
 interface AddLeaveFormFieldsProps {
@@ -460,7 +460,14 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-in Time</label>
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-in Time</label>
+                {signInTime && (
+                  <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                    {formatTimeToAMPM(signInTime)}
+                  </span>
+                )}
+              </div>
               <input
                 type="time"
                 required
@@ -470,7 +477,14 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-out Time</label>
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sign-out Time</label>
+                {signOutTime && (
+                  <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                    {formatTimeToAMPM(signOutTime)}
+                  </span>
+                )}
+              </div>
               <input
                 type="time"
                 required
@@ -546,6 +560,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
                   type="number"
                   min={1}
                   max={bulkDates.length + 1}
+                  step={1}
                   placeholder="Enter number of days"
                   value={customDaysInput}
                   onChange={(e) => setCustomDaysInput(e.target.value)}

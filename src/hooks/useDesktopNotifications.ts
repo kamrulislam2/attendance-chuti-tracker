@@ -29,6 +29,10 @@ export function useDesktopNotifications(profileId?: string) {
             'broadcast',
             { event: 'os-push' },
             (payload) => {
+              // Check user preference toggle dynamically
+              const pushPref = localStorage.getItem('push_subscribed_pref_' + profileId);
+              if (pushPref === 'false') return;
+
               const { targetUserIds, title, body } = payload.payload;
               
               // Only trigger if this notification was meant for the current user

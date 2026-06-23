@@ -270,22 +270,28 @@ To develop or build the desktop app locally, you need:
 ### Automated GitHub Releases (CI/CD)
 
 An automated build pipeline is configured in [.github/workflows/tauri-build.yml](file:///.github/workflows/tauri-build.yml).
-Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v1.2.0`), GitHub Actions will:
+Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.0.0`), GitHub Actions will:
 1. Export Next.js static files (`out/` directory).
 2. Set up Rust toolchains.
 3. Compile three native target applications:
    - **Windows (x64)** `.msi` / `.exe` installer.
    - **macOS Intel (x86_64)** `.dmg` installer.
    - **macOS Apple Silicon (aarch64)** `.dmg` installer.
-4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v1.2.0`).
+4. Automatically attach the build installers to the draft release on GitHub under the current version (e.g., `v2.0.0`).
 
 ---
 
 ## 📜 Version History / Changelog
 
-### 🚀 v1.2.0 (Latest)
-* **System Tray & Background Execution**: Added minimize-to-tray capability, keeping the application active in the system tray when closed.
-* **Native OS Desktop Notifications**: Integrated `@tauri-apps/plugin-notification` and Supabase Realtime Broadcasts to deliver native system notifications in real-time.
+### 🚀 v2.0.0 (Latest)
+* **Tauri Native Desktop Notifications**: Enabled native notification capabilities (`"notification:default"`) in Tauri v2 sandbox configuration for full Windows and macOS desktop notification support.
+* **Realtime Broadcast Integration**: Integrated native notifications with Supabase realtime broadcast system.
+
+### 🚀 v1.2.0
+* **Custom Carry Forward Directions**: Added carry-forward directions selection (H1 to H2 vs H2 to Next Year's H1) with target period dynamic saves.
+* **Manual Override Validation**: Enforced validation that manual carry-forward override days must be greater than 0.
+* **Advanced Deficit Resolution Options**: Implemented independent deficit resolution options including Salary Deduction, Adjust with H2 Office Leave (H1 records), Adjust with Next Year's H1 Quota (H2 records), and Adjust with Holiday/Eid Reserves (creating/updating second settlement records dynamically).
+* **Notification Polish**: Improved processed settlement notification descriptions for negative balance resolutions.
 
 ### 🚀 v1.1.1
 * **Unified Database Schema**: Consolidated all database migration SQL scripts into the base `supabase/schema.sql` file and removed redundant migration files.

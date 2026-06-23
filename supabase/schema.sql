@@ -1,4 +1,10 @@
 -- Supabase Database Schema Setup SQL
+--
+-- MIGRATION NOTE FOR EXISTING DATABASE:
+-- Run the following DDL in your Supabase SQL Editor:
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS supervisor_ids UUID[] DEFAULT NULL;
+-- DROP FUNCTION IF EXISTS public.create_new_user(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) CASCADE;
+-- (Then recreate the create_new_user function as defined below)
 
 -- Drop tables first (with CASCADE) to automatically drop dependent policies and avoid dependency conflicts
 DROP TABLE IF EXISTS public.chuti CASCADE;
@@ -17,6 +23,7 @@ DROP FUNCTION IF EXISTS public.is_supervisor() CASCADE;
 DROP FUNCTION IF EXISTS public.is_admin_or_supervisor() CASCADE;
 DROP FUNCTION IF EXISTS public.get_user_email_by_username(TEXT) CASCADE;
 DROP FUNCTION IF EXISTS public.create_new_user(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, BOOLEAN) CASCADE;
+DROP FUNCTION IF EXISTS public.create_new_user(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, BOOLEAN, BOOLEAN, UUID[]) CASCADE;
 DROP FUNCTION IF EXISTS public.delete_user_by_id(UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.admin_update_user_credentials(UUID, TEXT, TEXT) CASCADE;
 DROP FUNCTION IF EXISTS public.admin_insert_chuti_records_bulk(UUID, DATE[], TEXT, BOOLEAN[], BOOLEAN, TIME, TIME, INTERVAL, TEXT, TEXT, UUID) CASCADE;
@@ -62,7 +69,8 @@ CREATE TABLE public.profiles (
   eligible_govt_holiday BOOLEAN DEFAULT TRUE,
   converted_short_leaves_days INTEGER DEFAULT 0,
   converted_short_leaves_hours NUMERIC DEFAULT 0,
-  global_settings JSONB DEFAULT '{"office_leave_default": 14, "eid_fitr_leave": 0, "eid_adha_leave": 0, "govt_holidays": []}'::jsonb
+  global_settings JSONB DEFAULT '{"office_leave_default": 14, "eid_fitr_leave": 0, "eid_adha_leave": 0, "govt_holidays": []}'::jsonb,
+  supervisor_ids UUID[] DEFAULT NULL
 );
 
 COMMENT ON COLUMN public.profiles.global_settings IS 'Global leave quotas and government holidays list stored in JSON format';
@@ -176,7 +184,8 @@ CREATE OR REPLACE FUNCTION public.create_new_user(
   p_full_name TEXT, 
   p_needs_supervisor_approval BOOLEAN DEFAULT FALSE,
   p_allow_reserve BOOLEAN DEFAULT FALSE,
-  p_allow_overtime BOOLEAN DEFAULT FALSE
+  p_allow_overtime BOOLEAN DEFAULT FALSE,
+  p_supervisor_ids UUID[] DEFAULT NULL
 )
 RETURNS UUID AS $$
 DECLARE
@@ -273,12 +282,13 @@ BEGIN
       'allow_overtime', p_allow_overtime
     );
 
-  -- The trigger will create the profile, but we need to update full_name, needs_supervisor_approval, allow_reserve, allow_overtime
+  -- The trigger will create the profile, but we need to update full_name, needs_supervisor_approval, allow_reserve, allow_overtime, and supervisor_ids
   UPDATE public.profiles
   SET full_name = p_full_name,
       needs_supervisor_approval = p_needs_supervisor_approval,
       allow_reserve = p_allow_reserve,
       allow_overtime = p_allow_overtime,
+      supervisor_ids = p_supervisor_ids,
       is_setup_completed = false
   WHERE id = v_user_id;
 

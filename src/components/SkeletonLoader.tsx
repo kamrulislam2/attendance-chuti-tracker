@@ -119,7 +119,7 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
               {Array.from({ length: rows }).map((_, idx) => (
                 <tr key={idx}>
                   <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 w-32 bg-slate-800 rounded"></div></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 w-16 bg-slate-855 rounded font-mono"></div></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 w-16 bg-slate-850 rounded font-mono"></div></td>
                   <td className="px-6 py-4 whitespace-nowrap"><div className="h-5 w-16 bg-slate-800 rounded-md"></div></td>
                   <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 w-12 bg-slate-800 rounded"></div></td>
                   <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 w-12 bg-slate-800 rounded"></div></td>

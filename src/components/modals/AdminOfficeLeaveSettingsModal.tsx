@@ -63,9 +63,10 @@ export function AdminOfficeLeaveSettingsModal({
             <input
               type="number"
               min="0"
+              step="1"
               required
               value={officeLeaveH1}
-              onChange={(e) => setOfficeLeaveH1(Number(e.target.value))}
+              onChange={(e) => setOfficeLeaveH1(Math.round(parseFloat(e.target.value) || 0))}
               className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
             />
             <span className="text-[10px] text-slate-500 mt-1 block">Jan - June (e.g., 7 Days)</span>
@@ -75,9 +76,10 @@ export function AdminOfficeLeaveSettingsModal({
             <input
               type="number"
               min="0"
+              step="1"
               required
               value={officeLeaveH2}
-              onChange={(e) => setOfficeLeaveH2(Number(e.target.value))}
+              onChange={(e) => setOfficeLeaveH2(Math.round(parseFloat(e.target.value) || 0))}
               className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
             />
             <span className="text-[10px] text-slate-500 mt-1 block">July - Dec (e.g., 7 Days)</span>
@@ -89,9 +91,10 @@ export function AdminOfficeLeaveSettingsModal({
           <input
             type="number"
             min="0"
+            step="1"
             required
             value={eidFitrLeave}
-            onChange={(e) => setEidFitrLeave(Number(e.target.value))}
+            onChange={(e) => setEidFitrLeave(Math.round(parseFloat(e.target.value) || 0))}
             className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
           />
         </div>
@@ -101,9 +104,10 @@ export function AdminOfficeLeaveSettingsModal({
           <input
             type="number"
             min="0"
+            step="1"
             required
             value={eidAdhaLeave}
-            onChange={(e) => setEidAdhaLeave(Number(e.target.value))}
+            onChange={(e) => setEidAdhaLeave(Math.round(parseFloat(e.target.value) || 0))}
             className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
           />
         </div>

@@ -364,6 +364,15 @@ export const getSettlementSplits = (s: LeaveSettlement) => {
 
 export const getSettlementLabel = (s: LeaveSettlement): string => {
   if (s.remaining_days < 0) {
+    if (s.action_type === 'payment') {
+      return 'Salary Deduction';
+    }
+    if (s.action_type === 'carry_forward') {
+      return s.period === 'H1' ? 'Adjust with H2 Office Leave' : "Adjust with Next Year's H1";
+    }
+    if (s.action_type === 'adjust_leave') {
+      return 'Adjust with Holiday/Eid Reserve';
+    }
     return 'Salary Deduction';
   }
   if (s.action_type === 'split') {
@@ -399,8 +408,13 @@ export const calculateHalfYearlyOfficeLeave = (
   const h1Quota = officeLeaveH1 + carriedOffice;
   const h2Quota = officeLeaveH2;
 
-  // Filter approved full-day records for the selected year
-  const approvedRecs = records.filter(r => r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
+  // Filter approved full-day records for the selected year and target user
+  const approvedRecs = records.filter(r => 
+    r.status === 'approved' && 
+    r.date && 
+    r.date.substring(0, 4) === selectedYear &&
+    (!userId || r.user_id === userId)
+  );
 
   let h1Taken = 0;
   let h2Taken = 0;

@@ -37,6 +37,7 @@ interface NavbarProps {
   pendingProfileRequestsCount: number;
   adminActiveTab: 'user' | 'admin';
   adminHolidayNotificationsCount?: number;
+  pendingPasswordResetRequestsCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -56,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingProfileRequestsCount,
   adminActiveTab,
   adminHolidayNotificationsCount,
+  pendingPasswordResetRequestsCount = 0,
 }) => {
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -168,9 +170,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {groupedSupervisorRequestsCount + unreadUserNotificationsCount}
                 </span>
               )}
-              {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + (adminHolidayNotificationsCount || 0)) > 0 && (
+              {profile.role === 'admin' && adminActiveTab === 'admin' && (groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + pendingPasswordResetRequestsCount + (adminHolidayNotificationsCount || 0)) > 0 && (
                 <span className="absolute top-[-4px] right-[-4px] flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
-                  {groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + (adminHolidayNotificationsCount || 0)}
+                  {groupedChutiRequestsCount + pendingReserveRequestsCount + pendingProfileRequestsCount + pendingPasswordResetRequestsCount + (adminHolidayNotificationsCount || 0)}
                 </span>
               )}
               {((profile.role === 'user') || (profile.role === 'admin' && adminActiveTab === 'user')) && unreadUserNotificationsCount > 0 && (

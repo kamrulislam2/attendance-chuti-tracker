@@ -32,6 +32,8 @@ export interface Profile {
   converted_short_leaves_days?: number;
   converted_short_leaves_hours?: number;
   global_settings?: any;
+  supervisor_ids?: string[] | null;
+  password_reset_status?: 'none' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface ChutiRecordWithProfile extends ChutiRecord {

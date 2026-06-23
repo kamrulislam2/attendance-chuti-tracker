@@ -71,8 +71,10 @@ jobs:
             ### Chuti v__VERSION__ 🚀
 
             #### 🌟 What's New in v__VERSION__:
-            - **System Tray & Background Execution**: Added minimize-to-tray capability, keeping the application active in the system tray when closed.
-            - **Native OS Desktop Notifications**: Integrated `@tauri-apps/plugin-notification` and Supabase Realtime Broadcasts to deliver native system notifications in real-time.
+            - **Custom Carry Forward Directions**: Added carry-forward directions selection (H1 to H2 vs H2 to Next Year's H1) with target period dynamic saves.
+            - **Manual Override Validation**: Enforced validation that manual carry-forward override days must be greater than 0.
+            - **Advanced Deficit Resolution Options**: Implemented independent deficit resolution options including Salary Deduction, Adjust with H2 Office Leave (H1 records), Adjust with Next Year's H1 Quota (H2 records), and Adjust with Holiday/Eid Reserves.
+            - **Notification Polish**: Improved processed settlement notification descriptions for negative balance resolutions.
 
             #### 📦 Installation:
             - **Windows**: Download the `.exe` installer (x64), run it, and follow the setup wizard.

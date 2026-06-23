@@ -8,6 +8,7 @@ import { supabase } from '@/utils/supabase';
 import { calculateLeaveOrOvertime, formatDate, calculateStats, GlobalSettings, calculateHalfYearlyOfficeLeave, checkIfHolidayOrWeekend } from '@/utils/dashboardHelpers';
 import { ChutiRecord, generateUUID } from '@/utils/offlineSync';
 import { sendPushNotification } from '@/utils/webPushHelper';
+import { toast } from 'react-hot-toast';
 import { LeaveUsageSummary } from '@/components/LeaveUsageSummary';
 
 import { Modal } from '../Modal';
@@ -41,7 +42,6 @@ export function AdminAddLeaveModal({
   const [bulkDates, setBulkDates] = useState<string[]>([]);
   const [bulkAdjustments, setBulkAdjustments] = useState<boolean[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [userResponses, setUserResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(true);
 
@@ -82,7 +82,6 @@ export function AdminAddLeaveModal({
       setComment('');
       setBulkDates([]);
       setBulkAdjustments([]);
-      setError(null);
     }
   }, [showModal, staffProfile]);
 
@@ -171,20 +170,18 @@ export function AdminAddLeaveModal({
 
   const handleAddBulkDate = () => {
     if (bulkDates.length + 1 >= 10) {
-      setError('You can enter up to 10 days of leaves at once!');
+      toast.error('You can enter up to 10 days of leaves at once!');
       return;
     }
-    setError(null);
     setBulkDates(prev => [...prev, '']);
     setBulkAdjustments(prev => [...prev, false]);
   };
 
   const handleUpdateBulkDate = (index: number, val: string) => {
     if (val === date || bulkDates.some((d, idx) => idx !== index && d === val)) {
-      setError('This date has already been selected!');
+      toast.error('This date has already been selected!');
       return;
     }
-    setError(null);
     setBulkDates(prev => {
       const updated = [...prev];
       updated[index] = val;
@@ -205,7 +202,6 @@ export function AdminAddLeaveModal({
     e.preventDefault();
     if (!staffProfile) return;
     setSubmitting(true);
-    setError(null);
 
     const datesWithAdjustment = isFullLeave
       ? [
@@ -217,13 +213,13 @@ export function AdminAddLeaveModal({
     const allDates = datesWithAdjustment.map(item => item.date);
 
     if (allDates.length === 0) {
-      setError('Please select at least one date!');
+      toast.error('Please select at least one date!');
       setSubmitting(false);
       return;
     }
 
     if (!isFullLeave && leaveHour === '00:00') {
-      setError(`${leaveType} requests cannot be submitted with 00:00 hours. Please adjust Sign-in and Sign-out times.`);
+      toast.error(`${leaveType} requests cannot be submitted with 00:00 hours. Please adjust Sign-in and Sign-out times.`);
       setSubmitting(false);
       return;
     }
@@ -259,10 +255,11 @@ export function AdminAddLeaveModal({
         url: '/'
       }).catch(err => console.error('Error sending push notification for admin added leave:', err));
 
+      toast.success('Leave successfully added for the user!');
       onSuccess();
       setShowModal(false);
     } catch (err) {
-      setError((err as Error).message || 'An error occurred while submitting the leave.');
+      toast.error((err as Error).message || 'An error occurred while submitting the leave.');
     } finally {
       setSubmitting(false);
     }
@@ -278,11 +275,6 @@ export function AdminAddLeaveModal({
     >
       {staffProfile && (
         <>
-          {error && (
-            <div className="p-3 bg-red-955/50 border border-red-900/50 text-red-300 text-xs rounded-lg mb-4">
-              {error}
-            </div>
-          )}
 
           {/* Warning Banner */}
           {isFullLeaveQuotaExceeded && (

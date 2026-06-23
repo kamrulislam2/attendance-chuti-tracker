@@ -539,3 +539,52 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   transition: none !important;
 }
 
+/* Force all checkboxes to be circular with custom tick mark */
+input[type="checkbox"] {
+  border-radius: 9999px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 1.125rem !important; /* 18px */
+  height: 1.125rem !important; /* 18px */
+  border: 1.5px solid #475569 !important; /* Default slate-600 */
+  background-color: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+  outline: none !important;
+  position: relative !important;
+}
+
+.dark input[type="checkbox"] {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+input[type="checkbox"]:checked {
+  background-color: #ea580d !important; /* Brand orange */
+  border-color: #ea580d !important;
+}
+
+input[type="checkbox"]::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 5px !important;
+  width: 5px !important;
+  height: 9px !important;
+  border: solid white !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(45deg) scale(0) !important;
+  transition: transform 100ms ease-in-out !important;
+}
+
+input[type="checkbox"]:checked::after {
+  transform: rotate(45deg) scale(1) !important;
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid #c2410c !important;
+  outline-offset: 2px !important;
+}
+

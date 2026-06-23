@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { User, AlertTriangle, RefreshCw, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { User, AlertTriangle, RefreshCw, X, Lock } from 'lucide-react';
 import { Profile } from '@/types';
-import { subscribeUserToPush, unsubscribeUserFromPush } from '@/utils/webPushHelper';
+import { subscribeUserToPush, unsubscribeUserFromPush, sendPushNotification } from '@/utils/webPushHelper';
 import { ProfileFields } from '../ProfileFields';
+import toast from 'react-hot-toast';
 
 interface AdminProfileSettingsModalProps {
   showProfileSettingsModal: boolean;
@@ -49,6 +50,9 @@ interface AdminProfileSettingsModalProps {
   setIsEditRequestMode: (val: boolean) => void;
   setupSubmitting: boolean;
   handleUpdateSettings: (e: React.FormEvent) => void;
+  profilesList: Profile[];
+  editSupervisorIds: string[];
+  setEditSupervisorIds: (ids: string[]) => void;
 }
 
 export function AdminProfileSettingsModal({
@@ -94,7 +98,71 @@ export function AdminProfileSettingsModal({
   setIsEditRequestMode,
   setupSubmitting,
   handleUpdateSettings,
+  profilesList,
+  editSupervisorIds,
+  setEditSupervisorIds,
 }: AdminProfileSettingsModalProps) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
+
+  const handleTestPushNotification = async () => {
+    if (!sessionUser) return;
+    setTestingPush(true);
+    try {
+      const success = await sendPushNotification({
+        userIds: [sessionUser.id],
+        title: 'Notification Test 🧪',
+        body: 'Push notifications are working perfectly on this device!',
+        url: '/'
+      });
+      if (success) {
+        toast.success('Test notification sent successfully!');
+      } else {
+        toast.error('Failed to send test notification. Check if subscription is registered.');
+      }
+    } catch (err) {
+      toast.error('Error sending test notification: ' + (err as Error).message);
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      toast.error('Password cannot be empty');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setPasswordSubmitting(true);
+    try {
+      const { supabase } = await import('@/utils/supabase');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Password updated successfully!');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setShowPasswordFields(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred');
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
 
   // ESC key handler — close drawer
   useEffect(() => {
@@ -144,58 +212,89 @@ export function AdminProfileSettingsModal({
         )}
 
         <form onSubmit={handleUpdateSettings} className="space-y-4 font-sans">
-          {/* Web Push Notification Toggle — hidden in Tauri desktop app (no Service Worker / Push API support in system webview) */}
-          {!editingStaffProfileId && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && !(window as any).__TAURI_INTERNALS__ && (
-            <div className="push-notification-banner flex items-center justify-between p-3 bg-orange-955/45 rounded-lg border border-orange-900/35 mb-4 shadow-inner">
-              <div>
-                <span className="block text-sm font-semibold text-white">Desktop Notifications 🔔</span>
-                <span className="block text-[11px] text-slate-400">Receive instant alerts for leave updates and new requests</span>
-              </div>
-              <button
-                type="button"
-                disabled={isPushLoading}
-                onClick={async () => {
-                  if (!sessionUser || isPushLoading) return;
+          {/* Web/Desktop Push Notification Toggle */}
+          {!editingStaffProfileId && typeof window !== 'undefined' && (
+            (('serviceWorker' in navigator && 'PushManager' in window) && !(window as any).__TAURI_INTERNALS__) || 
+            (window as any).__TAURI_INTERNALS__
+          ) && (
+            <div className="push-notification-banner flex flex-col gap-3 p-3 bg-orange-955/45 rounded-lg border border-orange-900/35 mb-4 shadow-inner">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="block text-sm font-semibold text-white">Desktop Notifications 🔔</span>
+                  <span className="block text-[11px] text-slate-400">Receive instant alerts for leave updates and new requests</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={isPushLoading}
+                  onClick={async () => {
+                    if (!sessionUser || isPushLoading) return;
 
-                  const willSubscribe = !isPushSubscribed;
+                    const willSubscribe = !isPushSubscribed;
 
-                  // Optimistically update the UI toggle state immediately
-                  setIsPushSubscribed(willSubscribe);
-                  localStorage.setItem('push_subscribed_pref_' + sessionUser.id, willSubscribe ? 'true' : 'false');
-                  setIsPushLoading(true);
+                    // Optimistically update the UI toggle state immediately
+                    setIsPushSubscribed(willSubscribe);
+                    localStorage.setItem('push_subscribed_pref_' + sessionUser.id, willSubscribe ? 'true' : 'false');
 
-                  try {
-                    if (!willSubscribe) {
-                      const success = await unsubscribeUserFromPush(sessionUser.id);
-                      if (!success) {
-                        // Revert state if failed
-                        setIsPushSubscribed(true);
-                        localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'true');
-                      }
-                    } else {
-                      const success = await subscribeUserToPush(sessionUser.id);
-                      if (!success) {
-                        // Revert state if failed
-                        setIsPushSubscribed(false);
-                        localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'false');
-                      }
+                    const isTauri = (window as any).__TAURI_INTERNALS__;
+                    if (isTauri) {
+                      return; // Done for Tauri (it reads from localStorage directly)
                     }
-                  } catch {
-                    // Revert on error
-                    setIsPushSubscribed(!willSubscribe);
-                    localStorage.setItem('push_subscribed_pref_' + sessionUser.id, (!willSubscribe) ? 'true' : 'false');
-                  } finally {
-                    setIsPushLoading(false);
-                  }
-                }}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isPushSubscribed ? 'bg-orange-600' : 'bg-slate-800'
-                  } ${isPushLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isPushSubscribed ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                />
-              </button>
+
+                    setIsPushLoading(true);
+
+                    try {
+                      if (!willSubscribe) {
+                        const success = await unsubscribeUserFromPush(sessionUser.id);
+                        if (!success) {
+                          // Revert state if failed
+                          setIsPushSubscribed(true);
+                          localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'true');
+                        }
+                      } else {
+                        const success = await subscribeUserToPush(sessionUser.id);
+                        if (!success) {
+                          // Revert state if failed
+                          setIsPushSubscribed(false);
+                          localStorage.setItem('push_subscribed_pref_' + sessionUser.id, 'false');
+                        }
+                      }
+                    } catch {
+                      // Revert on error
+                      setIsPushSubscribed(!willSubscribe);
+                      localStorage.setItem('push_subscribed_pref_' + sessionUser.id, (!willSubscribe) ? 'true' : 'false');
+                    } finally {
+                      setIsPushLoading(false);
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isPushSubscribed ? 'bg-orange-600' : 'bg-slate-800'
+                    } ${isPushLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isPushSubscribed ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                  />
+                </button>
+              </div>
+
+              {isPushSubscribed && (
+                <div className="flex justify-start border-t border-orange-900/20 pt-2">
+                  <button
+                    type="button"
+                    disabled={testingPush}
+                    onClick={handleTestPushNotification}
+                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5 font-sans"
+                  >
+                    {testingPush ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        Sending Test...
+                      </>
+                    ) : (
+                      'Test Notification 🧪'
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -280,7 +379,7 @@ export function AdminProfileSettingsModal({
                   type="checkbox"
                   checked={editNeedsApproval}
                   onChange={(e) => setEditNeedsApproval(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
                 <div>
                   <span className="block text-xs font-semibold text-white">Supervisor Approval?</span>
@@ -288,12 +387,70 @@ export function AdminProfileSettingsModal({
                 </div>
               </label>
 
+              {editNeedsApproval && (
+                <div className="space-y-2 bg-slate-955/40 p-3 rounded-lg border border-slate-800/80 -mt-1 ml-2">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Select Supervisors
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {(editSupervisorIds || []).length > 0 ? `${editSupervisorIds.length} Selected` : 'All Selected'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <label className={`flex items-center gap-2 px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none text-[11px] ${
+                      (editSupervisorIds || []).length === 0 
+                        ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                        : 'border-slate-850 bg-slate-900/60 text-slate-300'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={(editSupervisorIds || []).length === 0}
+                        onChange={() => setEditSupervisorIds([])}
+                        className="rounded-full border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                      />
+                      <span className="font-semibold">All</span>
+                    </label>
+                    
+                    {((profilesList || []).filter(p => p.role === 'supervisor')).map(sup => {
+                      const isChecked = (editSupervisorIds || []).includes(sup.id);
+                      return (
+                        <label 
+                          key={sup.id} 
+                          className={`flex items-center gap-2 px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none text-[11px] ${
+                            isChecked 
+                              ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                              : 'border-slate-850 bg-slate-900/60 text-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setEditSupervisorIds((editSupervisorIds || []).filter(id => id !== sup.id));
+                              } else {
+                                setEditSupervisorIds([...(editSupervisorIds || []), sup.id]);
+                              }
+                            }}
+                            className="rounded-full border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                          />
+                          <span className="font-semibold">
+                            {sup.username} {sup.full_name ? `(${sup.full_name})` : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
                 <input
                   type="checkbox"
                   checked={editEligibleOfficeLeave}
                   onChange={(e) => setEditEligibleOfficeLeave(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
                 <div>
                   <span className="block text-xs font-semibold text-white">Office Leave Eligible?</span>
@@ -306,7 +463,7 @@ export function AdminProfileSettingsModal({
                   type="checkbox"
                   checked={editEligibleGovtHoliday}
                   onChange={(e) => setEditEligibleGovtHoliday(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
                 <div>
                   <span className="block text-xs font-semibold text-white">Govt Holiday Eligible?</span>
@@ -319,7 +476,7 @@ export function AdminProfileSettingsModal({
                   type="checkbox"
                   checked={editAllowReserve}
                   onChange={(e) => setEditAllowReserve(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
                 <div>
                   <span className="block text-xs font-semibold text-white">Reserve Govt Holiday?</span>
@@ -332,7 +489,7 @@ export function AdminProfileSettingsModal({
                   type="checkbox"
                   checked={editAllowOvertime}
                   onChange={(e) => setEditAllowOvertime(e.target.checked)}
-                  className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+                  className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
                 />
                 <div>
                   <span className="block text-xs font-semibold text-white">Overtime?</span>
@@ -380,6 +537,56 @@ export function AdminProfileSettingsModal({
             </div>
           )}
         </form>
+
+        {!editingStaffProfileId && (
+          <div className="mt-8 pt-6 border-t border-slate-800/80">
+            <h4 
+              onClick={() => setShowPasswordFields(!showPasswordFields)}
+              className="text-sm font-bold text-white flex items-center gap-2 cursor-pointer hover:text-orange-400 transition-colors select-none w-fit"
+            >
+              <Lock className="h-4 w-4 text-orange-500" />
+              Change Password?
+            </h4>
+            <div 
+              className={`transition-all duration-300 ease-in-out ${
+                showPasswordFields 
+                  ? 'max-h-[300px] opacity-100 mt-4 overflow-visible' 
+                  : 'max-h-0 opacity-0 mt-0 overflow-hidden pointer-events-none'
+              }`}
+            >
+              <form onSubmit={handleUpdatePassword} className="space-y-3 pt-1">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">New Password</label>
+                  <input
+                    type="password"
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-850 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Confirm New Password</label>
+                  <input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-850 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={passwordSubmitting}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 cursor-pointer disabled:opacity-50 transition-all items-center gap-1.5"
+                >
+                  {passwordSubmitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {passwordSubmitting ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

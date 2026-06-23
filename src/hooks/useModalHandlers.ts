@@ -54,6 +54,7 @@ interface UseModalHandlersParams {
   setEditMaxFullLeaves: (v: string) => void;
   setEditEligibleOfficeLeave: (v: boolean) => void;
   setEditEligibleGovtHoliday: (v: boolean) => void;
+  setEditSupervisorIds: (ids: string[]) => void;
 
   // Credentials modal setters
   setCredTargetUserId: (id: string) => void;
@@ -119,6 +120,7 @@ export function useModalHandlers({
   setEditMaxFullLeaves,
   setEditEligibleOfficeLeave,
   setEditEligibleGovtHoliday,
+  setEditSupervisorIds,
   setCredTargetUserId,
   setCredNewUsername,
   setCredNewPassword,
@@ -190,6 +192,7 @@ export function useModalHandlers({
       setEditNeedsApproval(profile.needs_supervisor_approval !== false);
       setEditAllowReserve(profile.allow_reserve === true);
       setEditAllowOvertime(profile.allow_overtime === true);
+      setEditSupervisorIds(profile.supervisor_ids || []);
       setIsEditRequestMode(false);
     }
     setEditingStaffProfileId(null);
@@ -212,6 +215,7 @@ export function useModalHandlers({
     setEditMaxFullLeaves,
     setEditEligibleOfficeLeave,
     setEditEligibleGovtHoliday,
+    setEditSupervisorIds,
     setIsEditRequestMode,
     setShowProfileSettingsModal
   ]);
@@ -233,8 +237,9 @@ export function useModalHandlers({
     setEditMaxFullLeaves(String(staff.max_full_leaves ?? 15));
     setEditEligibleOfficeLeave(staff.eligible_office_leave !== false);
     setEditEligibleGovtHoliday(staff.eligible_govt_holiday !== false);
+    setEditSupervisorIds(staff.supervisor_ids || []);
     setShowProfileSettingsModal(true);
-  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditEligibleOfficeLeave, setEditEligibleGovtHoliday, setShowProfileSettingsModal]);
+  }, [setEditingStaffProfileId, setEditUsername, setIsCodenameEditable, setEditFullName, setEditWorkingHours, setProfileSignInTime, setProfileSignOutTime, setEditBreakTime, setEditJobRole, setEditNeedsApproval, setEditAllowReserve, setEditAllowOvertime, setEditMaxFullLeaves, setEditEligibleOfficeLeave, setEditEligibleGovtHoliday, setEditSupervisorIds, setShowProfileSettingsModal]);
 
   // Open Credentials modal
   const handleOpenCredentialsModal = useCallback((userId: string, username: string) => {

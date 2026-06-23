@@ -1,5 +1,6 @@
 import React from 'react';
 import { CustomSelect } from './CustomSelect';
+import { formatTimeToAMPM } from '@/utils/dashboardHelpers';
 
 interface ProfileFieldsProps {
   fullName: string;
@@ -77,7 +78,7 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            Daily Working Hours
+            Working Hours
           </label>
           <CustomSelect
             value={workingHours}
@@ -106,9 +107,16 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            Default Sign-In Time
-          </label>
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+              Sign-In
+            </label>
+            {signInTime && (
+              <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                {formatTimeToAMPM(signInTime)}
+              </span>
+            )}
+          </div>
           <input
             type="time"
             required
@@ -119,9 +127,16 @@ export const ProfileFields: React.FC<ProfileFieldsProps> = ({
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-            Default Sign-Out Time
-          </label>
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+              Sign-Out
+            </label>
+            {signOutTime && (
+              <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                {formatTimeToAMPM(signOutTime)}
+              </span>
+            )}
+          </div>
           <input
             type="time"
             required

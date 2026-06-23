@@ -34,6 +34,7 @@ export const useAdminStaffOperations = ({
 }: useAdminStaffOperationsParams) => {
   // --- Welcome Onboarding Popup ---
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [welcomePopupType, setWelcomePopupType] = useState<'onboarding' | 'password_reset'>('onboarding');
 
   // --- First-time password setup states ---
   const [showFirstTimePasswordModal, setShowFirstTimePasswordModal] = useState(false);
@@ -66,6 +67,9 @@ export const useAdminStaffOperations = ({
   const [newStaffAllowReserve, setNewStaffAllowReserve] = useState(false);
   const [newStaffAllowOvertime, setNewStaffAllowOvertime] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
+
+  const [newStaffSupervisorIds, setNewStaffSupervisorIds] = useState<string[]>([]);
+  const [editSupervisorIds, setEditSupervisorIds] = useState<string[]>([]);
 
   // New staff details and eligibility states
   const [newStaffEligibleOfficeLeave, setNewStaffEligibleOfficeLeave] = useState(true);
@@ -104,6 +108,25 @@ export const useAdminStaffOperations = ({
   const [editEligibleOfficeLeave, setEditEligibleOfficeLeave] = useState(true);
   const [editEligibleGovtHoliday, setEditEligibleGovtHoliday] = useState(true);
 
+  // Synchronize first-time setup modal states during render to prevent 1-frame flashes
+  const [prevProfileState, setPrevProfileState] = useState<Profile | null>(null);
+
+  if (profile !== prevProfileState) {
+    setPrevProfileState(profile);
+    if (profile) {
+      if (profile.has_changed_password === false) {
+        setShowFirstTimePasswordModal(true);
+        setShowOnboardingModal(false);
+      } else if (!profile.is_setup_completed) {
+        setShowFirstTimePasswordModal(false);
+        setShowOnboardingModal(true);
+      } else {
+        setShowFirstTimePasswordModal(false);
+        setShowOnboardingModal(false);
+      }
+    }
+  }
+
   // Sync state values on profile change
   useEffect(() => {
     if (profile) {
@@ -114,7 +137,7 @@ export const useAdminStaffOperations = ({
       setSetupJobRole(profile.job_role || '');
       setSetupSignInTime(profile.default_sign_in || '13:00');
       setSetupSignOutTime(profile.default_sign_out || '22:30');
-      
+
       setEditFullName(profile.requested_full_name || profile.full_name || '');
       setEditWorkingHours(Number(profile.requested_working_hours || profile.working_hours || 9.5).toFixed(1));
       setEditBreakTime(String(profile.requested_break_time || profile.break_time || 0));
@@ -128,17 +151,6 @@ export const useAdminStaffOperations = ({
       setEditNeedsApproval(profile.needs_supervisor_approval !== false);
       setEditAllowReserve(profile.allow_reserve === true);
       setEditAllowOvertime(profile.allow_overtime === true);
-      
-      if (profile.has_changed_password === false) {
-        setShowFirstTimePasswordModal(true);
-        setShowOnboardingModal(false);
-      } else if (!profile.is_setup_completed) {
-        setShowFirstTimePasswordModal(false);
-        setShowOnboardingModal(true);
-      } else {
-        setShowFirstTimePasswordModal(false);
-        setShowOnboardingModal(false);
-      }
     }
   }, [profile]);
 
@@ -219,6 +231,7 @@ export const useAdminStaffOperations = ({
           max_short_leaves: 0,
           eligible_office_leave: editEligibleOfficeLeave,
           eligible_govt_holiday: editEligibleGovtHoliday,
+          supervisor_ids: editNeedsApproval ? editSupervisorIds : null,
         };
 
         const { error } = await supabase
@@ -366,6 +379,7 @@ export const useAdminStaffOperations = ({
       setEditJobRole(updatedProfile.job_role || '');
 
       setShowOnboardingModal(false);
+      setWelcomePopupType('onboarding');
       setShowWelcomePopup(true);
       setTimeout(() => {
         setShowWelcomePopup(false);
@@ -401,9 +415,10 @@ export const useAdminStaffOperations = ({
       });
       if (authError) throw authError;
 
+      const isAlreadyCompleted = profile.is_setup_completed || false;
       const updates: Record<string, unknown> = {
         has_changed_password: true,
-        is_setup_completed: false,
+        is_setup_completed: isAlreadyCompleted,
       };
 
       const { data: updatedProfile, error: profileError } = await supabase
@@ -428,9 +443,18 @@ export const useAdminStaffOperations = ({
 
       setShowFirstTimePasswordModal(false);
       localStorage.removeItem(`first_time_modal_start_time_${sessionUser.id}`);
-      
-      setShowOnboardingModal(true);
-      
+
+      if (isAlreadyCompleted) {
+        setShowOnboardingModal(false);
+        setWelcomePopupType('password_reset');
+        setShowWelcomePopup(true);
+        setTimeout(() => {
+          setShowWelcomePopup(false);
+        }, 10000);
+      } else {
+        setShowOnboardingModal(true);
+      }
+
       setMessage({ type: 'success', text: 'Password change successful!' });
     } catch (err) {
       setFirstTimePasswordError((err as Error).message || 'Failed to update password.');
@@ -457,6 +481,7 @@ export const useAdminStaffOperations = ({
         p_needs_supervisor_approval: newStaffNeedsApproval,
         p_allow_reserve: newStaffAllowReserve,
         p_allow_overtime: newStaffAllowOvertime,
+        p_supervisor_ids: newStaffNeedsApproval ? newStaffSupervisorIds : null,
       });
       if (error) throw error;
 
@@ -477,7 +502,7 @@ export const useAdminStaffOperations = ({
           console.error('Error setting profile defaults:', updateError);
         }
       }
-      
+
       setMessage({ type: 'success', text: `New staff "${newStaffUsername.toUpperCase()}" successfully created! Please set their password via credentials.` });
       setShowCreateUserModal(false);
       setNewStaffPassword('');
@@ -489,7 +514,8 @@ export const useAdminStaffOperations = ({
       setNewStaffAllowOvertime(false);
       setNewStaffEligibleOfficeLeave(true);
       setNewStaffEligibleGovtHoliday(true);
-      
+      setNewStaffSupervisorIds([]);
+
       fetchRecords();
     } catch (err) {
       setMessage({ type: 'error', text: 'Failed to create user: ' + (err as Error).message });
@@ -604,7 +630,7 @@ export const useAdminStaffOperations = ({
         .from('profiles')
         .update(updates)
         .eq('id', profileId);
-      
+
       if (error) throw error;
 
       sendPushNotification({
@@ -613,7 +639,7 @@ export const useAdminStaffOperations = ({
         body: `Your profile change request has been ${approve ? 'approved' : 'rejected'} by the admin.`,
         url: '/'
       }).catch(err => console.error('Error sending profile change push:', err));
-      
+
       const updateLocalState = () => {
         setProfilesList(prev => prev.map(p => {
           if (p.id === profileId) {
@@ -692,23 +718,115 @@ export const useAdminStaffOperations = ({
     }
   };
 
+  // Approve Password Reset Request
+  const handleApprovePasswordResetRequest = async (profileId: string, approve: boolean) => {
+    if (setApprovingIds) {
+      setApprovingIds(prev => new Set(prev).add(profileId));
+    }
+    try {
+      if (approve) {
+        // Reset password to 123456 in auth
+        const { error: rpcError } = await supabase.rpc('admin_update_user_credentials', {
+          p_user_id: profileId,
+          p_new_password: '123456'
+        });
+        if (rpcError) throw rpcError;
+
+        // Reset fields in profiles
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            has_changed_password: false,
+            password_reset_status: 'none'
+          })
+          .eq('id', profileId);
+        if (profileError) throw profileError;
+      } else {
+        // Just reject
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            password_reset_status: 'none'
+          })
+          .eq('id', profileId);
+        if (profileError) throw profileError;
+      }
+
+      sendPushNotification({
+        userIds: [profileId],
+        title: `Password Reset ${approve ? 'Approved ✅' : 'Denied ❌'}`,
+        body: `Your password reset request has been ${approve ? 'approved. Your temporary password is: 123456' : 'denied by the admin.'}`,
+        url: '/'
+      }).catch(err => console.error('Error sending password reset push:', err));
+
+      const updateLocalState = () => {
+        setProfilesList(prev => prev.map(p => {
+          if (p.id === profileId) {
+            return {
+              ...p,
+              has_changed_password: approve ? false : p.has_changed_password,
+              password_reset_status: 'none'
+            };
+          }
+          return p;
+        }));
+
+        if (sessionUser && sessionUser.id === profileId) {
+          setProfile((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              has_changed_password: approve ? false : prev.has_changed_password,
+              password_reset_status: 'none'
+            };
+          });
+        }
+      };
+
+      if (setApprovingIds) {
+        setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
+      }
+
+      if (approve) {
+        if (setApprovedIds) {
+          setApprovedIds(prev => new Set(prev).add(profileId));
+          setTimeout(() => {
+            setApprovedIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
+            updateLocalState();
+          }, 1500);
+        } else {
+          updateLocalState();
+        }
+      } else {
+        updateLocalState();
+      }
+
+      setMessage({ type: 'success', text: approve ? 'Password reset approved. Temporary password set to 123456.' : 'Password reset request denied.' });
+    } catch (err) {
+      if (setApprovingIds) {
+        setApprovingIds(prev => { const s = new Set(prev); s.delete(profileId); return s; });
+      }
+      setMessage({ type: 'error', text: 'Failed to complete action: ' + (err as Error).message });
+    }
+  };
+
   // Convert Short Leave to Full Leave
   const handleConvertShortLeaveToFullLeave = async (targetUserId: string, workingHours: number, shortMins: number) => {
     if (shortMins <= 0 || workingHours <= 0) return;
     const workingMins = workingHours * 60;
     if (shortMins < workingMins) {
-      setMessage({ type: 'error', text: 'Short leave amount is less than daily working hours!' });
+      setMessage({ type: 'error', text: 'Short leave amount is less than Working Hours!' });
       return;
     }
-    
+
     setProfileSubmitting(true);
     try {
       const staff = profilesList.find(p => p.id === targetUserId) || (profile && profile.id === targetUserId ? profile : null);
       if (!staff) throw new Error('Staff not found');
-      
+
       const currentDays = staff.converted_short_leaves_days || 0;
       const currentHours = staff.converted_short_leaves_hours || 0;
-      
+
       const daysToConvert = Math.floor(shortMins / workingMins);
       const hoursToConvert = daysToConvert * workingHours;
 
@@ -720,7 +838,7 @@ export const useAdminStaffOperations = ({
           .select('id')
           .eq('user_id', targetUserId)
           .eq('response', 'reserve');
-          
+
         const reserveCount = userResps ? userResps.length : 0;
         if (reserveCount > 0) {
           const choice = prompt(
@@ -747,7 +865,7 @@ export const useAdminStaffOperations = ({
           .eq('date', dateStr)
           .is('deleted_at', null)
           .maybeSingle();
-          
+
         if (!existingEntry) {
           datesToInsert.push(dateStr);
         }
@@ -769,7 +887,7 @@ export const useAdminStaffOperations = ({
         .insert(recordsToInsert);
 
       if (insertError) throw insertError;
-      
+
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -777,12 +895,12 @@ export const useAdminStaffOperations = ({
           converted_short_leaves_hours: currentHours + hoursToConvert
         })
         .eq('id', targetUserId);
-        
+
       if (profileError) throw profileError;
-      
-      setMessage({ 
-        type: 'success', 
-        text: `Successfully converted ${hoursToConvert} hours of short leave to ${daysToConvert} days of full leave, and adjusted with ${adjustCategory === 'Govt Holiday' ? 'Reserved Govt Holiday' : 'Allocated Office Leave'}!` 
+
+      setMessage({
+        type: 'success',
+        text: `Successfully converted ${hoursToConvert} hours of short leave to ${daysToConvert} days of full leave, and adjusted with ${adjustCategory === 'Govt Holiday' ? 'Reserved Govt Holiday' : 'Allocated Office Leave'}!`
       });
       fetchRecords();
     } catch (err) {
@@ -795,6 +913,7 @@ export const useAdminStaffOperations = ({
   return {
     showWelcomePopup,
     setShowWelcomePopup,
+    welcomePopupType,
 
     showOnboardingModal,
     setShowOnboardingModal,
@@ -849,6 +968,8 @@ export const useAdminStaffOperations = ({
     setNewStaffEligibleOfficeLeave,
     newStaffEligibleGovtHoliday,
     setNewStaffEligibleGovtHoliday,
+    newStaffSupervisorIds,
+    setNewStaffSupervisorIds,
 
     showCredentialsModal,
     setShowCredentialsModal,
@@ -898,6 +1019,8 @@ export const useAdminStaffOperations = ({
     setEditEligibleOfficeLeave,
     editEligibleGovtHoliday,
     setEditEligibleGovtHoliday,
+    editSupervisorIds,
+    setEditSupervisorIds,
     isEditRequestMode,
     setIsEditRequestMode,
     profileSubmitting,
@@ -912,6 +1035,7 @@ export const useAdminStaffOperations = ({
     handleUpdateCredentials,
     handleDeleteUser,
     handleApproveProfileChangeRequest,
+    handleApprovePasswordResetRequest,
     handleConvertShortLeaveToFullLeave,
   };
 };

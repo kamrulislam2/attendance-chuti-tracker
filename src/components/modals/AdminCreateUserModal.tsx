@@ -28,6 +28,9 @@ interface AdminCreateUserModalProps {
   setNewStaffEligibleOfficeLeave: (val: boolean) => void;
   newStaffEligibleGovtHoliday: boolean;
   setNewStaffEligibleGovtHoliday: (val: boolean) => void;
+  profilesList: Profile[];
+  newStaffSupervisorIds: string[];
+  setNewStaffSupervisorIds: (ids: string[]) => void;
 }
 
 export function AdminCreateUserModal({
@@ -52,12 +55,16 @@ export function AdminCreateUserModal({
   setNewStaffEligibleOfficeLeave,
   newStaffEligibleGovtHoliday,
   setNewStaffEligibleGovtHoliday,
+  profilesList,
+  newStaffSupervisorIds,
+  setNewStaffSupervisorIds,
 }: AdminCreateUserModalProps) {
   const roleOptions = [
     { value: 'user', label: 'Staff / User' },
     { value: 'supervisor', label: 'Supervisor' },
     { value: 'admin', label: 'Admin' },
   ];
+  const supervisors = (profilesList || []).filter(p => p.role === 'supervisor');
   const handleClose = () => {
     setShowCreateUserModal(false);
     setNewStaffPassword('123456');
@@ -66,6 +73,7 @@ export function AdminCreateUserModal({
     setNewStaffRole('user');
     setNewStaffNeedsApproval(false);
     setNewStaffAllowReserve(false);
+    setNewStaffSupervisorIds([]);
   };
 
   return (
@@ -107,7 +115,7 @@ export function AdminCreateUserModal({
               type="checkbox"
               checked={newStaffNeedsApproval}
               onChange={(e) => setNewStaffNeedsApproval(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+              className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
             />
             <div>
               <span className="block text-xs font-semibold text-white">Supervisor Approval?</span>
@@ -115,12 +123,70 @@ export function AdminCreateUserModal({
             </div>
           </label>
 
+          {newStaffNeedsApproval && supervisors.length > 0 && (
+            <div className="space-y-2 bg-slate-955/40 p-3 rounded-lg border border-slate-800/80 -mt-1 ml-2">
+              <div className="flex justify-between items-center">
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Select Supervisors
+                </label>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {newStaffSupervisorIds.length > 0 ? `${newStaffSupervisorIds.length} Selected` : 'All Selected'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <label className={`flex items-center gap-2 px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none text-[11px] ${
+                  newStaffSupervisorIds.length === 0 
+                    ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                    : 'border-slate-850 bg-slate-900/60 text-slate-300'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={newStaffSupervisorIds.length === 0}
+                    onChange={() => setNewStaffSupervisorIds([])}
+                    className="rounded-full border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <span className="font-semibold">All</span>
+                </label>
+                
+                {supervisors.map(sup => {
+                  const isChecked = newStaffSupervisorIds.includes(sup.id);
+                  return (
+                    <label 
+                      key={sup.id} 
+                      className={`flex items-center gap-2 px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none text-[11px] ${
+                        isChecked 
+                          ? 'border-orange-600 bg-orange-955/20 text-orange-400' 
+                          : 'border-slate-850 bg-slate-900/60 text-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setNewStaffSupervisorIds(newStaffSupervisorIds.filter(id => id !== sup.id));
+                          } else {
+                            setNewStaffSupervisorIds([...newStaffSupervisorIds, sup.id]);
+                          }
+                        }}
+                        className="rounded-full border-slate-700 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-500 focus:ring-offset-slate-900 h-3.5 w-3.5 cursor-pointer"
+                      />
+                      <span className="font-semibold">
+                        {sup.username} {sup.full_name ? `(${sup.full_name})` : ''}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <label className="flex items-center gap-3 p-3 bg-slate-955/60 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors">
             <input
               type="checkbox"
               checked={newStaffEligibleOfficeLeave}
               onChange={(e) => setNewStaffEligibleOfficeLeave(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-950 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+              className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-950 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
             />
             <div>
               <span className="block text-xs font-semibold text-white">Office Leave Eligible?</span>
@@ -133,7 +199,7 @@ export function AdminCreateUserModal({
               type="checkbox"
               checked={newStaffEligibleGovtHoliday}
               onChange={(e) => setNewStaffEligibleGovtHoliday(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+              className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
             />
             <div>
               <span className="block text-xs font-semibold text-white">Govt Holiday Eligible?</span>
@@ -146,7 +212,7 @@ export function AdminCreateUserModal({
               type="checkbox"
               checked={newStaffAllowReserve}
               onChange={(e) => setNewStaffAllowReserve(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+              className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
             />
             <div>
               <span className="block text-xs font-semibold text-white">Reserve Govt Holiday?</span>
@@ -159,7 +225,7 @@ export function AdminCreateUserModal({
               type="checkbox"
               checked={newStaffAllowOvertime}
               onChange={(e) => setNewStaffAllowOvertime(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
+              className="h-4.5 w-4.5 rounded-full border-slate-800 bg-slate-955 text-orange-600 accent-orange-600 focus:ring-orange-550 focus:ring-offset-slate-900 focus:ring-2 cursor-pointer"
             />
             <div>
               <span className="block text-xs font-semibold text-white">Overtime Category?</span>

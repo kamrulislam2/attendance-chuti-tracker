@@ -210,9 +210,9 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     if (!broadcastPeriod || !broadcastCategory || globalSettings.settlement_active_year !== selectedYear) return 0;
 
     if (broadcastCategory === 'Office Leave') {
-      if (broadcastPeriod === 'H1') return Math.max(0, halfYearlyStats.h1Remaining);
-      if (broadcastPeriod === 'H2') return Math.max(0, halfYearlyStats.h2Remaining);
-      return Math.max(0, officeLeaveStats.remaining);
+      if (broadcastPeriod === 'H1') return halfYearlyStats.h1Remaining;
+      if (broadcastPeriod === 'H2') return halfYearlyStats.h2Remaining;
+      return officeLeaveStats.remaining;
     }
     if (broadcastCategory === 'Govt Holiday') return govtRemaining;
     if (broadcastCategory === 'Eid-ul-Fitr') return eidFitrRemaining;
@@ -223,7 +223,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
   const isGeneralBroadcastActive = !hasAnySettlement &&
     globalSettings.settlement_active_year === selectedYear &&
     !!broadcastPeriod && !!broadcastCategory &&
-    broadcastRemaining > 0;
+    Math.abs(broadcastRemaining) > 0.01;
 
   const showSettlementBanner = initiatedSettlements.length > 0 || isGeneralBroadcastActive;
 
@@ -305,7 +305,16 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
                   </>
                 ) : (
                   <>
-                    Leave settlement review is active for <span className="font-semibold text-slate-200">{broadcastCategory} ({broadcastPeriod === 'H1' ? 'January-June (H1)' : broadcastPeriod === 'H2' ? 'July-December (H2)' : 'Instant'})</span> — {selectedYear}. You have <span className="font-semibold text-orange-400">{broadcastRemaining} days</span> remaining. Please submit your settlement preferences.
+                    Leave settlement review is active for <span className="font-semibold text-slate-200">{broadcastCategory} ({broadcastPeriod === 'H1' ? 'January-June (H1)' : broadcastPeriod === 'H2' ? 'July-December (H2)' : 'Instant'})</span> — {selectedYear}.{' '}
+                    {broadcastRemaining < 0 ? (
+                      <>
+                        You have an outstanding deficit of <span className="font-semibold text-rose-455 font-mono">{Math.abs(broadcastRemaining)} days</span>. Please select how to resolve it.
+                      </>
+                    ) : (
+                      <>
+                        You have <span className="font-semibold text-orange-455 font-mono">{broadcastRemaining} days</span> remaining. Please submit your settlement preferences.
+                      </>
+                    )}
                   </>
                 )}
               </p>

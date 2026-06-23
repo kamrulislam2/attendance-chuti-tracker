@@ -80,7 +80,7 @@ export function UserSettleModal({
       settlements,
       profile.id
     );
-  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, settlements, profile?.id]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, settlements, profile]);
 
   const currentHalfPeriod: 'H1' | 'H2' = halfYearlyStats.currentHalf === 1 ? 'H1' : 'H2';
   const officeRemaining = halfYearlyStats.currentHalf === 1 ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
@@ -131,8 +131,8 @@ export function UserSettleModal({
     if (globalSettings.settlement_active_year === selectedYear && broadcastPeriod && broadcastCategory) {
       let remaining = 0;
       if (broadcastCategory === 'Office Leave') {
-        if (broadcastPeriod === 'H1') remaining = Math.max(0, halfYearlyStats.h1Remaining);
-        else if (broadcastPeriod === 'H2') remaining = Math.max(0, halfYearlyStats.h2Remaining);
+        if (broadcastPeriod === 'H1') remaining = halfYearlyStats.h1Remaining;
+        else if (broadcastPeriod === 'H2') remaining = halfYearlyStats.h2Remaining;
         else remaining = officeRemaining;
       } else if (broadcastCategory === 'Govt Holiday') {
         remaining = govtRemaining;
@@ -142,7 +142,7 @@ export function UserSettleModal({
         remaining = eidAdhaRemaining;
       }
 
-      if (remaining > 0) {
+      if (Math.abs(remaining) > 0.01) {
         return [{
           id: `mock-${broadcastCategory.toLowerCase().replace(/\s+/g, '-')}`,
           leave_category: broadcastCategory,
@@ -165,16 +165,32 @@ export function UserSettleModal({
         if (!item.isCustom) {
           const matched = activeSettlements.find(s => s.id === item.id);
           if (matched) {
-            initialSplits[item.id] = {
-              carryForward: matched.carry_forward_days ?? (matched.action_type === 'carry_forward' ? matched.remaining_days : 0),
-              payment: matched.payment_days ?? (matched.action_type === 'payment' ? matched.remaining_days : 0),
-              adjustLeave: matched.adjust_leave_days ?? (matched.action_type === 'adjust_leave' ? matched.remaining_days : 0),
-            };
+            const hasSetSplits = (matched.carry_forward_days ?? 0) !== 0 || (matched.payment_days ?? 0) !== 0 || (matched.adjust_leave_days ?? 0) !== 0;
+            if (hasSetSplits) {
+              initialSplits[item.id] = {
+                carryForward: matched.carry_forward_days ?? 0,
+                payment: matched.payment_days ?? 0,
+                adjustLeave: matched.adjust_leave_days ?? 0,
+              };
+            } else if (item.remaining_days < 0) {
+              // Default to salary deduction for negative balance
+              initialSplits[item.id] = { carryForward: 0, payment: item.remaining_days, adjustLeave: 0 };
+            } else {
+              initialSplits[item.id] = { carryForward: item.remaining_days, payment: 0, adjustLeave: 0 };
+            }
           } else {
-            initialSplits[item.id] = { carryForward: item.remaining_days, payment: 0, adjustLeave: 0 };
+            initialSplits[item.id] = { 
+              carryForward: item.remaining_days < 0 ? 0 : item.remaining_days, 
+              payment: item.remaining_days < 0 ? item.remaining_days : 0, 
+              adjustLeave: 0 
+            };
           }
         } else {
-          initialSplits[item.id] = { carryForward: item.remaining_days, payment: 0, adjustLeave: 0 };
+          initialSplits[item.id] = { 
+            carryForward: item.remaining_days < 0 ? 0 : item.remaining_days, 
+            payment: item.remaining_days < 0 ? item.remaining_days : 0, 
+            adjustLeave: 0 
+          };
         }
       });
       setSplits((prev) => {
@@ -194,9 +210,9 @@ export function UserSettleModal({
   const handleSplitChange = (itemId: string, field: 'carryForward' | 'payment' | 'adjustLeave', value: number) => {
     setSplits((prev) => {
       const current = prev[itemId] || { carryForward: 0, payment: 0, adjustLeave: 0 };
-      let finalVal = Math.max(0, value);
+      let finalVal = Math.max(0, Math.round(value));
       if (field === 'adjustLeave') {
-        finalVal = Math.min(finalVal, totalOutstandingOffice);
+        finalVal = Math.min(finalVal, Math.round(totalOutstandingOffice));
       }
       return {
         ...prev,
@@ -208,8 +224,21 @@ export function UserSettleModal({
     });
   };
 
+  const handleNegativeSelect = (itemId: string, option: 'payment' | 'carry_forward', totalVal: number) => {
+    const roundedVal = Math.round(totalVal);
+    setSplits((prev) => ({
+      ...prev,
+      [itemId]: {
+        carryForward: option === 'carry_forward' ? roundedVal : 0,
+        payment: option === 'payment' ? roundedVal : 0,
+        adjustLeave: 0,
+      },
+    }));
+  };
+
   const handleQuickAllocate = (itemId: string, action: 'carryForward' | 'payment' | 'adjustLeave', total: number) => {
-    const finalVal = action === 'adjustLeave' ? Math.min(total, totalOutstandingOffice) : total;
+    const roundedTotal = Math.round(total);
+    const finalVal = action === 'adjustLeave' ? Math.min(roundedTotal, Math.round(totalOutstandingOffice)) : roundedTotal;
     setSplits((prev) => ({
       ...prev,
       [itemId]: {
@@ -235,14 +264,19 @@ export function UserSettleModal({
       
       // Determine action type
       let actionType: 'carry_forward' | 'payment' | 'adjust_leave' | 'split' = 'carry_forward';
-      const activeCount = [itemSplits.carryForward > 0, itemSplits.payment > 0, itemSplits.adjustLeave > 0].filter(Boolean).length;
+      const activeCount = [
+        Math.abs(itemSplits.carryForward) > 0.01,
+        Math.abs(itemSplits.payment) > 0.01,
+        Math.abs(itemSplits.adjustLeave) > 0.01
+      ].filter(Boolean).length;
+
       if (activeCount > 1) {
         actionType = 'split';
-      } else if (itemSplits.carryForward > 0) {
+      } else if (Math.abs(itemSplits.carryForward) > 0.01) {
         actionType = 'carry_forward';
-      } else if (itemSplits.payment > 0) {
+      } else if (Math.abs(itemSplits.payment) > 0.01) {
         actionType = 'payment';
-      } else if (itemSplits.adjustLeave > 0) {
+      } else if (Math.abs(itemSplits.adjustLeave) > 0.01) {
         actionType = 'adjust_leave';
       }
 
@@ -266,25 +300,7 @@ export function UserSettleModal({
     setSubmitting(false);
     if (success) {
       setShowModal(false);
-      // Notify admin profiles via Web Push
-      try {
-        const { data: admins } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('role', 'admin');
-        if (admins && admins.length > 0) {
-          const adminIds = admins.map(a => a.id);
-          const firstItem = settlementsList[0];
-          await sendPushNotification({
-            userIds: adminIds,
-            title: 'Leave Preference Submitted 📥',
-            body: `${profile.full_name || profile.username} submitted choice for ${firstItem.leave_category} (${firstItem.period === 'H1' ? 'January-June (H1)' : firstItem.period === 'H2' ? 'July-December (H2)' : firstItem.period}).`,
-            url: '/?tab=admin'
-          });
-        }
-      } catch (err) {
-        console.error('Error sending push notification to admins:', err);
-      }
+
     }
   };
 
@@ -340,135 +356,224 @@ export function UserSettleModal({
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">Unused Balance</span>
-                        <span className="text-lg font-bold font-mono text-orange-400">{item.remaining_days} days</span>
+                        <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">
+                          {item.remaining_days < 0 ? 'Outstanding Deficit' : 'Unused Balance'}
+                        </span>
+                        <span className={`text-lg font-bold font-mono ${item.remaining_days < 0 ? 'text-rose-500' : 'text-orange-400'}`}>
+                          {Math.abs(item.remaining_days)} days
+                        </span>
                       </div>
                     </div>
 
-                    {/* Split Allocation Fields */}
-                    <div className="space-y-2.5">
-                      {/* Carry Forward Option */}
-                      <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-indigo-500/60 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-400/30 text-indigo-400">
-                            <FolderPlus className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-100 block">Reserve / Carry Forward</span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">Carry forward to the next period's active quota.</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <input
-                            type="number"
-                            min={0}
-                            max={item.remaining_days}
-                            step={0.5}
-                            value={itemSplits.carryForward}
-                            onChange={(e) => handleSplitChange(item.id, 'carryForward', parseFloat(e.target.value) || 0)}
-                            className="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
-                          />
+                    {item.remaining_days < 0 ? (
+                      /* Deficit Options for User */
+                      <div className="space-y-3">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Deficit Resolution Options
+                        </span>
+                        <div className="flex flex-col gap-2.5">
+                          {/* Salary Deduction */}
                           <button
                             type="button"
-                            onClick={() => handleQuickAllocate(item.id, 'carryForward', item.remaining_days)}
-                            className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                            onClick={() => handleNegativeSelect(item.id, 'payment', item.remaining_days)}
+                            className={`flex items-center justify-between p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                              Math.abs(itemSplits.payment) > 0.01
+                                ? 'bg-rose-955/20 border-rose-500/80 shadow-[0_0_12px_rgba(239,68,68,0.15)]'
+                                : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                            }`}
                           >
-                            All
+                            <div>
+                              <span className="text-xs font-bold text-white block">Salary Deduction</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                Deduct {Math.abs(item.remaining_days)} day(s) from salary.
+                              </span>
+                            </div>
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                              Math.abs(itemSplits.payment) > 0.01 ? 'border-rose-500' : 'border-slate-600'
+                            }`}>
+                              {Math.abs(itemSplits.payment) > 0.01 && <div className="w-2 h-2 rounded-full bg-rose-500" />}
+                            </div>
                           </button>
+
+                          {/* Adjust H2 Office Leave (H1 only) */}
+                          {item.period === 'H1' && (
+                            <button
+                              type="button"
+                              onClick={() => handleNegativeSelect(item.id, 'carry_forward', item.remaining_days)}
+                              className={`flex items-center justify-between p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                Math.abs(itemSplits.carryForward) > 0.01
+                                  ? 'bg-amber-955/20 border-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                                  : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                              }`}
+                            >
+                              <div>
+                                <span className="text-xs font-bold text-white block">Adjust with H2 Office Leave</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                  Deduct from H2 quota ({globalSettings.office_leave_h2} ➔ {globalSettings.office_leave_h2 - Math.abs(item.remaining_days)} days remaining).
+                                </span>
+                              </div>
+                              <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                Math.abs(itemSplits.carryForward) > 0.01 ? 'border-amber-500' : 'border-slate-600'
+                              }`}>
+                                {Math.abs(itemSplits.carryForward) > 0.01 && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                              </div>
+                            </button>
+                          )}
+
+                          {/* Adjust Next Year's H1 Office Leave (H2 only) */}
+                          {item.period === 'H2' && (
+                            <button
+                              type="button"
+                              onClick={() => handleNegativeSelect(item.id, 'carry_forward', item.remaining_days)}
+                              className={`flex items-center justify-between p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                Math.abs(itemSplits.carryForward) > 0.01
+                                  ? 'bg-amber-955/20 border-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                                  : 'bg-slate-955/20 border-slate-850 hover:bg-slate-850/40 hover:border-slate-800'
+                              }`}
+                            >
+                              <div>
+                                <span className="text-xs font-bold text-white block">Adjust with Next Year's H1</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                  Deduct from next year's H1 Office Leave quota.
+                                </span>
+                              </div>
+                              <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                Math.abs(itemSplits.carryForward) > 0.01 ? 'border-amber-500' : 'border-slate-600'
+                              }`}>
+                                {Math.abs(itemSplits.carryForward) > 0.01 && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* Cash Out Option */}
-                      <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-emerald-500/60 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-400">
-                            <DollarSign className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-100 block">Get Cash Payment (Cash Out)</span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">Receive direct monetary payout.</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <input
-                            type="number"
-                            min={0}
-                            max={item.remaining_days}
-                            step={0.5}
-                            value={itemSplits.payment}
-                            onChange={(e) => handleSplitChange(item.id, 'payment', parseFloat(e.target.value) || 0)}
-                            className="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleQuickAllocate(item.id, 'payment', item.remaining_days)}
-                            className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                          >
-                            All
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Adjust Option */}
-                      {totalOutstandingOffice > 0 && (
-                        <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-amber-500/60 transition-all">
+                    ) : (
+                      /* Split Allocation Fields */
+                      <div className="space-y-2.5">
+                        {/* Carry Forward Option */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-indigo-500/60 transition-all">
                           <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-400">
-                              <ArrowRightLeft className="h-4 w-4" />
+                            <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-400/30 text-indigo-400">
+                              <FolderPlus className="h-4 w-4" />
                             </div>
                             <div>
-                              <span className="text-xs font-bold text-slate-100 block">Adjust with Unpaid or Other Leaves</span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">Adjust against outstanding Office Leave ({totalOutstandingOffice} days).</span>
+                              <span className="text-xs font-bold text-slate-100 block">Reserve / Carry Forward</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Carry forward to the next period's active quota.</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <input
                               type="number"
                               min={0}
-                              max={Math.min(item.remaining_days, totalOutstandingOffice)}
-                              step={0.5}
-                              value={itemSplits.adjustLeave}
-                              onChange={(e) => handleSplitChange(item.id, 'adjustLeave', parseFloat(e.target.value) || 0)}
-                              className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500"
+                              max={Math.round(item.remaining_days)}
+                              step={1}
+                              value={itemSplits.carryForward}
+                              onChange={(e) => handleSplitChange(item.id, 'carryForward', parseFloat(e.target.value) || 0)}
+                              className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
                             />
                             <button
                               type="button"
-                              onClick={() => handleQuickAllocate(item.id, 'adjustLeave', item.remaining_days)}
-                              className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                              onClick={() => handleQuickAllocate(item.id, 'carryForward', item.remaining_days)}
+                              className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                             >
                               All
                             </button>
                           </div>
                         </div>
-                      )}
-                    </div>
+
+                        {/* Cash Out Option */}
+                        <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-emerald-500/60 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-400">
+                              <DollarSign className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-slate-100 block">Get Cash Payment (Cash Out)</span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">Receive direct monetary payout.</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <input
+                              type="number"
+                              min={0}
+                              max={Math.round(item.remaining_days)}
+                              step={1}
+                              value={itemSplits.payment}
+                              onChange={(e) => handleSplitChange(item.id, 'payment', parseFloat(e.target.value) || 0)}
+                              className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleQuickAllocate(item.id, 'payment', item.remaining_days)}
+                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                            >
+                              All
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Adjust Option */}
+                        {totalOutstandingOffice > 0 && (
+                          <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-amber-500/60 transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-400">
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <span className="text-xs font-bold text-slate-100 block">Adjust with Unpaid or Other Leaves</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Adjust against outstanding Office Leave ({totalOutstandingOffice} days).</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <input
+                                type="number"
+                                min={0}
+                                max={Math.min(Math.round(item.remaining_days), Math.round(totalOutstandingOffice))}
+                                step={1}
+                                value={itemSplits.adjustLeave}
+                                onChange={(e) => handleSplitChange(item.id, 'adjustLeave', parseFloat(e.target.value) || 0)}
+                                className="w-16 bg-slate-955 border border-slate-850 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleQuickAllocate(item.id, 'adjustLeave', item.remaining_days)}
+                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-450 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                              >
+                                All
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Progress Bar & Validation Status for item */}
-                    <div className="p-3 bg-slate-950/20 border border-slate-850 rounded-xl space-y-2">
-                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-455 uppercase tracking-wide">
-                        <span>Allocation Progress</span>
-                        <span className={isCorrect ? "text-emerald-400" : "text-rose-400 animate-pulse"}>
-                          {allocated} / {item.remaining_days} days allocated
-                        </span>
-                      </div>
-
-                      <div className="h-1.5 w-full bg-slate-950/80 rounded-full overflow-hidden flex border border-slate-900">
-                        {item.remaining_days > 0 ? (
-                          <>
-                            <div style={{ width: `${(itemSplits.carryForward / item.remaining_days) * 100}%` }} className="bg-indigo-500 h-full transition-all duration-300" />
-                            <div style={{ width: `${(itemSplits.payment / item.remaining_days) * 100}%` }} className="bg-emerald-500 h-full transition-all duration-300" />
-                            <div style={{ width: `${(itemSplits.adjustLeave / item.remaining_days) * 100}%` }} className="bg-amber-500 h-full transition-all duration-300" />
-                          </>
-                        ) : null}
-                      </div>
-
-                      {!isCorrect && (
-                        <div className="text-[10px] text-rose-455 font-semibold flex items-center justify-center gap-1 mt-1 bg-rose-500/5 py-0.5 rounded border border-rose-500/10">
-                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                          Sum of allocations ({allocated}d) must match unused balance ({item.remaining_days}d).
+                    {item.remaining_days > 0 && (
+                      <div className="p-3 bg-slate-950/20 border border-slate-850 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center text-[9px] font-bold text-slate-455 uppercase tracking-wide">
+                          <span>Allocation Progress</span>
+                          <span className={isCorrect ? "text-emerald-400" : "text-rose-400 animate-pulse"}>
+                            {allocated} / {item.remaining_days} days allocated
+                          </span>
                         </div>
-                      )}
-                    </div>
+
+                        <div className="h-1.5 w-full bg-slate-950/80 rounded-full overflow-hidden flex border border-slate-900">
+                          {item.remaining_days > 0 ? (
+                            <>
+                              <div style={{ width: `${(itemSplits.carryForward / item.remaining_days) * 100}%` }} className="bg-indigo-500 h-full transition-all duration-300" />
+                              <div style={{ width: `${(itemSplits.payment / item.remaining_days) * 100}%` }} className="bg-emerald-500 h-full transition-all duration-300" />
+                              <div style={{ width: `${(itemSplits.adjustLeave / item.remaining_days) * 100}%` }} className="bg-amber-500 h-full transition-all duration-300" />
+                            </>
+                          ) : null}
+                        </div>
+
+                        {!isCorrect && (
+                          <div className="text-[10px] text-rose-455 font-semibold flex items-center justify-center gap-1 mt-1 bg-rose-500/5 py-0.5 rounded border border-rose-500/10">
+                            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                            Sum of allocations ({allocated}d) must match unused balance ({item.remaining_days}d).
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

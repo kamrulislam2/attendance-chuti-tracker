@@ -6,6 +6,7 @@ import { GlobalSettings, formatDate } from '@/utils/dashboardHelpers';
 import { DateInput } from '@/components/DateInput';
 import { supabase } from '@/utils/supabase';
 import { Modal } from '../Modal';
+import { toast } from 'react-hot-toast';
 
 interface AdminGovtHolidaysSettingsModalProps {
   showModal: boolean;
@@ -24,7 +25,6 @@ export function AdminGovtHolidaysSettingsModal({
   const [newDate, setNewDate] = useState('');
   const [newName, setNewName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{ date: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -37,7 +37,6 @@ export function AdminGovtHolidaysSettingsModal({
         return { date: String(h), name: 'Govt Public Holiday' };
       });
       setGovtHolidays(parsed);
-      setError(null);
       setDeleteConfirmInfo(null);
       
       const today = new Date();
@@ -66,10 +65,9 @@ export function AdminGovtHolidaysSettingsModal({
     if (!newDate) return;
     const nameVal = newName.trim() || 'Govt Public Holiday';
     if (govtHolidays.some(h => h.date === newDate)) {
-      setError('This date is already added!');
+      toast.error('This date is already added!');
       return;
     }
-    setError(null);
     setGovtHolidays(prev => [...prev, { date: newDate, name: nameVal }].sort((a, b) => a.date.localeCompare(b.date)));
     setNewName('');
   };
@@ -81,7 +79,6 @@ export function AdminGovtHolidaysSettingsModal({
   const executeRemoveDate = () => {
     if (!deleteConfirmInfo) return;
     const { date: dateToRemove } = deleteConfirmInfo;
-    setError(null);
     setGovtHolidays(prev => prev.filter(h => h.date !== dateToRemove));
     setDeleteConfirmInfo(null);
   };
@@ -113,11 +110,12 @@ export function AdminGovtHolidaysSettingsModal({
         govt_holidays: govtHolidays,
       });
       if (success) {
+        toast.success('Govt Holidays updated successfully!');
         setShowModal(false);
       }
     } catch (err) {
       console.error('Error saving settings:', err);
-      setError('Failed to save settings!');
+      toast.error('Failed to save settings!');
     } finally {
       setSubmitting(false);
     }
@@ -135,11 +133,6 @@ export function AdminGovtHolidaysSettingsModal({
         maxWidthClass="max-w-md"
         glowClass="bg-orange-900/10"
       >
-        {error && (
-          <div className="p-3 bg-red-955/50 border border-red-900/50 text-red-300 text-xs rounded-lg mb-4">
-            {error}
-          </div>
-        )}
 
         <div className="space-y-4 text-xs font-sans">
           {/* Add Date Picker & Name Input */}
@@ -151,7 +144,6 @@ export function AdminGovtHolidaysSettingsModal({
                   value={newDate}
                   onChange={(val) => {
                     setNewDate(val);
-                    setError(null);
                   }}
                   className="bg-slate-955"
                 />
@@ -164,7 +156,6 @@ export function AdminGovtHolidaysSettingsModal({
                   value={newName}
                   onChange={(e) => {
                     setNewName(e.target.value);
-                    setError(null);
                   }}
                   className="w-full px-3 py-1.5 bg-slate-955 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 h-9"
                 />

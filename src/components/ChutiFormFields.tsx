@@ -1,6 +1,7 @@
 import React from 'react';
 import { DateInput } from '@/components/DateInput';
 import { CustomSelect } from './CustomSelect';
+import { formatTimeToAMPM } from '@/utils/dashboardHelpers';
 
 interface ChutiFormFieldsProps {
   date: string;
@@ -82,9 +83,16 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Start Time
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Start Time
+                </label>
+                {signInTime && (
+                  <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                    {formatTimeToAMPM(signInTime)}
+                  </span>
+                )}
+              </div>
               <input
                 type="time"
                 required
@@ -94,9 +102,16 @@ export const ChutiFormFields: React.FC<ChutiFormFieldsProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-                End Time
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  End Time
+                </label>
+                {signOutTime && (
+                  <span className="text-[10px] font-bold text-orange-450 tracking-wider">
+                    {formatTimeToAMPM(signOutTime)}
+                  </span>
+                )}
+              </div>
               <input
                 type="time"
                 required

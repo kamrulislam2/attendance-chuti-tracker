@@ -9,6 +9,7 @@ export interface NotificationItem {
   id: string;
   chutiId?: string;
   record?: ChutiRecord;
+  profileRecord?: Profile;
   type: string;
   timestamp: string;
   title: string;
@@ -149,6 +150,11 @@ export function useDerivedState({
     [profilesList]
   );
 
+  const pendingPasswordResetRequests = useMemo(() => 
+    profilesList.filter(p => p.password_reset_status === 'pending'), 
+    [profilesList]
+  );
+
   const pendingReserveRequests = useMemo(() => 
     adminRecords.filter(r => 
       (r.leave_type === 'Overtime' && r.status === 'approved_by_supervisor') ||
@@ -241,31 +247,154 @@ export function useDerivedState({
       });
     }
 
-    // For Admin / Supervisor: inject staff holiday responses as notifications, BUT only if in Admin Mode and only for users with reserve enabled
-    if (initialFetchDone && (profile.role === 'admin' || profile.role === 'supervisor') && adminActiveTab === 'admin') {
-      holidayResponses.forEach((r: any) => {
-        // Find the staff profile to check if they have allow_reserve enabled
-        const staff = profilesList.find(p => p.id === r.user_id);
-        const isReserveEnabled = staff ? staff.allow_reserve !== false : true;
+    // For Admin / Supervisor: inject relevant pending staff requests into notify feed
+    if (initialFetchDone) {
+      const isAdminMode = profile.role === 'admin' && adminActiveTab === 'admin';
+      const isSupervisor = profile.role === 'supervisor';
 
-        // Only notify admin if the staff member has reserve option ON
-        if (isReserveEnabled) {
-          const staffName = r.profiles?.full_name || 'Staff';
-          const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
-          const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
-          const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
-            r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
-          }`;
-          
-          list.push({
-            id: `admin-holiday-resp-${r.id}`,
-            type: 'admin_holiday_response',
-            timestamp: r.created_at || new Date().toISOString(),
-            title,
-            body
+      if (isAdminMode || isSupervisor) {
+        // 1. Pending Supervisor Verification Requests (For Supervisors only)
+        if (isSupervisor) {
+          groupedSupervisorRequests.forEach(r => {
+            const staff = profilesList.find(p => p.id === r.user_id);
+            const staffName = staff?.full_name || 'Staff';
+            const staffCode = staff?.username?.toUpperCase() || 'N/A';
+            const datesLabel = r.is_bulk ? r.formatted_bulk_dates : formatDate(r.date);
+            list.push({
+              id: `sup-req-${r.id}`,
+              type: 'pending_supervisor_request',
+              timestamp: r.created_at || r.date || new Date().toISOString(),
+              title: 'Leave Verification Needed 🔔',
+              body: `${staffName} (${staffCode}) applied for ${r.leave_type} (Date: ${datesLabel}).`,
+              record: r
+            });
           });
         }
-      });
+
+        // 2. Pending Admin Actions (For Admin Mode only)
+        if (isAdminMode) {
+          // Holiday responses
+          holidayResponses.forEach((r: any) => {
+            const staff = profilesList.find(p => p.id === r.user_id);
+            const isReserveEnabled = staff ? staff.allow_reserve !== false : true;
+            if (isReserveEnabled) {
+              const staffName = r.profiles?.full_name || 'Staff';
+              const staffCode = r.profiles?.username?.toUpperCase() || 'N/A';
+              const title = r.response === 'reserve' ? 'Govt Holiday Reserve Request 🔔' : 'Govt Holiday Payment Request 🔔';
+              const body = `${staffName} (${staffCode}) ${r.holiday_name} (${formatDate(r.holiday_date)}) ${
+                r.response === 'reserve' ? 'has requested to reserve the leave.' : 'has requested to get paid for the holiday.'
+              }`;
+              list.push({
+                id: `admin-holiday-resp-${r.id}`,
+                type: 'admin_holiday_response',
+                timestamp: r.created_at || new Date().toISOString(),
+                title,
+                body
+              });
+            }
+          });
+
+          // Settlements responded
+          leaveSettlements.forEach((s) => {
+            if (s.status === 'responded') {
+              const staff = profilesList.find(p => p.id === s.user_id);
+              const staffName = staff?.full_name || staff?.username || 'Staff';
+              const staffCode = staff?.username?.toUpperCase() || 'N/A';
+              const periodLabel = s.period === 'H1' ? 'January-June (H1)' : s.period === 'H2' ? 'July-December (H2)' : 'Instant';
+              
+              let choiceLabel = '';
+              const cf = s.carry_forward_days ?? 0;
+              const pay = s.payment_days ?? 0;
+              const adj = s.adjust_leave_days ?? 0;
+              
+              if (s.remaining_days < 0) {
+                if (s.action_type === 'payment') {
+                  choiceLabel = `Salary Deduction`;
+                } else if (s.action_type === 'carry_forward') {
+                  choiceLabel = s.period === 'H1' ? 'Adjust with H2' : "Adjust with Next Year's H1";
+                } else if (s.action_type === 'adjust_leave') {
+                  choiceLabel = 'Adjust with Holiday/Eid Reserve';
+                }
+              } else {
+                if (s.action_type === 'split') {
+                  const parts = [];
+                  if (cf > 0) parts.push(`${cf}d CF`);
+                  if (pay > 0) parts.push(`${pay}d Cash`);
+                  if (adj > 0) parts.push(`${adj}d Adj`);
+                  choiceLabel = parts.join(', ');
+                } else {
+                  choiceLabel = s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Cash Out' : 'Adjust Leaves';
+                }
+              }
+
+              list.push({
+                id: `admin-settlement-resp-${s.id}`,
+                type: 'admin_settlement_response',
+                timestamp: s.created_at || new Date().toISOString(),
+                title: 'Leave Preference Responded 📥',
+                body: `${staffName} (${staffCode}) responded for ${s.leave_category} (${periodLabel}): ${choiceLabel}.`
+              });
+            }
+          });
+
+          // Pending Leave Requests
+          groupedChutiRequests.forEach(r => {
+            const staff = profilesList.find(p => p.id === r.user_id);
+            const staffName = staff?.full_name || 'Staff';
+            const staffCode = staff?.username?.toUpperCase() || 'N/A';
+            const datesLabel = r.is_bulk ? r.formatted_bulk_dates : formatDate(r.date);
+            list.push({
+              id: `admin-leave-req-${r.id}`,
+              type: 'pending_admin_chuti_request',
+              timestamp: r.created_at || r.date || new Date().toISOString(),
+              title: 'Leave Approval Required 🔔',
+              body: `${staffName} (${staffCode}) leave request for ${r.leave_type} (Date: ${datesLabel}) is pending final approval.`,
+              record: r
+            });
+          });
+
+          // Pending Reserve & Overtime Adjustment Requests
+          pendingReserveRequests.forEach(r => {
+            const staff = profilesList.find(p => p.id === r.user_id);
+            const staffName = staff?.full_name || 'Staff';
+            const staffCode = staff?.username?.toUpperCase() || 'N/A';
+            const isAdjustmentRequest = r.reserve_adjustment_status === 'pending';
+            const label = isAdjustmentRequest ? 'Adjustment Request' : 'Reserve Request';
+            list.push({
+              id: `admin-reserve-req-${r.id}`,
+              type: 'pending_admin_reserve_request',
+              timestamp: r.created_at || r.date || new Date().toISOString(),
+              title: `${label} Pending 🔄`,
+              body: `${staffName} (${staffCode}) requested ${r.leave_type} ${label.toLowerCase()} (Date: ${formatDate(r.date)}).`,
+              record: r
+            });
+          });
+
+          // Pending Profile Edit Requests
+          pendingProfileRequests.forEach(p => {
+            list.push({
+              id: `admin-profile-req-${p.id}`,
+              type: 'pending_admin_profile_request',
+              timestamp: (p as any).created_at || new Date().toISOString(),
+              title: 'Profile Change Request 👤',
+              body: `${p.full_name || p.username} (@${p.username?.toUpperCase()}) requested profile details update.`,
+              profileRecord: p
+            });
+          });
+
+          // Pending Password Reset Requests
+          pendingPasswordResetRequests.forEach(p => {
+            list.push({
+              id: `admin-password-req-${p.id}`,
+              type: 'pending_admin_password_request',
+              timestamp: (p as any).created_at || new Date().toISOString(),
+              title: 'Password Reset Request 🔑',
+              body: `${p.full_name || p.username} (@${p.username?.toUpperCase()}) requested password reset.`,
+              profileRecord: p
+            });
+          });
+        }
+      }
     }
 
     userRecords.forEach(r => {
@@ -304,18 +433,33 @@ export function useDerivedState({
       if (s.status === 'processed' && s.user_id === profile.id) {
         const periodLabel = s.period === 'H1' ? 'January-June (H1)' : s.period === 'H2' ? 'July-December (H2)' : 'Instant';
         let bodyText = '';
-        if (s.action_type === 'split') {
-          const parts: string[] = [];
-          if (s.carry_forward_days && s.carry_forward_days > 0) parts.push(`${s.carry_forward_days} days carried forward`);
-          if (s.payment_days && s.payment_days > 0) parts.push(`${s.payment_days} days paid out`);
-          if (s.adjust_leave_days && s.adjust_leave_days > 0) parts.push(`${s.adjust_leave_days} days adjusted against leaves`);
-          bodyText = `Your unused leave for ${s.leave_category} (${periodLabel}) has been settled: ${parts.join(', ')}.`;
-        } else if (s.action_type === 'carry_forward') {
-          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been carried forward/reserved.`;
-        } else if (s.action_type === 'payment') {
-          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) will be paid out along with your salary.`;
-        } else if (s.action_type === 'adjust_leave') {
-          bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been adjusted against leaves.`;
+        if (s.remaining_days < 0) {
+          const absDays = Math.abs(s.remaining_days);
+          if (s.action_type === 'payment') {
+            bodyText = `Your deficit of ${absDays} day(s) for ${s.leave_category} (${periodLabel}) has been settled via salary deduction.`;
+          } else if (s.action_type === 'carry_forward') {
+            if (s.period === 'H1') {
+              bodyText = `Your deficit of ${absDays} day(s) for ${s.leave_category} (${periodLabel}) has been adjusted with H2 Office Leave quota.`;
+            } else {
+              bodyText = `Your deficit of ${absDays} day(s) for ${s.leave_category} (${periodLabel}) has been adjusted with next year's H1 Office Leave quota.`;
+            }
+          } else if (s.action_type === 'adjust_leave') {
+            bodyText = `Your deficit of ${absDays} day(s) for ${s.leave_category} (${periodLabel}) has been adjusted against holiday/Eid reserves.`;
+          }
+        } else {
+          if (s.action_type === 'split') {
+            const parts: string[] = [];
+            if (s.carry_forward_days && s.carry_forward_days > 0) parts.push(`${s.carry_forward_days} days carried forward`);
+            if (s.payment_days && s.payment_days > 0) parts.push(`${s.payment_days} days paid out`);
+            if (s.adjust_leave_days && s.adjust_leave_days > 0) parts.push(`${s.adjust_leave_days} days adjusted against leaves`);
+            bodyText = `Your unused leave for ${s.leave_category} (${periodLabel}) has been settled: ${parts.join(', ')}.`;
+          } else if (s.action_type === 'carry_forward') {
+            bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been carried forward/reserved.`;
+          } else if (s.action_type === 'payment') {
+            bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) will be paid out along with your salary.`;
+          } else if (s.action_type === 'adjust_leave') {
+            bodyText = `Your ${s.remaining_days} days of unused leave for ${s.leave_category} (${periodLabel}) has been adjusted against leaves.`;
+          }
         }
 
         list.push({
@@ -330,7 +474,23 @@ export function useDerivedState({
 
     const filtered = list.filter(n => !dismissedNotificationIds?.has(n.id));
     return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [sessionUser, profile, userRecords, holidayResponses, globalSettings.govt_holidays, initialFetchDone, adminActiveTab, profilesList, dismissedNotificationIds, leaveSettlements]);
+  }, [
+    sessionUser,
+    profile,
+    userRecords,
+    holidayResponses,
+    globalSettings.govt_holidays,
+    initialFetchDone,
+    adminActiveTab,
+    profilesList,
+    dismissedNotificationIds,
+    leaveSettlements,
+    groupedSupervisorRequests,
+    groupedChutiRequests,
+    pendingReserveRequests,
+    pendingProfileRequests,
+    pendingPasswordResetRequests
+  ]);
 
   // --- Admin/Supervisor Holiday Notifications ---
   const adminHolidayNotifications = useMemo(() => {
@@ -413,6 +573,7 @@ export function useDerivedState({
 
     // Pending Requests
     pendingProfileRequests,
+    pendingPasswordResetRequests,
     pendingReserveRequests,
     pendingChutiRequests,
     pendingSupervisorRequests,

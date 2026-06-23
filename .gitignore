@@ -46,3 +46,7 @@ tauri-private.*
 
 # scratch files
 /scratch
+
+# agent documents
+AGENTS.md
+CLAUDE.md

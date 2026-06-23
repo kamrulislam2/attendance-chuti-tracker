@@ -477,7 +477,7 @@ export const exportHelper = {
           <div class="info-card">
             <strong>Staff Profile:</strong><br>
             Role: ${escapeHtml(activeProfile?.job_role || activeProfile?.role)}<br>
-            Daily Working Hours: ${escapeHtml(activeProfile?.working_hours || 9.5)} hrs (Break: ${escapeHtml(activeProfile?.break_time || 0)}m)
+            Working Hours: ${escapeHtml(activeProfile?.working_hours || 9.5)} hrs (Break: ${escapeHtml(activeProfile?.break_time || 0)}m)
           </div>
           <div class="info-card">
             <strong>Report Filters:</strong><br>

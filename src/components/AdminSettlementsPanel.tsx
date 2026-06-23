@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RotateCcw, CheckCircle2, AlertCircle, Send, BellOff, Edit3, HelpCircle, DollarSign, FolderPlus, ArrowRightLeft, Trash2, Download, X } from 'lucide-react';
+import { RotateCcw, CheckCircle2, AlertCircle, Send, BellOff, Edit3, HelpCircle, DollarSign, FolderPlus, ArrowRightLeft, Trash2, Download, X, RefreshCw } from 'lucide-react';
 import { Profile, LeaveSettlement, GovtHolidayResponse } from '@/types';
+import { sendPushNotification } from '@/utils/webPushHelper';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { GlobalSettings, calculateStats, calculateHalfYearlyOfficeLeave, getSettlementSplits } from '@/utils/dashboardHelpers';
+import { GlobalSettings, calculateStats, calculateHalfYearlyOfficeLeave, getSettlementSplits, getSettlementLabel } from '@/utils/dashboardHelpers';
 import { AdminSettleUserModal } from './modals/AdminSettleUserModal';
 import { toast } from 'react-hot-toast';
 import { Modal } from './Modal';
@@ -25,6 +26,71 @@ interface AdminSettlementsPanelProps {
   currentUserProfile: Profile | null;
   initialFetchDone?: boolean;
 }
+
+export const calculateRemainingDaysForCategoryPeriod = (
+  staff: Profile,
+  period: 'H1' | 'H2' | 'Instant',
+  category: 'Office Leave' | 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha',
+  selectedYear: string,
+  records: ChutiRecord[],
+  globalSettings: GlobalSettings,
+  leaveSettlements: LeaveSettlement[],
+  holidayResponses: GovtHolidayResponse[]
+): number => {
+  const staffRecords = records.filter(
+    (r) => r.user_id === staff.id && r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear
+  );
+  const stats = calculateStats(staffRecords);
+  const prevYear = (Number(selectedYear) - 1).toString();
+
+  if (category === 'Office Leave') {
+    const staffUserRecords = records.filter(r => r.user_id === staff.id);
+    const halfYearlyStats = calculateHalfYearlyOfficeLeave(
+      staffUserRecords,
+      globalSettings.office_leave_h1,
+      globalSettings.office_leave_h2,
+      selectedYear,
+      leaveSettlements,
+      staff.id,
+      period
+    );
+    return period === 'H1' ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
+  }
+
+  if (category === 'Govt Holiday') {
+    const carriedGovt = leaveSettlements
+      .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Govt Holiday')
+      .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
+
+    const userGovtResponses = holidayResponses.filter(
+      (r) => r.user_id === staff.id && r.response === 'reserve' && r.holiday_date.substring(0, 4) === selectedYear
+    );
+    const isGovtHolidayEligible = staff.eligible_govt_holiday !== false;
+    return isGovtHolidayEligible
+      ? Math.max(0, userGovtResponses.length + carriedGovt - (stats.govtHolidaysTaken ?? 0))
+      : 0;
+  }
+
+  if (category === 'Eid-ul-Fitr') {
+    const carriedEidFitr = leaveSettlements
+      .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr')
+      .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
+
+    const eidFitrTotal = (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr;
+    return Math.max(0, eidFitrTotal - (stats.eidFitrTaken ?? 0));
+  }
+
+  if (category === 'Eid-ul-Adha') {
+    const carriedEidAdha = leaveSettlements
+      .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha')
+      .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
+
+    const eidAdhaTotal = (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha;
+    return Math.max(0, eidAdhaTotal - (stats.eidAdhaTaken ?? 0));
+  }
+
+  return 0;
+};
 
 export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
   profilesList,
@@ -86,7 +152,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
 
   const handleToggleBroadcast = async () => {
     if (!isBroadcastActive && !hasEligibleStaffForBroadcast) {
-      toast.error("No staff with unused leaves found for this period and category!");
+      toast.error("No staff with unused leaves or outstanding deficits found for this period and category!");
       return;
     }
 
@@ -102,70 +168,57 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
       toast.success(
         isBroadcastActive
           ? `Settlement broadcast deactivated for ${selectedYear}!`
-          : `Settlement broadcast activated: ${selectedCategory} (${periodLabel}) for ${selectedYear}! All staff will see notification banners.`
+          : `Settlement broadcast activated: ${selectedCategory} (${periodLabel}) for ${selectedYear}! Relevant staff will see notification banners.`
       );
+
+      if (!isBroadcastActive) {
+        // Send Web Push notification to all eligible staff (non-zero balance and not processed yet)
+        const targetStaff = staffProfiles.filter((staff) => {
+          const remaining = getRemainingDaysForCategoryPeriod(staff, selectedPeriod, selectedCategory);
+          const settlement = leaveSettlements.find(
+            (s) =>
+              s.user_id === staff.id &&
+              s.year === selectedYear &&
+              s.period === selectedPeriod &&
+              s.leave_category === selectedCategory
+          );
+          const isProcessed = settlement?.status === 'processed';
+          return Math.abs(remaining) > 0.01 && !isProcessed;
+        });
+
+        if (targetStaff.length > 0) {
+          try {
+            const userIds = targetStaff.map(s => s.id);
+            await sendPushNotification({
+              userIds,
+              title: 'Leave Settlement Preference Required 📣',
+              body: `Admin activated preference review for ${selectedCategory} (${periodLabel}) of ${selectedYear}. Please submit your choices.`,
+              url: '/'
+            });
+          } catch (err) {
+            console.error('Error sending push notification to users:', err);
+          }
+        }
+      }
     }
   };
 
-  const getRemainingDaysForCategoryPeriod = (
+  const getRemainingDaysForCategoryPeriod = React.useCallback((
     staff: Profile,
     period: 'H1' | 'H2' | 'Instant',
     category: 'Office Leave' | 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha'
   ): number => {
-    const staffRecords = records.filter(
-      (r) => r.user_id === staff.id && r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear
+    return calculateRemainingDaysForCategoryPeriod(
+      staff,
+      period,
+      category,
+      selectedYear,
+      records,
+      globalSettings,
+      leaveSettlements,
+      holidayResponses
     );
-    const stats = calculateStats(staffRecords);
-    const prevYear = (Number(selectedYear) - 1).toString();
-
-    if (category === 'Office Leave') {
-      const staffUserRecords = records.filter(r => r.user_id === staff.id);
-      const halfYearlyStats = calculateHalfYearlyOfficeLeave(
-        staffUserRecords,
-        globalSettings.office_leave_h1,
-        globalSettings.office_leave_h2,
-        selectedYear,
-        leaveSettlements,
-        staff.id,
-        period // pass period so it ignores current period settlement when calculating live remaining
-      );
-      return period === 'H1' ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
-    }
-
-    if (category === 'Govt Holiday') {
-      const carriedGovt = leaveSettlements
-        .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Govt Holiday')
-        .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
-
-      const userGovtResponses = holidayResponses.filter(
-        (r) => r.user_id === staff.id && r.response === 'reserve' && r.holiday_date.substring(0, 4) === selectedYear
-      );
-      const isGovtHolidayEligible = staff.eligible_govt_holiday !== false;
-      return isGovtHolidayEligible
-        ? Math.max(0, userGovtResponses.length + carriedGovt - (stats.govtHolidaysTaken ?? 0))
-        : 0;
-    }
-
-    if (category === 'Eid-ul-Fitr') {
-      const carriedEidFitr = leaveSettlements
-        .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Eid-ul-Fitr')
-        .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
-
-      const eidFitrTotal = (globalSettings.eid_fitr_leave ?? 0) + carriedEidFitr;
-      return Math.max(0, eidFitrTotal - (stats.eidFitrTaken ?? 0));
-    }
-
-    if (category === 'Eid-ul-Adha') {
-      const carriedEidAdha = leaveSettlements
-        .filter((s) => s.user_id === staff.id && s.year === prevYear && s.leave_category === 'Eid-ul-Adha')
-        .reduce((acc, s) => acc + getSettlementSplits(s).carry_forward, 0);
-
-      const eidAdhaTotal = (globalSettings.eid_adha_leave ?? 0) + carriedEidAdha;
-      return Math.max(0, eidAdhaTotal - (stats.eidAdhaTaken ?? 0));
-    }
-
-    return 0;
-  };
+  }, [selectedYear, records, globalSettings, leaveSettlements, holidayResponses]);
 
   const hasEligibleStaffForBroadcast = React.useMemo(() => {
     return staffProfiles.some((staff) => {
@@ -178,9 +231,9 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
           s.leave_category === selectedCategory
       );
       const isProcessed = settlement?.status === 'processed';
-      return remaining > 0 && !isProcessed;
+      return Math.abs(remaining) > 0.01 && !isProcessed;
     });
-  }, [staffProfiles, selectedPeriod, selectedCategory, selectedYear, leaveSettlements, getRemainingDaysForCategoryPeriod]);
+  }, [staffProfiles, selectedPeriod, selectedCategory, selectedYear, leaveSettlements, records, globalSettings, holidayResponses]);
 
   const filteredStaff = React.useMemo(() => {
     return staffProfiles.filter((staff) => {
@@ -192,14 +245,15 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
           s.period === selectedPeriod &&
           s.leave_category === selectedCategory
       );
-      
-      const matchesSearch = 
+
+      const matchesSearch =
         staff.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (staff.full_name || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-      return (Math.abs(remaining) > 0 || !!settlement) && matchesSearch;
+      const showEvenIfZero = searchQuery.trim() !== '';
+      return (Math.abs(remaining) > 0 || !!settlement || showEvenIfZero) && matchesSearch;
     });
-  }, [staffProfiles, selectedPeriod, selectedCategory, selectedYear, leaveSettlements, searchQuery, getRemainingDaysForCategoryPeriod]);
+  }, [staffProfiles, selectedPeriod, selectedCategory, selectedYear, leaveSettlements, searchQuery, records, globalSettings, holidayResponses]);
 
   const getSettlementsExportData = () => {
     return filteredStaff.map(staff => {
@@ -214,21 +268,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
 
       let actionLabel = 'Not chosen yet';
       if (settlement && settlement.status !== 'initiated') {
-        if (settlement.action_type === 'split') {
-          const parts: string[] = [];
-          if (settlement.carry_forward_days && settlement.carry_forward_days > 0) {
-            parts.push(`${settlement.carry_forward_days}d Carry Forward`);
-          }
-          if (settlement.payment_days && settlement.payment_days > 0) {
-            parts.push(`${settlement.payment_days}d Cash Out`);
-          }
-          if (settlement.adjust_leave_days && settlement.adjust_leave_days > 0) {
-            parts.push(`${settlement.adjust_leave_days}d Adjust`);
-          }
-          actionLabel = parts.join(', ') || 'Split';
-        } else {
-          actionLabel = settlement.action_type === 'carry_forward' ? 'Carry Forward' : settlement.action_type === 'payment' ? 'Cash Out' : 'Adjust Leaves';
-        }
+        actionLabel = getSettlementLabel(settlement);
       }
 
       return {
@@ -297,19 +337,19 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
   const periodOptions = [
     { value: 'H1', label: 'January-June (H1)' },
     { value: 'H2', label: 'July-December (H2)' },
-    { value: 'Instant', label: 'Instant Review (Instant)' }
+    { value: 'Instant', label: 'Instant Review' }
   ];
 
   const categoryOptions = React.useMemo(() => {
     return selectedPeriod === 'Instant'
       ? [
-          { value: 'Govt Holiday', label: 'Govt Holiday' },
-          { value: 'Eid-ul-Fitr', label: 'Eid-ul-Fitr' },
-          { value: 'Eid-ul-Adha', label: 'Eid-ul-Adha' },
-        ]
+        { value: 'Govt Holiday', label: 'Govt Holiday' },
+        { value: 'Eid-ul-Fitr', label: 'Eid-ul-Fitr' },
+        { value: 'Eid-ul-Adha', label: 'Eid-ul-Adha' },
+      ]
       : [
-          { value: 'Office Leave', label: 'Office Leave' },
-        ];
+        { value: 'Office Leave', label: 'Office Leave' },
+      ];
   }, [selectedPeriod]);
 
   return (
@@ -403,29 +443,30 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
 
         {/* Broadcast Trigger Button + Active Status */}
         <div className="flex flex-col items-end gap-1.5 shrink-0 self-start md:self-end">
-          <button
-            onClick={handleToggleBroadcast}
-            disabled={!isBroadcastActive && !hasEligibleStaffForBroadcast}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0 ${
-              isBroadcastActive
-                ? 'bg-amber-600/10 border border-amber-500/30 text-amber-400 hover:bg-amber-600/20'
-                : !hasEligibleStaffForBroadcast
-                ? 'bg-slate-800/40 border border-slate-700/60 text-slate-500 cursor-not-allowed opacity-50'
-                : 'bg-indigo-600 border border-indigo-500 text-white hover:bg-indigo-500'
-            }`}
-          >
-            {isBroadcastActive ? (
-              <>
-                <BellOff className="h-4 w-4" />
-                <span>Deactivate Broadcast</span>
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 animate-bounce" />
-                <span>Broadcast: {selectedCategory} ({selectedPeriod})</span>
-              </>
-            )}
-          </button>
+          <div className="flex flex-wrap gap-2.5 justify-end">
+            <button
+              onClick={handleToggleBroadcast}
+              disabled={!isBroadcastActive && !hasEligibleStaffForBroadcast}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0 ${isBroadcastActive
+                  ? 'bg-amber-600/10 border border-amber-500/30 text-amber-400 hover:bg-amber-600/20'
+                  : !hasEligibleStaffForBroadcast
+                    ? 'bg-slate-800/40 border border-slate-700/60 text-slate-500 cursor-not-allowed opacity-50'
+                    : 'bg-indigo-600 border border-indigo-500 text-white hover:bg-indigo-500'
+                }`}
+            >
+              {isBroadcastActive ? (
+                <>
+                  <BellOff className="h-4 w-4" />
+                  <span>Deactivate Broadcast</span>
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 animate-bounce" />
+                  <span>Broadcast: {selectedCategory} ({selectedPeriod})</span>
+                </>
+              )}
+            </button>
+          </div>
           {/* Show active broadcast info if different from current dropdown */}
           {isAnyBroadcastActive && !isBroadcastActive && (
             <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-950/20 border border-emerald-900/40 rounded-lg text-[9px] text-emerald-400 font-semibold max-w-[280px]">
@@ -475,7 +516,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
               ) : (
                 filteredStaff.map((staff) => {
                   const remaining = getRemainingDaysForCategoryPeriod(staff, selectedPeriod, selectedCategory);
-                
+
                   // Find matching settlement record
                   const settlement = leaveSettlements.find(
                     (s) =>
@@ -520,20 +561,36 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
                           </div>
                         ) : (
                           <span
-                            className={`px-2 py-1 rounded border text-[10px] font-semibold flex items-center gap-1.5 w-fit ${
-                              settlement.remaining_days < 0
-                                ? 'bg-rose-955/20 border-rose-900/60 text-rose-400'
+                            className={`px-2 py-1 rounded border text-[10px] font-semibold flex items-center gap-1.5 w-fit ${settlement.remaining_days < 0
+                                ? settlement.action_type === 'carry_forward'
+                                  ? 'bg-indigo-955/20 border-indigo-900/60 text-indigo-400'
+                                  : settlement.action_type === 'adjust_leave'
+                                    ? 'bg-teal-955/20 border-teal-900/60 text-teal-400'
+                                    : 'bg-rose-955/20 border-rose-900/60 text-rose-400'
                                 : settlement.action_type === 'carry_forward'
-                                ? 'bg-indigo-955/20 border-indigo-900/60 text-indigo-400'
-                                : settlement.action_type === 'payment'
-                                ? 'bg-teal-955/20 border-teal-900/60 text-teal-400'
-                                : 'bg-amber-955/20 border-amber-900/60 text-amber-400'
-                            }`}
+                                  ? 'bg-indigo-955/20 border-indigo-900/60 text-indigo-400'
+                                  : settlement.action_type === 'payment'
+                                    ? 'bg-teal-955/20 border-teal-900/60 text-teal-400'
+                                    : 'bg-amber-955/20 border-amber-900/60 text-amber-400'
+                              }`}
                           >
                             {settlement.remaining_days < 0 ? (
-                              <>
-                                <DollarSign className="h-3 w-3" /> Salary Deduction
-                              </>
+                              settlement.action_type === 'carry_forward' ? (
+                                <>
+                                  <FolderPlus className="h-3 w-3" />{' '}
+                                  {settlement.period === 'H1'
+                                    ? 'Adjust with H2 Office Leave'
+                                    : "Adjust with Next Year's H1"}
+                                </>
+                              ) : settlement.action_type === 'adjust_leave' ? (
+                                <>
+                                  <ArrowRightLeft className="h-3 w-3" /> Adjust with Holiday/Eid Reserve
+                                </>
+                              ) : (
+                                <>
+                                  <DollarSign className="h-3 w-3" /> Salary Deduction
+                                </>
+                              )
                             ) : settlement.action_type === 'carry_forward' ? (
                               <>
                                 <FolderPlus className="h-3 w-3" /> Carry Forward
@@ -553,20 +610,18 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
 
                       <td className="px-6 py-4 whitespace-nowrap">
                         {!settlement ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] ${
-                            remaining < 0
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] ${remaining < 0
                               ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
                               : 'bg-slate-955 border border-slate-800 text-slate-500'
-                          }`}>
+                            }`}>
                             {remaining < 0 ? 'Outstanding Unpaid' : 'Not Initiated'}
                           </span>
                         ) : settlement.status === 'initiated' ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] animate-pulse ${
-                            remaining < 0
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded font-semibold text-[10px] animate-pulse ${remaining < 0
                               ? 'bg-rose-955/25 border-rose-900/40 text-rose-455'
                               : 'bg-amber-955/25 border-amber-900/40 text-amber-400'
-                          }`}>
-                            <AlertCircle className="h-3 w-3" /> {remaining < 0 ? 'Outstanding Unpaid' : 'Preference Pending'}
+                            }`}>
+                            <AlertCircle className="h-3 w-3" /> Preference Pending
                           </span>
                         ) : settlement.status === 'responded' ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-955/25 border border-indigo-900/40 text-indigo-400 rounded font-semibold text-[10px]">
@@ -582,7 +637,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end items-center gap-2">
                         {!settlement ? (
                           <>
-                            {remaining > 0 && (
+                            {Math.abs(remaining) > 0.01 && (
                               <button
                                 type="button"
                                 disabled={initiatingId === staff.id}
@@ -595,7 +650,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
                             )}
                             <button
                               type="button"
-                              disabled={remaining === 0 || initiatingId === staff.id}
+                              disabled={initiatingId === staff.id}
                               onClick={() => {
                                 const mockSettlement: LeaveSettlement = {
                                   id: undefined as any,
@@ -616,11 +671,10 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
                                 setShowSettleModal(true);
                               }}
                               title={remaining < 0 ? "Settle Unpaid/Deduction" : "Direct Settle"}
-                              className={`p-2 rounded-xl border transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center ${
-                                remaining < 0
+                              className={`p-2 rounded-xl border transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center ${remaining < 0
                                   ? 'bg-rose-655/15 hover:bg-rose-600 text-rose-400 hover:text-white border-rose-500/20'
                                   : 'bg-orange-655/15 hover:bg-orange-655 text-orange-400 hover:text-white border-orange-500/20'
-                              }`}
+                                }`}
                             >
                               <CheckCircle2 className="h-4 w-4" />
                             </button>
@@ -692,6 +746,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
           globalSettings={globalSettings}
           records={records}
           leaveSettlements={leaveSettlements}
+          holidayResponses={holidayResponses}
         />
       )}
 

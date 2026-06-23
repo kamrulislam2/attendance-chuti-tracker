@@ -320,8 +320,8 @@ export const useChutiOperations = ({
         status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
         comment: commentWithCategory || null,
         bulk_id: bulkId,
-        admin_edit_request: (!bypassSupervisor && selectedSupervisors.length > 0)
-          ? { supervisor_ids: selectedSupervisors }
+        admin_edit_request: (!bypassSupervisor && profile?.supervisor_ids && profile.supervisor_ids.length > 0)
+          ? { supervisor_ids: profile.supervisor_ids }
           : null
       };
     };
@@ -394,8 +394,8 @@ export const useChutiOperations = ({
 
       const targetRoles = bypassSupervisor 
         ? ['admins'] 
-        : (selectedSupervisors.length > 0 
-            ? [...selectedSupervisors, 'admins'] 
+        : (profile?.supervisor_ids && profile.supervisor_ids.length > 0
+            ? [...profile.supervisor_ids, 'admins'] 
             : ['supervisors', 'admins']);
       const formattedDates = allDates.map(d => formatDate(d)).join(', ');
 
@@ -509,7 +509,10 @@ export const useChutiOperations = ({
         reserve_holiday: null,
         reserve_adjustment_status: 'none',
         comment: revisionComment || null,
-        status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor'
+        status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
+        admin_edit_request: (!bypassSupervisor && profile?.supervisor_ids && profile.supervisor_ids.length > 0)
+          ? { supervisor_ids: profile.supervisor_ids }
+          : null
       };
 
       const { error } = await supabase
@@ -519,7 +522,11 @@ export const useChutiOperations = ({
 
       if (error) throw error;
 
-      const targetRoles = bypassSupervisor ? ['admins'] : ['supervisors', 'admins'];
+      const targetRoles = bypassSupervisor 
+        ? ['admins'] 
+        : (profile?.supervisor_ids && profile.supervisor_ids.length > 0
+            ? [...profile.supervisor_ids, 'admins'] 
+            : ['supervisors', 'admins']);
       sendPushNotification({
         userIds: targetRoles,
         title: 'Revised Leave Request 🔔',
@@ -784,14 +791,27 @@ export const useChutiOperations = ({
       const leave_type = targets[0].leave_type;
       const formattedDates = targets.map(t => formatDate(t.date)).join(', ');
 
+      const user_id = targets[0].user_id;
+
       await Promise.all(targets.map(async (t) => {
         const updatedCommentPrefix = `${supervisorUsername} Approved`;
         let updatedComment = t.comment || '';
         updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
+        const newNotification = createNotification(
+          'supervisor_approved',
+          'Leave Verified by Supervisor ✅',
+          `Supervisor approved your ${t.leave_type} request for date (${formatDate(t.date)}) and forwarded it to Admin.`
+        );
+        const existingNotifications = getExistingNotifications(t);
+
         const updates = { 
           status: 'approved_by_supervisor',
-          comment: updatedComment 
+          comment: updatedComment,
+          admin_edit_request: {
+            ...(t.admin_edit_request || {}),
+            notifications: [...existingNotifications, newNotification]
+          }
         };
 
         const { error } = await supabase
@@ -810,15 +830,36 @@ export const useChutiOperations = ({
         url: '/'
       }).catch(err => console.error('Error triggering push notification for supervisor approval:', err));
 
+      // Trigger Web Push Notification to User
+      if (user_id) {
+        sendPushNotification({
+          userIds: [user_id],
+          title: 'Leave Request Verified by Supervisor ✅',
+          body: `Supervisor approved your ${leave_type} request (Dates: ${formattedDates}) and forwarded it to Admin.`,
+          url: '/'
+        }).catch(err => console.error('Error sending push to staff on supervisor approval:', err));
+      }
+
       const updateLocalState = () => {
         targets.forEach(t => {
           const updatedCommentPrefix = `${supervisorUsername} Approved`;
           let updatedComment = t.comment || '';
           updatedComment = updatedComment ? `${updatedCommentPrefix} | ${updatedComment}` : updatedCommentPrefix;
 
+          const newNotification = createNotification(
+            'supervisor_approved',
+            'Leave Verified by Supervisor ✅',
+            `Supervisor approved your ${t.leave_type} request for date (${formatDate(t.date)}) and forwarded it to Admin.`
+          );
+          const existingNotifications = getExistingNotifications(t);
+
           const updates = { 
             status: 'approved_by_supervisor',
-            comment: updatedComment 
+            comment: updatedComment,
+            admin_edit_request: {
+              ...(t.admin_edit_request || {}),
+              notifications: [...existingNotifications, newNotification]
+            }
           };
 
           setUserRecords(prev => prev.map(r => r.id === t.id ? { ...r, ...updates } : r));

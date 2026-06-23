@@ -54,6 +54,7 @@ export const DashboardModals = () => {
 
   const {
     pendingProfileRequests,
+    pendingPasswordResetRequests,
     pendingReserveRequests,
     groupedSupervisorRequests,
     groupedChutiRequests,
@@ -156,13 +157,11 @@ export const DashboardModals = () => {
     setShowRevisionPromptModal,
     submittingRevision,
     setRevisionPromptChutiId,
-    revisionPromptText,
     setRevisionPromptText,
+    revisionPromptText,
     submitRevisionWithReason,
-    
-    // Add leave by admin modal state
     showAdminAddLeaveModal,
-    setShowAdminAddLeaveModal
+    setShowAdminAddLeaveModal,
   } = chutiOps;
 
   const {
@@ -187,6 +186,7 @@ export const DashboardModals = () => {
   const {
     showWelcomePopup,
     setShowWelcomePopup,
+    welcomePopupType,
     showFirstTimePasswordModal,
     showOnboardingModal,
     firstTimePassword,
@@ -291,6 +291,11 @@ export const DashboardModals = () => {
 
     handleUpdateSettings,
     handleApproveProfileChangeRequest,
+    handleApprovePasswordResetRequest,
+    newStaffSupervisorIds,
+    setNewStaffSupervisorIds,
+    editSupervisorIds,
+    setEditSupervisorIds,
   } = adminStaffOps;
 
   return (
@@ -298,6 +303,7 @@ export const DashboardModals = () => {
       <WelcomeModals
         showWelcomePopup={showWelcomePopup}
         setShowWelcomePopup={setShowWelcomePopup}
+        welcomePopupType={welcomePopupType}
         showFirstTimePasswordModal={showFirstTimePasswordModal}
         showOnboardingModal={showOnboardingModal}
         firstTimePasswordError={firstTimePasswordError || null}
@@ -515,6 +521,9 @@ export const DashboardModals = () => {
         setIsEditRequestMode={setIsEditRequestMode}
         setupSubmitting={setupSubmitting}
         handleUpdateSettings={handleUpdateSettings}
+        profilesList={profilesList}
+        editSupervisorIds={editSupervisorIds}
+        setEditSupervisorIds={setEditSupervisorIds}
       />
 
       <AdminLeaveApprovalModal
@@ -537,6 +546,8 @@ export const DashboardModals = () => {
         pendingProfileRequests={pendingProfileRequests}
         handleApproveProfileChangeRequest={handleApproveProfileChangeRequest}
         adminHolidayNotifications={adminHolidayNotifications}
+        pendingPasswordResetRequests={pendingPasswordResetRequests}
+        handleApprovePasswordResetRequest={handleApprovePasswordResetRequest}
       />
 
       <AdminEditRecordModal
@@ -598,6 +609,9 @@ export const DashboardModals = () => {
         setNewStaffEligibleOfficeLeave={setNewStaffEligibleOfficeLeave}
         newStaffEligibleGovtHoliday={newStaffEligibleGovtHoliday}
         setNewStaffEligibleGovtHoliday={setNewStaffEligibleGovtHoliday}
+        profilesList={profilesList}
+        newStaffSupervisorIds={newStaffSupervisorIds}
+        setNewStaffSupervisorIds={setNewStaffSupervisorIds}
       />
 
       <AdminCredentialsModal

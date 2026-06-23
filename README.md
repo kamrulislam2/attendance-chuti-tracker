@@ -1,4 +1,4 @@
-# 🌟 ছুটি (Chuti) — Role-Based Office Attendance & Leave Tracker
+# 🌟 ছুটি (Chuti) — Role-Based Office Leave Tracker
 
 A premium, modern, and offline-first Progressive Web App (PWA) built with **Next.js (TypeScript)** and **Supabase (PostgreSQL)**. It is designed to manage employee sign-in/out, track working hours, and automate multi-role leave approvals and adjustments (Full Day, Short Leave, Overtime, and Reserve Holiday) with Google Sheets-level logic and synchronization.
 
@@ -283,7 +283,12 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v2.0.3 (Latest)
+### 🚀 v2.0.4 (Latest)
+* **Background Executions**: Enabled background persistence in Tauri on Windows and macOS. When the window is closed, it hides to the tray and remains active to deliver real-time notifications.
+* **Tray Context Menu**: Implemented a system tray/menu bar right-click menu with "Open Chuti" (shows and focuses window) and "Exit" (quits application completely) options.
+* **macOS Dynamic Dock Management**: Seamlessly show/hide the macOS Dock icon matching window visibility (hides Dock icon in `Accessory` mode when hidden, shows Dock icon in `Regular` mode when window is opened) to maintain a premium macOS native utility design.
+
+### 🚀 v2.0.3
 * **Tray Icon Fix**: Resolved the missing tray icon bug on Windows & macOS desktop apps.
 * **Native Desktop Notifications**: Integrated direct native notification triggers using Tauri APIs and optimized backend API workflows to broadcast realtime events to active desktop screens immediately.
 * **Chrome Multi-Account Push Fix**: Addressed RLS delete policy conflicts on the `push_subscriptions` table to prevent constraint failures when switching user profiles on Chrome.

@@ -79,11 +79,10 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| match event {
+        #[cfg(target_os = "macos")]
         tauri::RunEvent::Reopen { .. } => {
             if let Some(window) = app_handle.get_webview_window("main") {
-                #[cfg(target_os = "macos")]
                 let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Regular);
-                
                 window.show().unwrap();
                 let _ = window.set_focus();
             }

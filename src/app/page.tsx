@@ -593,7 +593,7 @@ export default function Dashboard() {
 
   if (sessionUser && !profile) {
     return (
-      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center">
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-955 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-slate-400">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
           <p className="text-sm font-medium tracking-wide">Loading...</p>
@@ -635,7 +635,7 @@ export default function Dashboard() {
   if (loading && !initialFetchDone) {
     if (!sessionUser) {
       return (
-        <div className="flex-1 min-h-screen flex flex-col bg-slate-950 items-center justify-center">
+        <div className="flex-1 min-h-screen flex flex-col bg-slate-955 items-center justify-center">
           <div className="flex flex-col items-center gap-4 text-slate-400">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
             <p className="text-sm font-medium tracking-wide">Loading...</p>
@@ -647,7 +647,7 @@ export default function Dashboard() {
     if (profile && profile.role === 'admin') {
       if (viewingStaffId) {
         return (
-          <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+          <div className="flex-1 min-h-screen flex flex-col bg-slate-955 relative overflow-hidden pb-12">
             {/* Glow backgrounds */}
             <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
@@ -679,7 +679,7 @@ export default function Dashboard() {
       }
 
       return (
-        <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+        <div className="flex-1 min-h-screen flex flex-col bg-slate-955 relative overflow-hidden pb-12">
           {/* Glow backgrounds */}
           <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
           <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
@@ -708,7 +708,7 @@ export default function Dashboard() {
     }
 
     return (
-      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-955 relative overflow-hidden pb-12">
         {/* Glow backgrounds */}
         <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
@@ -737,7 +737,7 @@ export default function Dashboard() {
 
   return (
     <DashboardProvider value={contextValue}>
-      <div className="flex-1 min-h-screen flex flex-col bg-slate-950 relative overflow-hidden pb-12">
+      <div className="flex-1 min-h-screen flex flex-col bg-slate-955 relative overflow-hidden pb-12">
         {/* Glow backgrounds */}
         <div className="absolute top-[-20%] right-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-20%] w-[50%] h-[50%] rounded-full bg-orange-900/10 blur-[120px] pointer-events-none" />

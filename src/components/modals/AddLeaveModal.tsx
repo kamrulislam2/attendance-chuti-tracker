@@ -171,9 +171,20 @@ export function AddLeaveModal({
     } else if (adjustmentCategory === 'Eid-ul-Adha') {
       eidAdhaDeduction = adjustedDays;
     }
-  } else if (leaveType === 'Short Leave' && adjustShortLeave) {
+  } else if (leaveType === 'Short Leave') {
     const mins = parseHHMMToMinutes(leaveHour);
-    officeDeduction = mins / ((profile?.working_hours || 9.5) * 60);
+    const dayEquivalent = mins / ((profile?.working_hours || 9.5) * 60);
+    if (!adjustment || adjustmentCategory === 'Office Leave') {
+      officeDeduction = dayEquivalent;
+    } else if (adjustment) {
+      if (adjustmentCategory === 'Govt Holiday') {
+        govtDeduction = dayEquivalent;
+      } else if (adjustmentCategory === 'Eid-ul-Fitr') {
+        eidFitrDeduction = dayEquivalent;
+      } else if (adjustmentCategory === 'Eid-ul-Adha') {
+        eidAdhaDeduction = dayEquivalent;
+      }
+    }
   }
 
   const isFullLeaveQuotaExceeded = false;

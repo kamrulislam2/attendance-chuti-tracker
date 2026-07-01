@@ -405,127 +405,87 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
         )}
 
         {/* Short Leave Adjustment toggles */}
-        {leaveType === 'Short Leave' && (
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Short Leave Adjustment
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Office Leave Toggle */}
-              {eligibleOfficeLeave && officeLeaveRemaining > 0 && (
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Office Leave</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(officeLeaveRemaining, workingHours)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory('Office Leave')}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'Office Leave' ? 'bg-orange-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        adjustment && adjustmentCategory === 'Office Leave' ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-
-              {/* Govt Holiday Toggle */}
-              {govtHolidayRemaining > 0 && (
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Govt Holiday</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(govtHolidayRemaining, workingHours)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory('Govt Holiday')}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'Govt Holiday' ? 'bg-teal-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        adjustment && adjustmentCategory === 'Govt Holiday' ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-
-              {/* Eid-ul-Fitr Toggle */}
-              {eidFitrRemaining > 0 && (
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Fitr</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(eidFitrRemaining, workingHours)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory('Eid-ul-Fitr')}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'Eid-ul-Fitr' ? 'bg-amber-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        adjustment && adjustmentCategory === 'Eid-ul-Fitr' ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-
-              {/* Eid-ul-Adha Toggle */}
-              {eidAdhaRemaining > 0 && (
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Adha</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(eidAdhaRemaining, workingHours)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory('Eid-ul-Adha')}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'Eid-ul-Adha' ? 'bg-amber-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        adjustment && adjustmentCategory === 'Eid-ul-Adha' ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-
-              {/* Overtime Toggle */}
-              {availableOvertimeMins > 0 && (
-                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-200 font-sans">Adjust with Overtime</span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatMinsToHHMM(availableOvertimeMins)} hrs</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory('Overtime')}
-                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      adjustment && adjustmentCategory === 'Overtime' ? 'bg-indigo-600' : 'bg-slate-800'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        adjustment && adjustmentCategory === 'Overtime' ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
+        {leaveType === 'Short Leave' && (govtHolidayRemaining > 0 || eidFitrRemaining > 0 || eidAdhaRemaining > 0) && (
+          <div className="space-y-3 bg-slate-955/40 p-3.5 rounded-xl border border-slate-850">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="block text-xs font-bold text-slate-200 font-sans">Adjust with Reserve Holiday?</span>
+                <span className="block text-[10px] text-slate-450 mt-0.5">Adjust this short leave from reserve holiday balance instead of office leave</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newAdj = !adjustment;
+                  setAdjustment(newAdj);
+                  if (newAdj) {
+                    if (govtHolidayRemaining > 0) setAdjustmentCategory('Govt Holiday');
+                    else if (eidFitrRemaining > 0) setAdjustmentCategory('Eid-ul-Fitr');
+                    else if (eidAdhaRemaining > 0) setAdjustmentCategory('Eid-ul-Adha');
+                  } else {
+                    setAdjustmentCategory('Office Leave');
+                  }
+                }}
+                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  adjustment ? 'bg-orange-600' : 'bg-slate-800'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    adjustment ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
+
+            {adjustment && (
+              <div className="space-y-2 pt-2.5 border-t border-slate-850/50">
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Reserve Category</span>
+                <div className="flex flex-col gap-2">
+                  {govtHolidayRemaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAdjustmentCategory('Govt Holiday')}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${
+                        adjustmentCategory === 'Govt Holiday'
+                          ? 'bg-teal-950/30 border-teal-500/50 text-teal-400 font-semibold'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-350 hover:bg-slate-900'
+                      }`}
+                    >
+                      <span className="text-xs font-sans">Govt Holiday</span>
+                      <span className="text-[10px] font-mono opacity-80">Remaining: {govtHolidayRemaining} days</span>
+                    </button>
+                  )}
+                  {eidFitrRemaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAdjustmentCategory('Eid-ul-Fitr')}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${
+                        adjustmentCategory === 'Eid-ul-Fitr'
+                          ? 'bg-amber-955/30 border-amber-500/50 text-amber-450 font-semibold'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-350 hover:bg-slate-900'
+                      }`}
+                    >
+                      <span className="text-xs font-sans">Eid-ul-Fitr</span>
+                      <span className="text-[10px] font-mono opacity-80">Remaining: {eidFitrRemaining} days</span>
+                    </button>
+                  )}
+                  {eidAdhaRemaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAdjustmentCategory('Eid-ul-Adha')}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${
+                        adjustmentCategory === 'Eid-ul-Adha'
+                          ? 'bg-purple-950/30 border-purple-500/50 text-purple-450 font-semibold'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-350 hover:bg-slate-900'
+                      }`}
+                    >
+                      <span className="text-xs font-sans">Eid-ul-Adha</span>
+                      <span className="text-[10px] font-mono opacity-80">Remaining: {eidAdhaRemaining} days</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

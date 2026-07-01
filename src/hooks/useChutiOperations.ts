@@ -265,16 +265,9 @@ export const useChutiOperations = ({
       finalAdjustedHour = null;
       finalAdjustShortLeave = false;
     } else if (leaveType === 'Short Leave') {
-      if (adjustment && availableOvertimeMins > 0) {
-        if (leaveMins <= availableOvertimeMins) {
-          finalAdjustment = true;
-          finalAdjustedHour = null;
-        } else {
-          finalAdjustment = false;
-          const otHours = Math.floor(availableOvertimeMins / 60);
-          const otMins = availableOvertimeMins % 60;
-          finalAdjustedHour = `${String(otHours).padStart(2, '0')}:${String(otMins).padStart(2, '0')}:00`;
-        }
+      if (adjustment) {
+        finalAdjustment = true;
+        finalAdjustedHour = null;
       } else {
         finalAdjustment = false;
         finalAdjustedHour = null;
@@ -306,7 +299,7 @@ export const useChutiOperations = ({
           ? `Adjusted: ${adjustmentCategory} | ${comment}`
           : comment;
       } else if (leaveType === 'Short Leave' && finalAdjustment) {
-        commentWithCategory = `Adjusted with Overtime | ${comment}`;
+        commentWithCategory = `Adjusted: ${adjustmentCategory} | ${comment}`;
       } else if (leaveType === 'Short Leave' && finalAdjustedHour) {
         commentWithCategory = `Partially Adjusted with Overtime (${finalAdjustedHour.substring(0, 5)}) | ${comment}`;
       } else if (leaveType === 'Overtime' && finalAdjustment) {
@@ -325,7 +318,7 @@ export const useChutiOperations = ({
         sign_in_time: isFullLeave ? null : signInTime,
         sign_out_time: isFullLeave ? null : signOutTime,
         leave_hour: isFullLeave ? null : `${leaveHour}:00`,
-        reserve_holiday: null,
+        reserve_holiday: leaveType === 'Short Leave' && finalAdjustment ? adjustmentCategory : (leaveType === 'Full Leave' && targetAdjustment && adjustmentCategory !== 'None' ? adjustmentCategory : null),
         reserve_adjustment_status: 'none',
         status: bypassSupervisor ? 'approved_by_supervisor' : 'pending_supervisor',
         comment: commentWithCategory || null,

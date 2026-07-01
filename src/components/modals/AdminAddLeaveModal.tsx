@@ -158,9 +158,20 @@ export function AdminAddLeaveModal({
     } else if (adjustmentCategory === 'Eid-ul-Adha') {
       eidAdhaDeduction = adjustedDays;
     }
-  } else if (leaveType === 'Short Leave' && adjustShortLeave) {
+  } else if (leaveType === 'Short Leave') {
     const mins = parseHHMMToMinutes(leaveHour);
-    officeDeduction = mins / ((staffProfile?.working_hours || 9.5) * 60);
+    const dayEquivalent = mins / ((staffProfile?.working_hours || 9.5) * 60);
+    if (!adjustment || adjustmentCategory === 'Office Leave') {
+      officeDeduction = dayEquivalent;
+    } else if (adjustment) {
+      if (adjustmentCategory === 'Govt Holiday') {
+        govtDeduction = dayEquivalent;
+      } else if (adjustmentCategory === 'Eid-ul-Fitr') {
+        eidFitrDeduction = dayEquivalent;
+      } else if (adjustmentCategory === 'Eid-ul-Adha') {
+        eidAdhaDeduction = dayEquivalent;
+      }
+    }
   }
 
   const isFullLeaveQuotaExceeded = false;
@@ -252,7 +263,7 @@ export function AdminAddLeaveModal({
           p_sign_out_time: leaveType === 'Full Leave' ? null : signOutTime,
           p_leave_hour: leaveType === 'Full Leave' ? null : leaveHour,
           p_comment: comment || null,
-          p_reserve_holiday: adjustmentCategory !== 'None' ? adjustmentCategory : null,
+          p_reserve_holiday: leaveType === 'Short Leave' ? (adjustment ? adjustmentCategory : null) : (adjustmentCategory !== 'None' ? adjustmentCategory : null),
           p_bulk_id: generateUUID()
         }
       );

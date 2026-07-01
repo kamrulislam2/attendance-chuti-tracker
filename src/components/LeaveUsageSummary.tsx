@@ -105,9 +105,10 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
             )}
             <span className="text-slate-500 text-[10px] font-mono">Total: {officeTotalDisplay}</span>
           </div>
-          {officeSubtext && (
-            <div className="text-[9px] text-slate-455 mt-1.5 pt-1.5 border-t border-slate-800/40">
-              {officeSubtext}
+          {officeSubtext && <span className="text-[9px] text-slate-500 block mt-1">{officeSubtext}</span>}
+          {finalOfficeRemaining < 0 && (
+            <div className="text-[9px] text-red-400 font-semibold font-sans mt-1.5 pt-1 border-t border-slate-850/50 animate-pulse">
+              ⚠️ Limit exceeded. Extra hours will be adjusted with salary.
             </div>
           )}
         </div>

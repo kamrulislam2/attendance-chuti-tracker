@@ -239,10 +239,16 @@ export const calculateStats = (records: ChutiRecord[], workingHours: number = 9.
             } else {
               totalOvertimeMinutes -= isNegative ? -fullAdjMins : fullAdjMins;
             }
-          } else if (r.adjusted_hour) {
-            const adjMins = parseIntervalToMinutes(r.adjusted_hour);
-            mins = Math.max(0, mins - adjMins);
-            totalOvertimeMinutes -= isNegative ? -adjMins : adjMins;
+          } else {
+            // Default/unadjusted short leaves count against Office Leave automatically
+            const daysEquivalent = mins / (workingHours * 60);
+            officeLeavesTaken += isNegative ? -daysEquivalent : daysEquivalent;
+
+            if (r.adjusted_hour) {
+              const adjMins = parseIntervalToMinutes(r.adjusted_hour);
+              mins = Math.max(0, mins - adjMins);
+              totalOvertimeMinutes -= isNegative ? -adjMins : adjMins;
+            }
           }
           totalShortMinutes += isNegative ? -mins : mins;
         }
@@ -516,7 +522,7 @@ export const calculateHalfYearlyOfficeLeave = (
       }
     } else if (isShortLeave) {
       // Short leave only counts against office leave if it is adjusted specifically as "Office Leave"
-      const shouldCountAsOffice = r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave");
+      const shouldCountAsOffice = !r.adjustment || (r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave"));
       if (!shouldCountAsOffice) return;
 
       const mins = parseIntervalToMinutes(r.leave_hour);

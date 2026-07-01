@@ -11,7 +11,7 @@ import {
   deleteOfflineRecord,
   generateUUID 
 } from '@/utils/offlineSync';
-import { formatDate, calculateLeaveOrOvertime, getExistingNotifications, createNotification, calculateStats, parseIntervalToMinutes, GlobalSettings, checkIfHolidayOrWeekend } from '@/utils/dashboardHelpers';
+import { formatDate, calculateLeaveOrOvertime, getExistingNotifications, createNotification, calculateStats, parseIntervalToMinutes, GlobalSettings, checkIfHolidayOrWeekend, getLeaveValidationError } from '@/utils/dashboardHelpers';
 import { sendPushNotification } from '@/utils/webPushHelper';
 
 interface useChutiOperationsParams {
@@ -228,6 +228,16 @@ export const useChutiOperations = ({
       setMessage({ type: 'error', text: `${leaveType} requests cannot be submitted with 00:00 hours. Please adjust your Sign-in and Sign-out times.` });
       setSubmitting(false);
       return;
+    }
+
+    if (!isFullLeave) {
+      const isHoliday = checkIfHolidayOrWeekend(date, globalSettings);
+      const valError = getLeaveValidationError(leaveType, signInTime, signOutTime, profile?.working_hours || 9.5, isHoliday);
+      if (valError) {
+        setMessage({ type: 'error', text: valError });
+        setSubmitting(false);
+        return;
+      }
     }
 
     const bulkId = allDates.length > 1 ? generateUUID() : null;
@@ -493,6 +503,16 @@ export const useChutiOperations = ({
         return;
       }
 
+      if (!isFullLeave) {
+        const isHoliday = checkIfHolidayOrWeekend(revisionDate, globalSettings);
+        const valError = getLeaveValidationError(revisionLeaveType, revisionSignInTime, revisionSignOutTime, profile?.working_hours || 9.5, isHoliday);
+        if (valError) {
+          setMessage({ type: 'error', text: valError });
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const bypassSupervisor = 
         profile?.needs_supervisor_approval === false ||
         profile?.role === 'admin' ||
@@ -562,6 +582,17 @@ export const useChutiOperations = ({
         setMessage({ type: 'error', text: `${adminEditLeaveType} requests cannot be submitted with 00:00 hours. Please adjust Sign-in and Sign-out times.` });
         setSubmitting(false);
         return;
+      }
+
+      if (!isFullLeave) {
+        const targetProfile = profilesList.find(p => p.id === adminEditRecord.user_id) || profile;
+        const isHoliday = checkIfHolidayOrWeekend(adminEditDate, globalSettings);
+        const valError = getLeaveValidationError(adminEditLeaveType, adminEditSignInTime, adminEditSignOutTime, targetProfile?.working_hours || 9.5, isHoliday);
+        if (valError) {
+          setMessage({ type: 'error', text: valError });
+          setSubmitting(false);
+          return;
+        }
       }
       
       const newNotification = createNotification(

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, AlertTriangle, Plus, Loader } from 'lucide-react';
 import { Profile } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { calculateStats, GlobalSettings, calculateHalfYearlyOfficeLeave } from '@/utils/dashboardHelpers';
+import { calculateStats, GlobalSettings, calculateHalfYearlyOfficeLeave, checkIfHolidayOrWeekend, getLeaveValidationError } from '@/utils/dashboardHelpers';
 import { supabase } from '@/utils/supabase';
 import { LeaveUsageSummary } from '@/components/LeaveUsageSummary';
 import { AddLeaveFormFields } from '../AddLeaveFormFields';
@@ -43,9 +43,10 @@ interface AddLeaveModalProps {
   handleSubmit: (e: React.FormEvent) => void;
   records: ChutiRecord[];
   profilesList?: Profile[];
-  selectedSupervisors?: string[];
-  setSelectedSupervisors?: (supervisors: string[]) => void;
+  selectedSupervisors: string[];
+  setSelectedSupervisors: React.Dispatch<React.SetStateAction<string[]>>;
   globalSettings: GlobalSettings;
+  leaveSettlements?: any[];
 }
 
 export function AddLeaveModal({
@@ -83,6 +84,7 @@ export function AddLeaveModal({
   selectedSupervisors = [],
   setSelectedSupervisors = () => {},
   globalSettings,
+  leaveSettlements = [],
 }: AddLeaveModalProps) {
   const [userResponses, setUserResponses] = useState<any[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(true);
@@ -146,6 +148,9 @@ export function AddLeaveModal({
   const eidAdhaTotal = globalSettings.eid_adha_leave ?? 0;
   const eidAdhaRemaining = Math.max(0, eidAdhaTotal - (stats.eidAdhaTaken ?? 0));
 
+  const isHoliday = checkIfHolidayOrWeekend(date, globalSettings);
+  const validationError = getLeaveValidationError(leaveType, signInTime, signOutTime, profile?.working_hours || 9.5, isHoliday);
+
   // Real-time deduction preview logic based on modal state
   let officeDeduction = 0;
   let govtDeduction = 0;
@@ -166,6 +171,9 @@ export function AddLeaveModal({
     } else if (adjustmentCategory === 'Eid-ul-Adha') {
       eidAdhaDeduction = adjustedDays;
     }
+  } else if (leaveType === 'Short Leave' && adjustShortLeave) {
+    const mins = parseHHMMToMinutes(leaveHour);
+    officeDeduction = mins / ((profile?.working_hours || 9.5) * 60);
   }
 
   const isFullLeaveQuotaExceeded = false;
@@ -176,12 +184,12 @@ export function AddLeaveModal({
       globalSettings.office_leave_h1,
       globalSettings.office_leave_h2,
       selectedYear,
-      undefined,
-      undefined,
+      leaveSettlements,
+      profile?.id,
       undefined,
       profile?.working_hours || 9.5
     );
-  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, profile]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, profile, leaveSettlements]);
 
   return (
     <Modal
@@ -247,6 +255,7 @@ export function AddLeaveModal({
               eligibleOfficeLeave={isOfficeLeaveEligible}
               officeLeaveRemaining={officeLeaveRemaining}
               workingHours={profile?.working_hours || 9.5}
+              globalSettings={globalSettings}
             />
 
             {/* Action Buttons */}
@@ -260,7 +269,7 @@ export function AddLeaveModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !!validationError}
                 className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
               >
                 {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
@@ -289,6 +298,7 @@ export function AddLeaveModal({
             halfYearlyStats={halfYearlyStats}
             officeDeduction={officeDeduction}
             govtDeduction={govtDeduction}
+            workingHours={profile?.working_hours || 9.5}
             eidFitrDeduction={eidFitrDeduction}
             eidAdhaDeduction={eidAdhaDeduction}
           />

@@ -332,9 +332,12 @@ export const calculateLeaveOrOvertime = (
   const actualEndMins = getShiftRelativeMins(actualEnd);
 
   if (type === 'Short Leave') {
-    const lateIn = Math.max(0, actualStartMins - shiftStartMins);
-    const earlyOut = Math.max(0, shiftEndMins - actualEndMins);
-    return formatDuration(Math.max(0, lateIn + earlyOut));
+    let worked = actualEndMins - actualStartMins;
+    if (worked < 0) {
+      worked += 24 * 60;
+    }
+    const required = workingHours * 60;
+    return formatDuration(Math.max(0, required - worked));
   } else if (type === 'Overtime') {
     let worked = actualEndMins - actualStartMins;
     if (worked < 0) {
@@ -348,6 +351,41 @@ export const calculateLeaveOrOvertime = (
     }
   }
   return '00:00';
+};
+
+export const getLeaveValidationError = (
+  type: string,
+  signInTime: string,
+  signOutTime: string,
+  workingHours: number = 9.5,
+  isHoliday: boolean = false
+): string | null => {
+  if (type === 'Full Leave' || !type) return null;
+  if (!signInTime || !signOutTime) return null;
+
+  const startMins = parseTimeToMinutes(signInTime);
+  let endMins = parseTimeToMinutes(signOutTime);
+  if (endMins < startMins) {
+    endMins += 24 * 60;
+  }
+  
+  const workedMins = endMins - startMins;
+  const regularMins = workingHours * 60;
+
+  if (type === 'Short Leave') {
+    if (workedMins >= regularMins) {
+      return 'Short leave must be less than working time';
+    }
+  } else if (type === 'Overtime') {
+    if (!isHoliday && workedMins <= regularMins) {
+      return 'Overtime must be extra from working hour';
+    }
+    if (isHoliday && workedMins === 0) {
+      return 'Overtime must be extra from working hour';
+    }
+  }
+  
+  return null;
 };
 
 export const formatWorkingHours = (hours: number | string) => {

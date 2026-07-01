@@ -32,6 +32,7 @@ export const DashboardModals = () => {
     userRecords,
     adminRecords,
     profilesList,
+    leaveSettlements,
     adminActiveTab,
     setAdminActiveTab,
     viewingStaffId,
@@ -342,6 +343,7 @@ export const DashboardModals = () => {
         onSuccess={fetchRecords}
         records={viewingStaffId ? adminRecords.filter((r: any) => r.user_id === viewingStaffId) : []}
         globalSettings={globalSettings}
+        leaveSettlements={leaveSettlements}
       />
 
       <AddLeaveModal
@@ -379,6 +381,7 @@ export const DashboardModals = () => {
         selectedSupervisors={selectedSupervisors}
         setSelectedSupervisors={setSelectedSupervisors}
         globalSettings={globalSettings}
+        leaveSettlements={leaveSettlements}
       />
 
       <UserRevisionModal

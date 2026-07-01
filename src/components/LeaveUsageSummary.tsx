@@ -1,5 +1,5 @@
 import React from 'react';
-import { HalfYearlyOfficeLeaveStats } from '@/utils/dashboardHelpers';
+import { HalfYearlyOfficeLeaveStats, formatDaysAndHours } from '@/utils/dashboardHelpers';
 
 interface LeaveUsageSummaryProps {
   selectedYear: string;
@@ -22,6 +22,7 @@ interface LeaveUsageSummaryProps {
   govtDeduction?: number;
   eidFitrDeduction?: number;
   eidAdhaDeduction?: number;
+  workingHours?: number;
 }
 
 export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
@@ -43,9 +44,10 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
   govtDeduction = 0,
   eidFitrDeduction = 0,
   eidAdhaDeduction = 0,
+  workingHours = 9.5,
 }) => {
   let officeRemainingVal = officeLeaveRemaining;
-  let officeTotalDisplay = `${officeLeaveTotal} days`;
+  let officeTotalDisplay = formatDaysAndHours(officeLeaveTotal, workingHours);
   let officeSubtext = '';
 
   if (halfYearlyStats) {
@@ -54,19 +56,19 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
       ? halfYearlyStats.h1Remaining 
       : halfYearlyStats.h2Remaining;
     officeTotalDisplay = isH1 
-      ? `${halfYearlyStats.h1Total} days` 
-      : `${halfYearlyStats.h2Total} days`;
+      ? formatDaysAndHours(halfYearlyStats.h1Total, workingHours) 
+      : formatDaysAndHours(halfYearlyStats.h2Total, workingHours);
     const h1Carryover = halfYearlyStats.h1Total - halfYearlyStats.h1Base;
     const hasH1Carryover = h1Carryover > 0;
     const hasH2Carryover = halfYearlyStats.carryForward > 0;
 
     officeSubtext = isH1
       ? (hasH1Carryover
-          ? `H1 (Jan-Jun) Allowance: ${halfYearlyStats.h1Base} days + ${h1Carryover} days carryover`
-          : `H1 (Jan-Jun) Allowance: ${halfYearlyStats.h1Total} days`)
+          ? `H1 (Jan-Jun) Allowance: ${formatDaysAndHours(halfYearlyStats.h1Base, workingHours)} + ${formatDaysAndHours(h1Carryover, workingHours)} carryover`
+          : `H1 (Jan-Jun) Allowance: ${formatDaysAndHours(halfYearlyStats.h1Total, workingHours)}`)
       : (hasH2Carryover
-          ? `H2 (Jul-Dec) Allowance: ${halfYearlyStats.h2Base} days + ${halfYearlyStats.carryForward} days carryover`
-          : `H2 (Jul-Dec) Allowance: ${halfYearlyStats.h2Total} days`);
+          ? `H2 (Jul-Dec) Allowance: ${formatDaysAndHours(halfYearlyStats.h2Base, workingHours)} + ${formatDaysAndHours(halfYearlyStats.carryForward, workingHours)} carryover`
+          : `H2 (Jul-Dec) Allowance: ${formatDaysAndHours(halfYearlyStats.h2Total, workingHours)}`);
   }
 
   const finalOfficeRemaining = officeRemainingVal - officeDeduction;
@@ -94,11 +96,11 @@ export const LeaveUsageSummary: React.FC<LeaveUsageSummaryProps> = ({
           <div className="flex justify-between items-center mt-1">
             {isOfficeChanged ? (
               <span className="text-orange-400 text-xs font-bold font-mono animate-pulse">
-                Remaining: {finalOfficeRemaining} days (-{officeDeduction})
+                Remaining: {formatDaysAndHours(finalOfficeRemaining, workingHours)} (-{formatDaysAndHours(officeDeduction, workingHours)})
               </span>
             ) : (
               <span className="text-white text-xs font-bold font-mono">
-                Remaining: {officeRemainingVal} days
+                Remaining: {formatDaysAndHours(officeRemainingVal, workingHours)}
               </span>
             )}
             <span className="text-slate-500 text-[10px] font-mono">Total: {officeTotalDisplay}</span>

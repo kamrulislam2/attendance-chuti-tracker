@@ -5,7 +5,7 @@ import { RefreshCw, Calendar, AlertTriangle, Loader } from 'lucide-react';
 import { Profile } from '@/types';
 import { AddLeaveFormFields } from '@/components/AddLeaveFormFields';
 import { supabase } from '@/utils/supabase';
-import { calculateLeaveOrOvertime, formatDate, calculateStats, GlobalSettings, calculateHalfYearlyOfficeLeave, checkIfHolidayOrWeekend } from '@/utils/dashboardHelpers';
+import { calculateLeaveOrOvertime, formatDate, calculateStats, GlobalSettings, calculateHalfYearlyOfficeLeave, checkIfHolidayOrWeekend, getLeaveValidationError } from '@/utils/dashboardHelpers';
 import { ChutiRecord, generateUUID } from '@/utils/offlineSync';
 import { sendPushNotification } from '@/utils/webPushHelper';
 import { toast } from 'react-hot-toast';
@@ -20,6 +20,7 @@ interface AdminAddLeaveModalProps {
   onSuccess: () => void;
   records: ChutiRecord[];
   globalSettings: GlobalSettings;
+  leaveSettlements?: any[];
 }
 
 export function AdminAddLeaveModal({
@@ -29,6 +30,7 @@ export function AdminAddLeaveModal({
   onSuccess,
   records,
   globalSettings,
+  leaveSettlements = [],
 }: AdminAddLeaveModalProps) {
   const [date, setDate] = useState('');
   const [leaveType, setLeaveType] = useState('Short Leave');
@@ -133,6 +135,9 @@ export function AdminAddLeaveModal({
   const eidAdhaTotal = globalSettings.eid_adha_leave ?? 0;
   const eidAdhaRemaining = Math.max(0, eidAdhaTotal - (stats.eidAdhaTaken ?? 0));
 
+  const isHoliday = checkIfHolidayOrWeekend(date, globalSettings);
+  const validationError = getLeaveValidationError(leaveType, signInTime, signOutTime, staffProfile?.working_hours || 9.5, isHoliday);
+
   // Real-time deduction preview logic based on modal state
   let officeDeduction = 0;
   let govtDeduction = 0;
@@ -153,6 +158,9 @@ export function AdminAddLeaveModal({
     } else if (adjustmentCategory === 'Eid-ul-Adha') {
       eidAdhaDeduction = adjustedDays;
     }
+  } else if (leaveType === 'Short Leave' && adjustShortLeave) {
+    const mins = parseHHMMToMinutes(leaveHour);
+    officeDeduction = mins / ((staffProfile?.working_hours || 9.5) * 60);
   }
 
   const isFullLeaveQuotaExceeded = false;
@@ -163,12 +171,12 @@ export function AdminAddLeaveModal({
       globalSettings.office_leave_h1,
       globalSettings.office_leave_h2,
       selectedYear,
-      undefined,
-      undefined,
+      leaveSettlements,
+      staffProfile?.id,
       undefined,
       staffProfile?.working_hours || 9.5
     );
-  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, staffProfile]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, staffProfile, leaveSettlements]);
 
   const isFullLeave = leaveType === 'Full Leave';
 
@@ -337,6 +345,7 @@ export function AdminAddLeaveModal({
                   officeLeaveRemaining={officeLeaveRemaining}
                   workingHours={staffProfile?.working_hours || 9.5}
                   isAdmin={true}
+                  globalSettings={globalSettings}
                 />
 
                 {/* Action Buttons */}
@@ -350,7 +359,7 @@ export function AdminAddLeaveModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || !!validationError}
                     className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                   >
                     {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
@@ -381,6 +390,7 @@ export function AdminAddLeaveModal({
                 govtDeduction={govtDeduction}
                 eidFitrDeduction={eidFitrDeduction}
                 eidAdhaDeduction={eidAdhaDeduction}
+                workingHours={staffProfile?.working_hours || 9.5}
               />
             </div>
           )}

@@ -4,7 +4,7 @@ import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { DateInput } from '@/components/DateInput';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { formatDate, formatTimeToAMPM, formatDaysAndHours } from '@/utils/dashboardHelpers';
+import { formatDate, formatTimeToAMPM, formatDaysAndHours, checkIfHolidayOrWeekend, getLeaveValidationError } from '@/utils/dashboardHelpers';
 import { CustomSelect } from './CustomSelect';
 
 interface AddLeaveFormFieldsProps {
@@ -44,6 +44,7 @@ interface AddLeaveFormFieldsProps {
   officeLeaveRemaining?: number;
   workingHours?: number;
   isAdmin?: boolean;
+  globalSettings?: any;
 }
 
 export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
@@ -82,7 +83,11 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
   officeLeaveRemaining = 0,
   workingHours = 9.5,
   isAdmin = false,
+  globalSettings,
 }) => {
+  const isHoliday = globalSettings ? checkIfHolidayOrWeekend(date, globalSettings) : false;
+  const validationError = getLeaveValidationError(leaveType, signInTime, signOutTime, workingHours, isHoliday);
+
   const isFullLeave = leaveType === 'Full Leave';
   const hasAnyFullLeaveToggle = isAdmin || (govtHolidayRemaining > 0) || (eidFitrRemaining > 0) || (eidAdhaRemaining > 0);
 
@@ -606,6 +611,11 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
               onChange={(e) => setLeaveHour(e.target.value)}
               className="mt-1 block w-full px-3 py-2 bg-slate-955 border border-slate-800 rounded-lg text-orange-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
+            {validationError && (
+              <div className="mt-1 text-xs text-rose-500 font-semibold font-sans">
+                ⚠️ {validationError}
+              </div>
+            )}
           </div>
         </div>
       )}

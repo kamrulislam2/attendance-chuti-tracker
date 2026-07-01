@@ -147,6 +147,12 @@ export async function checkSubscriptionStatus(userId: string): Promise<{
   permission: NotificationPermission;
   isSubscribed: boolean;
 }> {
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  if (isTauri) {
+    const savedPref = localStorage.getItem('push_subscribed_pref_' + userId);
+    return { permission: 'granted', isSubscribed: savedPref === 'true' };
+  }
+
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
     return { permission: 'default', isSubscribed: false };
   }

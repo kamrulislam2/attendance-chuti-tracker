@@ -13,6 +13,7 @@ import {
 } from '@/utils/offlineSync';
 import { formatDate, calculateLeaveOrOvertime, getExistingNotifications, createNotification, calculateStats, parseIntervalToMinutes, GlobalSettings, checkIfHolidayOrWeekend, getLeaveValidationError } from '@/utils/dashboardHelpers';
 import { sendPushNotification } from '@/utils/webPushHelper';
+import { toast } from 'react-hot-toast';
 
 interface useChutiOperationsParams {
   sessionUser: any;
@@ -220,6 +221,13 @@ export const useChutiOperations = ({
 
     if (allDates.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one date!' });
+      setSubmitting(false);
+      return;
+    }
+
+    const hasDuplicateDate = allDates.some(d => userRecords.some(r => r.date === d));
+    if (hasDuplicateDate) {
+      toast.error('duplicated leave detected, please confirm the leave date again.');
       setSubmitting(false);
       return;
     }

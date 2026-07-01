@@ -174,6 +174,17 @@ export function AdminAddLeaveModal({
     }
   }
 
+  const isDuplicateDate = React.useMemo(() => {
+    if (!date) return false;
+    const hasMainDuplicate = records.some(r => r.date === date);
+    if (hasMainDuplicate) return true;
+    
+    if (leaveType === 'Full Leave' && bulkDates.length > 0) {
+      return bulkDates.some(bd => bd && records.some(r => r.date === bd));
+    }
+    return false;
+  }, [date, leaveType, bulkDates, records]);
+
   const isFullLeaveQuotaExceeded = false;
 
   const halfYearlyStats = React.useMemo(() => {
@@ -237,6 +248,13 @@ export function AdminAddLeaveModal({
 
     if (allDates.length === 0) {
       toast.error('Please select at least one date!');
+      setSubmitting(false);
+      return;
+    }
+
+    const hasDuplicateDate = allDates.some(d => records.some(r => r.date === d));
+    if (hasDuplicateDate) {
+      toast.error('duplicated leave detected, please confirm the leave date again.');
       setSubmitting(false);
       return;
     }
@@ -371,7 +389,9 @@ export function AdminAddLeaveModal({
                   <button
                     type="submit"
                     disabled={submitting || !!validationError}
-                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                    className={`flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 ${
+                      (submitting || !!validationError) ? '' : (isDuplicateDate ? 'opacity-50 cursor-not-allowed' : '')
+                    }`}
                   >
                     {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                     {submitting ? 'Adding...' : 'Add Leave'}

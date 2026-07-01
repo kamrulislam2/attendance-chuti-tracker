@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, History, Info, Edit, RefreshCw, AlertTriangle } from 'lucide-react';
 import { StatCard } from './StatCard';
-import { formatDate, HalfYearlyOfficeLeaveStats } from '@/utils/dashboardHelpers';
+import { formatDate, HalfYearlyOfficeLeaveStats, formatDaysAndHours } from '@/utils/dashboardHelpers';
 
 interface UserStatsProps {
   stats: {
@@ -44,7 +44,35 @@ interface UserStatsProps {
   eidAdhaRemaining?: number;
   eidAdhaTotal?: number;
   initialFetchDone?: boolean;
+  workingHours?: number;
 }
+
+const renderTwoLineLeave = (daysVal: number, workingHours: number, showSign: boolean = false, customColorClass?: string) => {
+  const isNeg = daysVal < 0;
+  const absDays = Math.abs(daysVal);
+  const totalMins = Math.round(absDays * workingHours * 60);
+  const minutesPerDay = Math.round(workingHours * 60);
+  
+  const d = Math.floor(totalMins / minutesPerDay);
+  const remainingMins = totalMins % minutesPerDay;
+  const h = Math.floor(remainingMins / 60);
+  const m = remainingMins % 60;
+
+  const sign = isNeg ? '- ' : (showSign ? '+ ' : '');
+  const padMin = m.toString().padStart(2, '0');
+  
+  const line1 = `${sign}${d} Days`;
+  const line2 = `${sign}${h}:${padMin} Hrs`;
+
+  const colorClass = customColorClass || (isNeg ? 'text-rose-400' : 'text-slate-200');
+
+  return (
+    <div className="flex flex-col items-center text-center mt-1">
+      <span className={`${colorClass} font-bold font-mono text-[11px] block`}>{line1}</span>
+      <span className="text-slate-500 font-medium font-mono text-[10px] block mt-0.5">{line2}</span>
+    </div>
+  );
+};
 
 export const UserStats: React.FC<UserStatsProps> = ({
   stats,
@@ -67,6 +95,7 @@ export const UserStats: React.FC<UserStatsProps> = ({
   eidAdhaRemaining = 0,
   eidAdhaTotal = 0,
   initialFetchDone = true,
+  workingHours = 9.5,
 }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showOfficeDetailsModal, setShowOfficeDetailsModal] = useState(false);
@@ -132,22 +161,22 @@ export const UserStats: React.FC<UserStatsProps> = ({
   const hasH1Carryover = h1Carryover > 0;
   const hasH2Carryover = halfYearlyStats ? halfYearlyStats.carryForward > 0 : false;
 
-  let officeRemainingDisplay = officeLeaveStats ? `${officeLeaveStats.remaining} days` : '0 days';
-  let officeSubtitle = officeLeaveStats ? `Total Allocated: ${officeLeaveStats.total} days (Taken: ${officeLeaveStats.taken} days)` : '';
+  let officeRemainingDisplay = officeLeaveStats ? formatDaysAndHours(officeLeaveStats.remaining, workingHours) : '0 days';
+  let officeSubtitle = officeLeaveStats ? `Total Allocated: ${formatDaysAndHours(officeLeaveStats.total, workingHours)} (Taken: ${formatDaysAndHours(officeLeaveStats.taken, workingHours)})` : '';
 
   if (halfYearlyStats) {
     const isH1 = halfYearlyStats.currentHalf === 1;
     officeRemainingDisplay = isH1
-      ? `${halfYearlyStats.h1Remaining} days`
-      : `${halfYearlyStats.h2Remaining} days`;
+      ? formatDaysAndHours(halfYearlyStats.h1Remaining, workingHours)
+      : formatDaysAndHours(halfYearlyStats.h2Remaining, workingHours);
 
     officeSubtitle = isH1
       ? (hasH1Carryover
-          ? `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Base} days + ${h1Carryover} days Carryover | Taken: ${halfYearlyStats.h1Taken} days`
-          : `H1 (Jan-Jun) Allocated: ${halfYearlyStats.h1Total} days | Taken: ${halfYearlyStats.h1Taken} days`)
+          ? `H1 (Jan-Jun) Allocated: ${formatDaysAndHours(halfYearlyStats.h1Base, workingHours)} + ${formatDaysAndHours(h1Carryover, workingHours)} Carryover | Taken: ${formatDaysAndHours(halfYearlyStats.h1Taken, workingHours)}`
+          : `H1 (Jan-Jun) Allocated: ${formatDaysAndHours(halfYearlyStats.h1Total, workingHours)} | Taken: ${formatDaysAndHours(halfYearlyStats.h1Taken, workingHours)}`)
       : (hasH2Carryover
-          ? `H2 (Jul-Dec) Allocated: ${halfYearlyStats.h2Base} days + ${halfYearlyStats.carryForward} days Carryover | Taken: ${halfYearlyStats.h2Taken} days`
-          : `H2 (Jul-Dec) Allocated: ${halfYearlyStats.h2Total} days | Taken: ${halfYearlyStats.h2Taken} days`);
+          ? `H2 (Jul-Dec) Allocated: ${formatDaysAndHours(halfYearlyStats.h2Base, workingHours)} + ${formatDaysAndHours(halfYearlyStats.carryForward, workingHours)} Carryover | Taken: ${formatDaysAndHours(halfYearlyStats.h2Taken, workingHours)}`
+          : `H2 (Jul-Dec) Allocated: ${formatDaysAndHours(halfYearlyStats.h2Total, workingHours)} | Taken: ${formatDaysAndHours(halfYearlyStats.h2Taken, workingHours)}`);
   }
 
   return (
@@ -384,29 +413,30 @@ export const UserStats: React.FC<UserStatsProps> = ({
                   H1 (January - June)
                 </h4>
                 <div className={`grid ${hasH1Carryover ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-xs`}>
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">
                       {hasH1Carryover ? 'Base' : 'Allocated'}
                     </span>
-                    <span className="text-slate-200 font-bold font-mono">
-                      {hasH1Carryover ? halfYearlyStats.h1Base : halfYearlyStats.h1Total} days
-                    </span>
+                    {renderTwoLineLeave(hasH1Carryover ? halfYearlyStats.h1Base : halfYearlyStats.h1Total, workingHours)}
                   </div>
                   {hasH1Carryover && (
-                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                       <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
-                      <span className="text-slate-200 font-bold font-mono">+{h1Carryover} days</span>
+                      {renderTwoLineLeave(h1Carryover, workingHours, true)}
                     </div>
                   )}
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h1Taken} days</span>
+                    {renderTwoLineLeave(halfYearlyStats.h1Taken, workingHours)}
                   </div>
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Remaining</span>
-                    <span className={`font-bold font-mono ${halfYearlyStats.h1Remaining < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {halfYearlyStats.h1Remaining} days
-                    </span>
+                    {renderTwoLineLeave(
+                      halfYearlyStats.h1Remaining,
+                      workingHours,
+                      false,
+                      halfYearlyStats.h1Remaining < 0 ? 'text-rose-455' : 'text-emerald-400'
+                    )}
                   </div>
                 </div>
                 {halfYearlyStats.h1Remaining < 0 && (
@@ -422,29 +452,30 @@ export const UserStats: React.FC<UserStatsProps> = ({
                   H2 (July - December)
                 </h4>
                 <div className={`grid ${hasH2Carryover ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-center text-xs`}>
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">
                       {hasH2Carryover ? 'Base' : 'Allocated'}
                     </span>
-                    <span className="text-slate-200 font-bold font-mono">
-                      {hasH2Carryover ? halfYearlyStats.h2Base : halfYearlyStats.h2Total} days
-                    </span>
+                    {renderTwoLineLeave(hasH2Carryover ? halfYearlyStats.h2Base : halfYearlyStats.h2Total, workingHours)}
                   </div>
                   {hasH2Carryover && (
-                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                    <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                       <span className="text-slate-500 block text-[9px] uppercase font-semibold">Carryover</span>
-                      <span className="text-slate-200 font-bold font-mono">+{halfYearlyStats.carryForward} days</span>
+                      {renderTwoLineLeave(halfYearlyStats.carryForward, workingHours, true)}
                     </div>
                   )}
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Taken</span>
-                    <span className="text-slate-200 font-bold font-mono">{halfYearlyStats.h2Taken} days</span>
+                    {renderTwoLineLeave(halfYearlyStats.h2Taken, workingHours)}
                   </div>
-                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60">
+                  <div className="bg-slate-900/40 p-2 rounded-lg border border-slate-850/60 flex flex-col justify-between min-h-[64px]">
                     <span className="text-slate-500 block text-[9px] uppercase font-semibold">Remaining</span>
-                    <span className={`font-bold font-mono ${halfYearlyStats.h2Remaining < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {halfYearlyStats.h2Remaining} days
-                    </span>
+                    {renderTwoLineLeave(
+                      halfYearlyStats.h2Remaining,
+                      workingHours,
+                      false,
+                      halfYearlyStats.h2Remaining < 0 ? 'text-rose-455' : 'text-emerald-400'
+                    )}
                   </div>
                 </div>
               </div>

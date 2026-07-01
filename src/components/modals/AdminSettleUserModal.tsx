@@ -5,7 +5,7 @@ import { RefreshCw, RotateCcw, ShieldAlert, DollarSign, FolderPlus, ArrowRightLe
 import { Profile, LeaveSettlement, GovtHolidayResponse } from '@/types';
 import { Modal } from '../Modal';
 import { sendPushNotification } from '@/utils/webPushHelper';
-import { GlobalSettings, getOutstandingOfficeLeave, calculateStats } from '@/utils/dashboardHelpers';
+import { GlobalSettings, getOutstandingOfficeLeave, calculateStats, formatDaysAndHours } from '@/utils/dashboardHelpers';
 import { ChutiRecord } from '@/utils/offlineSync';
 
 interface AdminSettleUserModalProps {
@@ -38,21 +38,21 @@ export function AdminSettleUserModal({
   // Initialize splits directly on mount (flicker-free)
   const [carryForwardDays, setCarryForwardDays] = useState<number>(() => {
     if (!settlement) return 0;
-    return Math.round(settlement.carry_forward_days ?? (settlement.action_type === 'carry_forward' ? settlement.remaining_days : 0));
+    return settlement.carry_forward_days ?? (settlement.action_type === 'carry_forward' ? settlement.remaining_days : 0);
   });
   const [paymentDays, setPaymentDays] = useState<number>(() => {
     if (!settlement) return 0;
-    return Math.round(settlement.payment_days ?? (settlement.action_type === 'payment' ? settlement.remaining_days : 0));
+    return settlement.payment_days ?? (settlement.action_type === 'payment' ? settlement.remaining_days : 0);
   });
   const [adjustLeaveDays, setAdjustLeaveDays] = useState<number>(() => {
     if (!settlement) return 0;
-    return Math.round(settlement.adjust_leave_days ?? (settlement.action_type === 'adjust_leave' ? settlement.remaining_days : 0));
+    return settlement.adjust_leave_days ?? (settlement.action_type === 'adjust_leave' ? settlement.remaining_days : 0);
   });
 
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [manualCarryDays, setManualCarryDays] = useState<number>(() => {
     if (!settlement) return 0;
-    return Math.round(settlement.carry_forward_days ?? 0);
+    return settlement.carry_forward_days ?? 0;
   });
 
   const [carryForwardDirection, setCarryForwardDirection] = useState<'h1_to_h2' | 'h2_to_next_h1'>(() => {
@@ -107,7 +107,19 @@ export function AdminSettleUserModal({
       globalSettings.settlement_active_category === settlement.leave_category
     : false;
 
-  const total = Math.round(settlement?.remaining_days || 0);
+  const total = settlement ? Math.round(settlement.remaining_days * 100) / 100 : 0;
+  const workingHours = staff?.working_hours || 9.5;
+
+  const getDaysHoursMins = (daysVal: number) => {
+    const totalMins = Math.round(daysVal * workingHours * 60);
+    const minutesPerDay = Math.round(workingHours * 60);
+    const d = Math.floor(totalMins / minutesPerDay);
+    const remainingMins = totalMins % minutesPerDay;
+    const h = Math.floor(remainingMins / 60);
+    const m = remainingMins % 60;
+    return { d, h, m };
+  };
+
   const isNegative = total < 0;
 
   const totalOutstandingOffice = React.useMemo(() => {
@@ -118,7 +130,8 @@ export function AdminSettleUserModal({
       globalSettings.office_leave_h2,
       settlement.year,
       leaveSettlements,
-      staff.id
+      staff.id,
+      staff?.working_hours || 9.5
     );
   }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, settlement, leaveSettlements, staff]);
 
@@ -127,7 +140,7 @@ export function AdminSettleUserModal({
     if (!staff || !settlement) return [];
     const prevYear = (Number(settlement.year) - 1).toString();
     const staffRecords = records.filter(r => r.user_id === staff.id && r.status === 'approved' && r.date && r.date.substring(0, 4) === settlement.year);
-    const stats = calculateStats(staffRecords);
+    const stats = calculateStats(staffRecords, workingHours);
     const getSettlementSplitsLocal = (s: LeaveSettlement) => {
       const carry_forward = s.carry_forward_days ?? (s.action_type === 'carry_forward' ? s.remaining_days : 0);
       const payment = s.payment_days ?? (s.action_type === 'payment' ? s.remaining_days : 0);
@@ -174,19 +187,19 @@ export function AdminSettleUserModal({
     : (total === 0 || (total > 0 && Math.abs(allocated - total) < 0.01));
 
   const handleQuickAllocate = (action: 'carry_forward' | 'payment' | 'adjust_leave') => {
-    const roundedTotal = Math.round(total);
+    const finalVal = Math.round(total * 100) / 100;
     if (action === 'carry_forward') {
-      setCarryForwardDays(roundedTotal);
+      setCarryForwardDays(finalVal);
       setPaymentDays(0);
       setAdjustLeaveDays(0);
     } else if (action === 'payment') {
       setCarryForwardDays(0);
-      setPaymentDays(roundedTotal);
+      setPaymentDays(finalVal);
       setAdjustLeaveDays(0);
     } else if (action === 'adjust_leave') {
       setCarryForwardDays(0);
       setPaymentDays(0);
-      setAdjustLeaveDays(Math.min(roundedTotal, Math.round(totalOutstandingOffice)));
+      setAdjustLeaveDays(Math.min(finalVal, totalOutstandingOffice));
     }
   };
 
@@ -580,18 +593,58 @@ export function AdminSettleUserModal({
                   </button>
                 </div>
 
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Manual Carry Forward Days</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Manual Carry Forward Days, Hours & Minutes</span>
                 <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={manualCarryDays || ''}
-                    onChange={(e) => setManualCarryDays(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
-                    placeholder="Enter days to carry forward..."
-                    className="flex-1 bg-slate-955 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono font-bold"
-                  />
-                  <span className="text-[10px] text-slate-455 font-bold uppercase tracking-wider">Days</span>
+                  {(() => {
+                    const { d: mcfD, h: mcfH, m: mcfM } = getDaysHoursMins(manualCarryDays);
+                    return (
+                      <div className="flex items-center gap-1.5 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1.5 focus-within:border-indigo-500 transition-all flex-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={mcfD || ''}
+                          onChange={(e) => {
+                            const newD = parseInt(e.target.value) || 0;
+                            setManualCarryDays(newD + (mcfH + mcfM / 60) / workingHours);
+                          }}
+                          placeholder="0"
+                          className="w-12 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold">d</span>
+                        <div className="w-[1px] h-3 bg-slate-800 mx-1" />
+                        <input
+                          type="number"
+                          min={0}
+                          max={Math.floor(workingHours)}
+                          step={1}
+                          value={mcfH || ''}
+                          onChange={(e) => {
+                            const newH = parseInt(e.target.value) || 0;
+                            setManualCarryDays(mcfD + (newH + mcfM / 60) / workingHours);
+                          }}
+                          placeholder="0"
+                          className="w-10 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold">h</span>
+                        <div className="w-[1px] h-3 bg-slate-800 mx-1" />
+                        <input
+                          type="number"
+                          min={0}
+                          max={59}
+                          step={1}
+                          value={mcfM || ''}
+                          onChange={(e) => {
+                            const newM = parseInt(e.target.value) || 0;
+                            setManualCarryDays(mcfD + (mcfH + newM / 60) / workingHours);
+                          }}
+                          placeholder="0"
+                          className="w-10 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold">m</span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {manualCarryDays < 0 && (
                   <p className="text-[10px] text-rose-455 font-semibold">
@@ -609,7 +662,6 @@ export function AdminSettleUserModal({
                 </label>
 
                 <div className="grid grid-cols-1 gap-2.5">
-                  {/* Carry Forward Option */}
                   <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-indigo-500/60 transition-all">
                     <div className="flex items-center gap-3">
                       <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-400/30 text-indigo-400">
@@ -621,15 +673,57 @@ export function AdminSettleUserModal({
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        max={Math.round(total)}
-                        step={1}
-                        value={carryForwardDays}
-                        onChange={(e) => setCarryForwardDays(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
-                        className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
-                      />
+                      {(() => {
+                        const { d: cfD, h: cfH, m: cfM } = getDaysHoursMins(carryForwardDays);
+                        return (
+                          <div className="flex items-center gap-1 bg-slate-955 border border-slate-800 rounded-lg px-1.5 py-1 focus-within:border-indigo-500 transition-all">
+                            <input
+                              type="number"
+                              min={0}
+                              max={Math.floor(total)}
+                              step={1}
+                              value={cfD}
+                              onChange={(e) => {
+                                const newD = parseInt(e.target.value) || 0;
+                                setCarryForwardDays(newD + (cfH + cfM / 60) / workingHours);
+                              }}
+                              className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">d</span>
+                            <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                            <input
+                              type="number"
+                              min={0}
+                              max={Math.floor(workingHours)}
+                              step={1}
+                              value={cfH}
+                              onChange={(e) => {
+                                const newH = parseInt(e.target.value) || 0;
+                                setCarryForwardDays(cfD + (newH + cfM / 60) / workingHours);
+                              }}
+                              className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">h</span>
+                            <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                            <input
+                              type="number"
+                              min={0}
+                              max={59}
+                              step={1}
+                              value={cfM}
+                              onChange={(e) => {
+                                const newM = parseInt(e.target.value) || 0;
+                                setCarryForwardDays(cfD + (cfH + newM / 60) / workingHours);
+                              }}
+                              className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">m</span>
+                          </div>
+                        );
+                      })()}
                       <button
                         type="button"
                         onClick={() => handleQuickAllocate('carry_forward')}
@@ -643,7 +737,7 @@ export function AdminSettleUserModal({
                   {/* Cash Payment Option */}
                   <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-emerald-500/60 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-450">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-455">
                         <DollarSign className="h-4 w-4" />
                       </div>
                       <div>
@@ -652,19 +746,61 @@ export function AdminSettleUserModal({
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        max={Math.round(total)}
-                        step={1}
-                        value={paymentDays}
-                        onChange={(e) => setPaymentDays(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))}
-                        className="w-16 bg-slate-955 border border-slate-850 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500"
-                      />
+                      {(() => {
+                        const { d: payD, h: payH, m: payM } = getDaysHoursMins(paymentDays);
+                        return (
+                          <div className="flex items-center gap-1 bg-slate-955 border border-slate-800 rounded-lg px-1.5 py-1 focus-within:border-emerald-500 transition-all">
+                            <input
+                              type="number"
+                              min={0}
+                              max={Math.floor(total)}
+                              step={1}
+                              value={payD}
+                              onChange={(e) => {
+                                const newD = parseInt(e.target.value) || 0;
+                                setPaymentDays(newD + (payH + payM / 60) / workingHours);
+                              }}
+                              className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">d</span>
+                            <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                            <input
+                              type="number"
+                              min={0}
+                              max={Math.floor(workingHours)}
+                              step={1}
+                              value={payH}
+                              onChange={(e) => {
+                                const newH = parseInt(e.target.value) || 0;
+                                setPaymentDays(payD + (newH + payM / 60) / workingHours);
+                              }}
+                              className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">h</span>
+                            <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                            <input
+                              type="number"
+                              min={0}
+                              max={59}
+                              step={1}
+                              value={payM}
+                              onChange={(e) => {
+                                const newM = parseInt(e.target.value) || 0;
+                                setPaymentDays(payD + (payH + newM / 60) / workingHours);
+                              }}
+                              className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                              placeholder="0"
+                            />
+                            <span className="text-[9px] text-slate-500 font-bold">m</span>
+                          </div>
+                        );
+                      })()}
                       <button
                         type="button"
                         onClick={() => handleQuickAllocate('payment')}
-                        className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-450 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                        className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-455 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                       >
                         All
                       </button>
@@ -684,15 +820,57 @@ export function AdminSettleUserModal({
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <input
-                           type="number"
-                           min={0}
-                           max={Math.min(Math.round(total), Math.round(totalOutstandingOffice))}
-                           step={1}
-                           value={adjustLeaveDays}
-                           onChange={(e) => setAdjustLeaveDays(Math.max(0, Math.min(Math.round(totalOutstandingOffice), Math.round(parseFloat(e.target.value) || 0))))}
-                           className="w-16 bg-slate-955 border border-slate-850 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500"
-                        />
+                        {(() => {
+                          const { d: adjD, h: adjH, m: adjM } = getDaysHoursMins(adjustLeaveDays);
+                          return (
+                            <div className="flex items-center gap-1 bg-slate-955 border border-slate-850 rounded-lg px-1.5 py-1 focus-within:border-amber-500 transition-all">
+                              <input
+                                type="number"
+                                min={0}
+                                max={Math.floor(Math.min(total, totalOutstandingOffice))}
+                                step={1}
+                                value={adjD}
+                                onChange={(e) => {
+                                  const newD = parseInt(e.target.value) || 0;
+                                  setAdjustLeaveDays(newD + (adjH + adjM / 60) / workingHours);
+                                }}
+                                className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                placeholder="0"
+                              />
+                              <span className="text-[9px] text-slate-500 font-bold">d</span>
+                              <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                              <input
+                                type="number"
+                                min={0}
+                                max={Math.floor(workingHours)}
+                                step={1}
+                                value={adjH}
+                                onChange={(e) => {
+                                  const newH = parseInt(e.target.value) || 0;
+                                  setAdjustLeaveDays(adjD + (newH + adjM / 60) / workingHours);
+                                }}
+                                className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                placeholder="0"
+                              />
+                              <span className="text-[9px] text-slate-500 font-bold">h</span>
+                              <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                              <input
+                                type="number"
+                                min={0}
+                                max={59}
+                                step={1}
+                                value={adjM}
+                                onChange={(e) => {
+                                  const newM = parseInt(e.target.value) || 0;
+                                  setAdjustLeaveDays(adjD + (adjH + newM / 60) / workingHours);
+                                }}
+                                className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                placeholder="0"
+                              />
+                              <span className="text-[9px] text-slate-500 font-bold">m</span>
+                            </div>
+                          );
+                        })()}
                         <button
                           type="button"
                           onClick={() => handleQuickAllocate('adjust_leave')}
@@ -715,7 +893,7 @@ export function AdminSettleUserModal({
             <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <span>Allocation Summary</span>
               <span className={isAllocatedCorrectly ? "text-emerald-400" : "text-rose-400 animate-pulse"}>
-                {allocated} / {total} Days Allocated
+                {formatDaysAndHours(allocated, workingHours)} / {formatDaysAndHours(total, workingHours)} Allocated
               </span>
             </div>
 
@@ -735,7 +913,7 @@ export function AdminSettleUserModal({
               </div>
             ) : (
               <div className="text-[10.5px] text-rose-455 font-semibold flex items-center gap-1 justify-center bg-rose-500/5 py-1 rounded-lg border border-rose-500/10">
-                ⚠ Allocated sum ({allocated}d) must exactly match unused balance ({total}d).
+                ⚠ Allocated sum ({formatDaysAndHours(allocated, workingHours)}) must exactly match unused balance ({formatDaysAndHours(total, workingHours)}).
               </div>
             )}
           </div>

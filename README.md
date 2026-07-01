@@ -283,7 +283,11 @@ Upon pushing to branches (`main`, `master`) or creating a version tag (e.g. `v2.
 
 ## 📜 Version History / Changelog
 
-### 🚀 v2.0.5 (Latest)
+### 🚀 v2.0.6 (Latest)
+* **Dynamic Review Period Defaults**: Added dynamic fallback selection for review periods under the Review & Settlements panel based on the current calendar month.
+* **Leave Carryover Calculations Fix**: Resolved carryover calculation anomalies where H1 leaves were automatically carried over to H2 without a processed H1 settlement.
+
+### 🚀 v2.0.5
 * **OS-Specific Tray Customizations**: Added a dynamic Open/Close Chuti option depending on whether the application window is visible or hidden.
 * **Windows Click Handler**: Set Windows double-left click to open the app window, single-left click to do nothing, and single-right click to show the tray menu.
 * **macOS Click Handler**: Left or right single-click on the tray menu icon will only display the context menu rather than automatically opening the app.

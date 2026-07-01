@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, RotateCcw, Sparkles, CheckCircle2, DollarSign, ArrowRightLeft, FolderPlus, ShieldAlert } from 'lucide-react';
 import { Profile, LeaveSettlement, GovtHolidayResponse } from '@/types';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { GlobalSettings, calculateStats, calculateHalfYearlyOfficeLeave, getSettlementSplits, getOutstandingOfficeLeave } from '@/utils/dashboardHelpers';
+import { GlobalSettings, calculateStats, calculateHalfYearlyOfficeLeave, getSettlementSplits, getOutstandingOfficeLeave, formatDaysAndHours } from '@/utils/dashboardHelpers';
 import { Modal } from '../Modal';
 import { supabase } from '@/utils/supabase';
 import { sendPushNotification } from '@/utils/webPushHelper';
@@ -67,8 +67,10 @@ export function UserSettleModal({
     globalSettings.office_leave_h2,
     selectedYear,
     settlements,
-    profile?.id
-  ), [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, settlements, profile?.id]);
+    profile?.id,
+    undefined,
+    profile?.working_hours || 9.5
+  ), [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, settlements, profile?.id, profile?.working_hours]);
 
   const totalOutstandingOffice = React.useMemo(() => {
     if (!profile?.id) return 0;
@@ -78,7 +80,8 @@ export function UserSettleModal({
       globalSettings.office_leave_h2,
       selectedYear,
       settlements,
-      profile.id
+      profile.id,
+      profile.working_hours || 9.5
     );
   }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, settlements, profile]);
 
@@ -207,12 +210,24 @@ export function UserSettleModal({
     }
   }, [showModal, profile, displayItems, activeSettlements]);
 
+  const workingHours = profile?.working_hours || 9.5;
+
+  const getDaysHoursMins = (daysVal: number) => {
+    const totalMins = Math.round(daysVal * workingHours * 60);
+    const minutesPerDay = Math.round(workingHours * 60);
+    const d = Math.floor(totalMins / minutesPerDay);
+    const remainingMins = totalMins % minutesPerDay;
+    const h = Math.floor(remainingMins / 60);
+    const m = remainingMins % 60;
+    return { d, h, m };
+  };
+
   const handleSplitChange = (itemId: string, field: 'carryForward' | 'payment' | 'adjustLeave', value: number) => {
     setSplits((prev) => {
       const current = prev[itemId] || { carryForward: 0, payment: 0, adjustLeave: 0 };
-      let finalVal = Math.max(0, Math.round(value));
+      let finalVal = Math.max(0, Math.round(value * 100) / 100);
       if (field === 'adjustLeave') {
-        finalVal = Math.min(finalVal, Math.round(totalOutstandingOffice));
+        finalVal = Math.min(finalVal, totalOutstandingOffice);
       }
       return {
         ...prev,
@@ -225,26 +240,26 @@ export function UserSettleModal({
   };
 
   const handleNegativeSelect = (itemId: string, option: 'payment' | 'carry_forward', totalVal: number) => {
-    const roundedVal = Math.round(totalVal);
+    const finalVal = Math.round(totalVal * 100) / 100;
     setSplits((prev) => ({
       ...prev,
       [itemId]: {
-        carryForward: option === 'carry_forward' ? roundedVal : 0,
-        payment: option === 'payment' ? roundedVal : 0,
+        carryForward: option === 'carry_forward' ? finalVal : 0,
+        payment: option === 'payment' ? finalVal : 0,
         adjustLeave: 0,
       },
     }));
   };
 
   const handleQuickAllocate = (itemId: string, action: 'carryForward' | 'payment' | 'adjustLeave', total: number) => {
-    const roundedTotal = Math.round(total);
-    const finalVal = action === 'adjustLeave' ? Math.min(roundedTotal, Math.round(totalOutstandingOffice)) : roundedTotal;
+    const finalVal = Math.round(total * 100) / 100;
+    const finalAdjustVal = action === 'adjustLeave' ? Math.min(finalVal, totalOutstandingOffice) : finalVal;
     setSplits((prev) => ({
       ...prev,
       [itemId]: {
         carryForward: action === 'carryForward' ? finalVal : 0,
         payment: action === 'payment' ? finalVal : 0,
-        adjustLeave: action === 'adjustLeave' ? finalVal : 0,
+        adjustLeave: action === 'adjustLeave' ? finalAdjustVal : 0,
       },
     }));
   };
@@ -360,7 +375,7 @@ export function UserSettleModal({
                           {item.remaining_days < 0 ? 'Outstanding Deficit' : 'Unused Balance'}
                         </span>
                         <span className={`text-lg font-bold font-mono ${item.remaining_days < 0 ? 'text-rose-500' : 'text-orange-400'}`}>
-                          {Math.abs(item.remaining_days)} days
+                          {formatDaysAndHours(Math.abs(item.remaining_days), workingHours)}
                         </span>
                       </div>
                     </div>
@@ -385,7 +400,7 @@ export function UserSettleModal({
                             <div>
                               <span className="text-xs font-bold text-white block">Salary Deduction</span>
                               <span className="text-[10px] text-slate-400 block mt-0.5">
-                                Deduct {Math.abs(item.remaining_days)} day(s) from salary.
+                                Deduct {formatDaysAndHours(Math.abs(item.remaining_days), workingHours)} from salary.
                               </span>
                             </div>
                             <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
@@ -409,7 +424,7 @@ export function UserSettleModal({
                               <div>
                                 <span className="text-xs font-bold text-white block">Adjust with H2 Office Leave</span>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">
-                                  Deduct from H2 quota ({globalSettings.office_leave_h2} ➔ {globalSettings.office_leave_h2 - Math.abs(item.remaining_days)} days remaining).
+                                  Deduct from H2 quota ({formatDaysAndHours(globalSettings.office_leave_h2, workingHours)} ➔ {formatDaysAndHours(globalSettings.office_leave_h2 - Math.abs(item.remaining_days), workingHours)} remaining).
                                 </span>
                               </div>
                               <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
@@ -460,24 +475,66 @@ export function UserSettleModal({
                               <span className="text-[10px] text-slate-400 block mt-0.5">Carry forward to the next period's active quota.</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <input
-                              type="number"
-                              min={0}
-                              max={Math.round(item.remaining_days)}
-                              step={1}
-                              value={itemSplits.carryForward}
-                              onChange={(e) => handleSplitChange(item.id, 'carryForward', parseFloat(e.target.value) || 0)}
-                              className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAllocate(item.id, 'carryForward', item.remaining_days)}
-                              className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                            >
-                              All
-                            </button>
-                          </div>
+                          {(() => {
+                            const { d: cfD, h: cfH, m: cfM } = getDaysHoursMins(itemSplits.carryForward);
+                            return (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1 bg-slate-955 border border-slate-800 rounded-lg px-1.5 py-1 focus-within:border-indigo-500 transition-all">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={Math.floor(item.remaining_days)}
+                                    step={1}
+                                    value={cfD}
+                                    onChange={(e) => {
+                                      const newD = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'carryForward', newD + (cfH + cfM / 60) / workingHours);
+                                    }}
+                                    className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">d</span>
+                                  <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={Math.floor(workingHours)}
+                                    step={1}
+                                    value={cfH}
+                                    onChange={(e) => {
+                                      const newH = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'carryForward', cfD + (newH + cfM / 60) / workingHours);
+                                    }}
+                                    className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">h</span>
+                                  <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    step={1}
+                                    value={cfM}
+                                    onChange={(e) => {
+                                      const newM = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'carryForward', cfD + (cfH + newM / 60) / workingHours);
+                                    }}
+                                    className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">m</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickAllocate(item.id, 'carryForward', item.remaining_days)}
+                                  className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                >
+                                  All
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Cash Out Option */}
@@ -491,31 +548,73 @@ export function UserSettleModal({
                               <span className="text-[10px] text-slate-400 block mt-0.5">Receive direct monetary payout.</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <input
-                              type="number"
-                              min={0}
-                              max={Math.round(item.remaining_days)}
-                              step={1}
-                              value={itemSplits.payment}
-                              onChange={(e) => handleSplitChange(item.id, 'payment', parseFloat(e.target.value) || 0)}
-                              className="w-16 bg-slate-955 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAllocate(item.id, 'payment', item.remaining_days)}
-                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                            >
-                              All
-                            </button>
-                          </div>
+                          {(() => {
+                            const { d: payD, h: payH, m: payM } = getDaysHoursMins(itemSplits.payment);
+                            return (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1 bg-slate-955 border border-slate-800 rounded-lg px-1.5 py-1 focus-within:border-emerald-500 transition-all">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={Math.floor(item.remaining_days)}
+                                    step={1}
+                                    value={payD}
+                                    onChange={(e) => {
+                                      const newD = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'payment', newD + (payH + payM / 60) / workingHours);
+                                    }}
+                                    className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">d</span>
+                                  <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={Math.floor(workingHours)}
+                                    step={1}
+                                    value={payH}
+                                    onChange={(e) => {
+                                      const newH = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'payment', payD + (newH + payM / 60) / workingHours);
+                                    }}
+                                    className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">h</span>
+                                  <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    step={1}
+                                    value={payM}
+                                    onChange={(e) => {
+                                      const newM = parseInt(e.target.value) || 0;
+                                      handleSplitChange(item.id, 'payment', payD + (payH + newM / 60) / workingHours);
+                                    }}
+                                    className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                    placeholder="0"
+                                  />
+                                  <span className="text-[9px] text-slate-500 font-bold">m</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickAllocate(item.id, 'payment', item.remaining_days)}
+                                  className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                >
+                                  All
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Adjust Option */}
                         {totalOutstandingOffice > 0 && (
                           <div className="flex items-center justify-between p-3 rounded-xl border bg-slate-900/30 border-slate-850/80 focus-within:border-amber-500/60 transition-all">
                             <div className="flex items-center gap-3">
-                              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-400">
+                              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-450">
                                 <ArrowRightLeft className="h-4 w-4" />
                               </div>
                               <div>
@@ -523,24 +622,66 @@ export function UserSettleModal({
                                 <span className="text-[10px] text-slate-400 block mt-0.5">Adjust against outstanding Office Leave ({totalOutstandingOffice} days).</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <input
-                                type="number"
-                                min={0}
-                                max={Math.min(Math.round(item.remaining_days), Math.round(totalOutstandingOffice))}
-                                step={1}
-                                value={itemSplits.adjustLeave}
-                                onChange={(e) => handleSplitChange(item.id, 'adjustLeave', parseFloat(e.target.value) || 0)}
-                                className="w-16 bg-slate-955 border border-slate-850 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleQuickAllocate(item.id, 'adjustLeave', item.remaining_days)}
-                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-450 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                              >
-                                All
-                              </button>
-                            </div>
+                            {(() => {
+                              const { d: adjD, h: adjH, m: adjM } = getDaysHoursMins(itemSplits.adjustLeave);
+                              return (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div className="flex items-center gap-1 bg-slate-955 border border-slate-850 rounded-lg px-1.5 py-1 focus-within:border-amber-500 transition-all">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={Math.floor(Math.min(item.remaining_days, totalOutstandingOffice))}
+                                      step={1}
+                                      value={adjD}
+                                      onChange={(e) => {
+                                        const newD = parseInt(e.target.value) || 0;
+                                        handleSplitChange(item.id, 'adjustLeave', newD + (adjH + adjM / 60) / workingHours);
+                                      }}
+                                      className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                      placeholder="0"
+                                    />
+                                    <span className="text-[9px] text-slate-500 font-bold">d</span>
+                                    <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={Math.floor(workingHours)}
+                                      step={1}
+                                      value={adjH}
+                                      onChange={(e) => {
+                                        const newH = parseInt(e.target.value) || 0;
+                                        handleSplitChange(item.id, 'adjustLeave', adjD + (newH + adjM / 60) / workingHours);
+                                      }}
+                                      className="w-7 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                      placeholder="0"
+                                    />
+                                    <span className="text-[9px] text-slate-500 font-bold">h</span>
+                                    <div className="w-[1px] h-3 bg-slate-800 mx-0.5" />
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={59}
+                                      step={1}
+                                      value={adjM}
+                                      onChange={(e) => {
+                                        const newM = parseInt(e.target.value) || 0;
+                                        handleSplitChange(item.id, 'adjustLeave', adjD + (adjH + newM / 60) / workingHours);
+                                      }}
+                                      className="w-8 bg-transparent text-right text-xs font-mono font-bold text-white focus:outline-none"
+                                      placeholder="0"
+                                    />
+                                    <span className="text-[9px] text-slate-500 font-bold">m</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickAllocate(item.id, 'adjustLeave', item.remaining_days)}
+                                    className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-455 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                  >
+                                    All
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

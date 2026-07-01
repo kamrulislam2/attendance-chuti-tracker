@@ -4,7 +4,7 @@ import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { DateInput } from '@/components/DateInput';
 import { ChutiRecord } from '@/utils/offlineSync';
-import { formatDate, formatTimeToAMPM } from '@/utils/dashboardHelpers';
+import { formatDate, formatTimeToAMPM, formatDaysAndHours } from '@/utils/dashboardHelpers';
 import { CustomSelect } from './CustomSelect';
 
 interface AddLeaveFormFieldsProps {
@@ -41,6 +41,8 @@ interface AddLeaveFormFieldsProps {
   eidFitrRemaining?: number;
   eidAdhaRemaining?: number;
   eligibleOfficeLeave?: boolean;
+  officeLeaveRemaining?: number;
+  workingHours?: number;
   isAdmin?: boolean;
 }
 
@@ -76,6 +78,9 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
   govtHolidayRemaining = 0,
   eidFitrRemaining = 0,
   eidAdhaRemaining = 0,
+  eligibleOfficeLeave = false,
+  officeLeaveRemaining = 0,
+  workingHours = 9.5,
   isAdmin = false,
 }) => {
   const isFullLeave = leaveType === 'Full Leave';
@@ -142,7 +147,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
       } else {
         setAdjustmentCategory(cat);
         setAdjustment(true);
-        if (!comment || comment.trim() === '' || ['Office Leave', 'Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Adjustment'].includes(comment.trim())) {
+        if (!comment || comment.trim() === '' || ['Office Leave', 'Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Overtime', 'Adjustment'].includes(comment.trim())) {
           setComment(cat);
         }
       }
@@ -155,7 +160,7 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
     bulkDates.forEach((_, idx) => {
       handleUpdateBulkAdjustment(idx, idx < k - 1);
     });
-    if (!comment || comment.trim() === '' || ['Office Leave', 'Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Adjustment'].includes(comment.trim())) {
+    if (!comment || comment.trim() === '' || ['Office Leave', 'Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Overtime', 'Adjustment'].includes(comment.trim())) {
       setComment(pendingCategory === 'None' ? 'Adjustment' : pendingCategory);
     }
     setShowBulkAdjPrompt(false);
@@ -394,33 +399,128 @@ export const AddLeaveFormFields: React.FC<AddLeaveFormFieldsProps> = ({
           </div>
         )}
 
-        {/* Short Leave Adjustment toggle with Overtime (Conditional) */}
-        {leaveType === 'Short Leave' && availableOvertimeMins > 0 && (
+        {/* Short Leave Adjustment toggles */}
+        {leaveType === 'Short Leave' && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
-              <div>
-                <span className="block text-xs font-semibold text-slate-200 font-sans">Adjust with Overtime?</span>
-                <span className="block text-[10px] text-slate-450">If yes, it will be adjusted from overtime balance</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAdjustment(!adjustment)}
-                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  adjustment ? 'bg-orange-600' : 'bg-slate-800'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    adjustment ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Short Leave Adjustment
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Office Leave Toggle */}
+              {eligibleOfficeLeave && officeLeaveRemaining > 0 && (
+                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Office Leave</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(officeLeaveRemaining, workingHours)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCategory('Office Leave')}
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      adjustment && adjustmentCategory === 'Office Leave' ? 'bg-orange-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        adjustment && adjustmentCategory === 'Office Leave' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* Govt Holiday Toggle */}
+              {govtHolidayRemaining > 0 && (
+                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Govt Holiday</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(govtHolidayRemaining, workingHours)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCategory('Govt Holiday')}
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      adjustment && adjustmentCategory === 'Govt Holiday' ? 'bg-teal-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        adjustment && adjustmentCategory === 'Govt Holiday' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* Eid-ul-Fitr Toggle */}
+              {eidFitrRemaining > 0 && (
+                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Fitr</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(eidFitrRemaining, workingHours)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCategory('Eid-ul-Fitr')}
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      adjustment && adjustmentCategory === 'Eid-ul-Fitr' ? 'bg-amber-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        adjustment && adjustmentCategory === 'Eid-ul-Fitr' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* Eid-ul-Adha Toggle */}
+              {eidAdhaRemaining > 0 && (
+                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Eid-ul-Adha</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatDaysAndHours(eidAdhaRemaining, workingHours)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCategory('Eid-ul-Adha')}
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      adjustment && adjustmentCategory === 'Eid-ul-Adha' ? 'bg-amber-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        adjustment && adjustmentCategory === 'Eid-ul-Adha' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* Overtime Toggle */}
+              {availableOvertimeMins > 0 && (
+                <div className="flex items-center justify-between p-3 bg-slate-955/60 rounded-lg border border-slate-800/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-slate-200 font-sans">Adjust with Overtime</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Remaining: {formatMinsToHHMM(availableOvertimeMins)} hrs</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCategory('Overtime')}
+                    className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      adjustment && adjustmentCategory === 'Overtime' ? 'bg-indigo-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        adjustment && adjustmentCategory === 'Overtime' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
-            {shortLeaveAdjMsg && (
-              <div className={`text-[11px] font-semibold px-1 font-sans ${adjustment ? 'text-orange-400' : 'text-slate-450'}`}>
-                {shortLeaveAdjMsg}
-              </div>
-            )}
           </div>
         )}
 

@@ -239,7 +239,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     globalSettings.office_leave_h2,
     selectedYear,
     leaveSettlements,
-    staffProfile?.id
+    staffProfile?.id,
+    staffProfile?.working_hours || 9.5
   );
 
   // Short to Full Leave Conversion Adjustments for viewed staff
@@ -433,6 +434,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   fullLeaves: displayFullLeaves,
                   overtimeHours: staffStats.overtimeHours
                 }}
+                workingHours={workingHours}
                 officeLeaveStats={officeLeaveStats}
                 govtHolidayStats={adjustedGovtHolidayStats}
                 allowOvertime={staffProfile?.allow_overtime}

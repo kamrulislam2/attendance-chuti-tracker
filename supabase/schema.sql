@@ -720,16 +720,16 @@ CREATE TABLE public.leave_settlements (
   year VARCHAR(4) NOT NULL,
   period VARCHAR(10) NOT NULL DEFAULT 'H2' CHECK (period IN ('H1', 'H2', 'Instant')),
   leave_category TEXT NOT NULL CHECK (leave_category IN ('Govt Holiday', 'Eid-ul-Fitr', 'Eid-ul-Adha', 'Office Leave')),
-  remaining_days NUMERIC(4, 1) NOT NULL,
+  remaining_days NUMERIC(10, 4) NOT NULL,
   action_type TEXT NOT NULL CHECK (action_type IN ('carry_forward', 'payment', 'adjust_leave', 'split')),
   status TEXT NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated', 'responded', 'processed')),
   processed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   processed_at TIMESTAMPTZ,
   action_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  carry_forward_days NUMERIC(4, 1) DEFAULT 0,
-  payment_days NUMERIC(4, 1) DEFAULT 0,
-  adjust_leave_days NUMERIC(4, 1) DEFAULT 0,
+  carry_forward_days NUMERIC(10, 4) DEFAULT 0,
+  payment_days NUMERIC(10, 4) DEFAULT 0,
+  adjust_leave_days NUMERIC(10, 4) DEFAULT 0,
   CONSTRAINT unique_user_year_period_category UNIQUE (user_id, year, period, leave_category)
 );
 

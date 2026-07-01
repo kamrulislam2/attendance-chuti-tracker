@@ -147,7 +147,8 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
     globalSettings.office_leave_h2,
     selectedYear,
     leaveSettlements,
-    profile?.id
+    profile?.id,
+    profile?.working_hours || 9.5
   );
 
   // Short to Full Leave Conversion Adjustments
@@ -298,7 +299,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
                     <span className="font-semibold text-slate-200">{
                       [...initiatedSettlements, ...respondedSettlements].map(s => {
                         const periodLabel = s.period === 'Instant' ? 'Instant' : s.period;
-                        const choiceLabel = getSettlementLabel(s);
+                        const choiceLabel = getSettlementLabel(s, workingHours);
                         return `${s.leave_category} (${periodLabel}) [${choiceLabel}]`;
                       }).join(', ')
                     }</span>. You can edit your choice before they are processed by clicking below.
@@ -399,6 +400,7 @@ export const UserDashboardView: React.FC<UserDashboardViewProps> = ({
           shortHours: displayShortHours,
           fullLeaves: displayFullLeaves
         }}
+        workingHours={workingHours}
         officeLeaveStats={officeLeaveStats}
         govtHolidayStats={adjustedGovtHolidayStats}
         allowOvertime={profile?.allow_overtime}

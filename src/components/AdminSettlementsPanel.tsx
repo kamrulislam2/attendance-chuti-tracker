@@ -52,7 +52,8 @@ export const calculateRemainingDaysForCategoryPeriod = (
       selectedYear,
       leaveSettlements,
       staff.id,
-      period
+      period,
+      staff.working_hours || 9.5
     );
     return period === 'H1' ? halfYearlyStats.h1Remaining : halfYearlyStats.h2Remaining;
   }
@@ -269,7 +270,7 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
 
       let actionLabel = 'Not chosen yet';
       if (settlement && settlement.status !== 'initiated') {
-        actionLabel = getSettlementLabel(settlement);
+        actionLabel = getSettlementLabel(settlement, staff.working_hours || 9.5);
       }
 
       return {

@@ -99,11 +99,12 @@ export function useHalfYearlyStats(
   officeLeaveH2: number,
   selectedYear: string,
   leaveSettlements?: LeaveSettlement[],
-  userId?: string
+  userId?: string,
+  workingHours: number = 9.5
 ): UseHalfYearlyStatsResult {
   const halfYearlyStats = useMemo(
-    () => calculateHalfYearlyOfficeLeave(records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId),
-    [records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId]
+    () => calculateHalfYearlyOfficeLeave(records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId, undefined, workingHours),
+    [records, officeLeaveH1, officeLeaveH2, selectedYear, leaveSettlements, userId, workingHours]
   );
 
   return { halfYearlyStats };

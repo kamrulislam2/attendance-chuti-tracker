@@ -150,6 +150,31 @@ export const formatDuration = (totalMinutes: number) => {
   return `${isNegative ? '-' : ''}${hoursStr}:${minsStr}`;
 };
 
+export const formatDaysAndHours = (daysVal: number, workingHours: number = 9.5): string => {
+  const totalMins = Math.round(daysVal * workingHours * 60);
+  if (totalMins === 0) return '0 days';
+  const isNegative = totalMins < 0;
+  const absMins = Math.abs(totalMins);
+  
+  const minutesPerDay = Math.round(workingHours * 60);
+  const wholeDays = Math.floor(absMins / minutesPerDay);
+  const remainingMins = absMins % minutesPerDay;
+  const hours = Math.floor(remainingMins / 60);
+  const mins = remainingMins % 60;
+  
+  const parts: string[] = [];
+  if (wholeDays > 0) {
+    parts.push(`${wholeDays} day${wholeDays > 1 ? 's' : ''}`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
+  }
+  if (mins > 0) {
+    parts.push(`${mins} min${mins > 1 ? 's' : ''}`);
+  }
+  return `${isNegative ? '-' : ''}${parts.join(' ')}`;
+};
+
 export const parseIntervalToMinutes = (intervalStr: string | null | undefined) => {
   if (!intervalStr) return 0;
   const clean = intervalStr.toString().replace(/-/g, '');
@@ -162,7 +187,7 @@ export const parseIntervalToMinutes = (intervalStr: string | null | undefined) =
   return 0;
 };
 
-export const calculateStats = (records: ChutiRecord[]) => {
+export const calculateStats = (records: ChutiRecord[], workingHours: number = 9.5) => {
   let totalShortMinutes = 0;
   let totalOvertimeMinutes = 0;
   let totalFullLeaves = 0;
@@ -198,7 +223,22 @@ export const calculateStats = (records: ChutiRecord[]) => {
           if (r.adjustment) {
             mins = 0;
             const fullAdjMins = parseIntervalToMinutes(r.leave_hour);
-            totalOvertimeMinutes -= isNegative ? -fullAdjMins : fullAdjMins;
+            
+            const isOfficeLeaveShort = r.reserve_holiday === "Office Leave" || r.comment?.includes("Office Leave") || false;
+            const isEidFitrShort = r.reserve_holiday === "Eid-ul-Fitr" || r.comment?.includes("Eid-ul-Fitr") || false;
+            const isEidAdhaShort = r.reserve_holiday === "Eid-ul-Adha" || r.comment?.includes("Eid-ul-Adha") || false;
+            const isGovtHolidayShort = r.reserve_holiday === "Govt Holiday" || r.comment?.includes("Govt Holiday") || false;
+
+            if (isOfficeLeaveShort || isEidFitrShort || isEidAdhaShort || isGovtHolidayShort) {
+              const daysEquivalent = fullAdjMins / (workingHours * 60);
+              const signedDaysEquivalent = isNegative ? -daysEquivalent : daysEquivalent;
+              if (isOfficeLeaveShort) officeLeavesTaken += signedDaysEquivalent;
+              else if (isEidFitrShort) eidFitrTaken += signedDaysEquivalent;
+              else if (isEidAdhaShort) eidAdhaTaken += signedDaysEquivalent;
+              else if (isGovtHolidayShort) govtHolidaysTaken += signedDaysEquivalent;
+            } else {
+              totalOvertimeMinutes -= isNegative ? -fullAdjMins : fullAdjMins;
+            }
           } else if (r.adjusted_hour) {
             const adjMins = parseIntervalToMinutes(r.adjusted_hour);
             mins = Math.max(0, mins - adjMins);
@@ -357,12 +397,12 @@ export interface HalfYearlyOfficeLeaveStats {
 
 export const getSettlementSplits = (s: LeaveSettlement) => {
   const carry_forward = s.carry_forward_days ?? (s.action_type === 'carry_forward' ? s.remaining_days : 0);
-  const payment = s.payment_days ?? (s.action_type === 'payment' ? s.remaining_days : 0);
+      const payment = s.payment_days ?? (s.action_type === 'payment' ? s.remaining_days : 0);
   const adjust_leave = s.adjust_leave_days ?? (s.action_type === 'adjust_leave' ? s.remaining_days : 0);
   return { carry_forward, payment, adjust_leave };
 };
 
-export const getSettlementLabel = (s: LeaveSettlement): string => {
+export const getSettlementLabel = (s: LeaveSettlement, workingHours: number = 9.5): string => {
   if (s.remaining_days < 0) {
     if (s.action_type === 'payment') {
       return 'Salary Deduction';
@@ -378,9 +418,9 @@ export const getSettlementLabel = (s: LeaveSettlement): string => {
   if (s.action_type === 'split') {
     const parts: string[] = [];
     const splits = getSettlementSplits(s);
-    if (splits.carry_forward > 0) parts.push(`${splits.carry_forward}d Carry Forward`);
-    if (splits.payment > 0) parts.push(`${splits.payment}d Cash Out`);
-    if (splits.adjust_leave > 0) parts.push(`${splits.adjust_leave}d Adjust`);
+    if (splits.carry_forward > 0) parts.push(`${formatDaysAndHours(splits.carry_forward, workingHours)} Carry Forward`);
+    if (splits.payment > 0) parts.push(`${formatDaysAndHours(splits.payment, workingHours)} Cash Out`);
+    if (splits.adjust_leave > 0) parts.push(`${formatDaysAndHours(splits.adjust_leave, workingHours)} Adjust`);
     return parts.length > 0 ? parts.join(', ') : 'Split';
   }
   return s.action_type === 'carry_forward' ? 'Carry Forward' : s.action_type === 'payment' ? 'Cash Out' : 'Adjust Leaves';
@@ -393,7 +433,8 @@ export const calculateHalfYearlyOfficeLeave = (
   selectedYear: string,
   leaveSettlements?: LeaveSettlement[],
   userId?: string,
-  ignoreSettlementPeriod?: 'H1' | 'H2' | 'Instant' | 'all'
+  ignoreSettlementPeriod?: 'H1' | 'H2' | 'Instant' | 'all',
+  workingHours: number = 9.5
 ): HalfYearlyOfficeLeaveStats => {
   // 1. Calculate carried over office leave from previous year
   let carriedOffice = 0;
@@ -408,7 +449,7 @@ export const calculateHalfYearlyOfficeLeave = (
   const h1Quota = officeLeaveH1 + carriedOffice;
   const h2Quota = officeLeaveH2;
 
-  // Filter approved full-day records for the selected year and target user
+  // Filter approved full-day/short-day records for the selected year and target user
   const approvedRecs = records.filter(r => 
     r.status === 'approved' && 
     r.date && 
@@ -420,20 +461,35 @@ export const calculateHalfYearlyOfficeLeave = (
   let h2Taken = 0;
 
   approvedRecs.forEach(r => {
-    // Only count full-day leaves (Full Leave) that count against office leave
     const isFullLeave = r.leave_type === 'Full Leave';
-    if (!isFullLeave) return;
+    const isShortLeave = r.leave_type === 'Short Leave';
 
-    // Check if it should count against office leave: 
-    // It should count only if it is NOT adjusted, OR if it is adjusted specifically as "Office Leave".
-    const shouldCountAsOffice = !r.adjustment || (r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave"));
-    if (!shouldCountAsOffice) return;
+    if (isFullLeave) {
+      // Check if it should count against office leave: 
+      // It should count only if it is NOT adjusted, OR if it is adjusted specifically as "Office Leave".
+      const shouldCountAsOffice = !r.adjustment || (r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave"));
+      if (!shouldCountAsOffice) return;
 
-    const month = parseInt(r.date.substring(5, 7), 10);
-    if (month <= 6) {
-      h1Taken++;
-    } else {
-      h2Taken++;
+      const month = parseInt(r.date.substring(5, 7), 10);
+      if (month <= 6) {
+        h1Taken += 1;
+      } else {
+        h2Taken += 1;
+      }
+    } else if (isShortLeave) {
+      // Short leave only counts against office leave if it is adjusted specifically as "Office Leave"
+      const shouldCountAsOffice = r.adjustment && (r.comment?.includes("Office Leave") || r.reserve_holiday === "Office Leave");
+      if (!shouldCountAsOffice) return;
+
+      const mins = parseIntervalToMinutes(r.leave_hour);
+      const dayEquivalent = mins / (workingHours * 60);
+
+      const month = parseInt(r.date.substring(5, 7), 10);
+      if (month <= 6) {
+        h1Taken += dayEquivalent;
+      } else {
+        h2Taken += dayEquivalent;
+      }
     }
   });
 
@@ -521,7 +577,8 @@ export const getOutstandingOfficeLeave = (
   officeLeaveH2: number,
   selectedYear: string,
   leaveSettlements: LeaveSettlement[],
-  userId: string
+  userId: string,
+  workingHours: number = 9.5
 ): number => {
   const rawStats = calculateHalfYearlyOfficeLeave(
     records,
@@ -530,7 +587,8 @@ export const getOutstandingOfficeLeave = (
     selectedYear,
     leaveSettlements,
     userId,
-    'all'
+    'all',
+    workingHours
   );
 
   const h1Processed = leaveSettlements.some(

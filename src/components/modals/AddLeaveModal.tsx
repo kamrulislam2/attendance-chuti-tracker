@@ -111,7 +111,7 @@ export function AddLeaveModal({
   // Real-time balance calculations
   const selectedYear = date ? date.substring(0, 4) : new Date().getFullYear().toString();
   const approvedRecords = records.filter(r => r.status === 'approved' && r.date && r.date.substring(0, 4) === selectedYear);
-  const stats = calculateStats(approvedRecords);
+  const stats = calculateStats(approvedRecords, profile?.working_hours || 9.5);
   const supervisors = (profilesList || []).filter(p => p.role === 'supervisor');
 
   const parseHHMMToMinutes = (str: string) => {
@@ -175,9 +175,13 @@ export function AddLeaveModal({
       records,
       globalSettings.office_leave_h1,
       globalSettings.office_leave_h2,
-      selectedYear
+      selectedYear,
+      undefined,
+      undefined,
+      undefined,
+      profile?.working_hours || 9.5
     );
-  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear]);
+  }, [records, globalSettings.office_leave_h1, globalSettings.office_leave_h2, selectedYear, profile]);
 
   return (
     <Modal
@@ -241,6 +245,8 @@ export function AddLeaveModal({
               eidFitrRemaining={eidFitrRemaining}
               eidAdhaRemaining={eidAdhaRemaining}
               eligibleOfficeLeave={isOfficeLeaveEligible}
+              officeLeaveRemaining={officeLeaveRemaining}
+              workingHours={profile?.working_hours || 9.5}
             />
 
             {/* Action Buttons */}

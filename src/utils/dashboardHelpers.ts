@@ -440,7 +440,7 @@ export const calculateHalfYearlyOfficeLeave = (
   let h1Remaining = h1Quota - h1Taken;
   
   // Calculate H1 carry forward dynamically based on H1 settlement
-  let carryForward = Math.max(0, h1Remaining);
+  let carryForward = 0;
   if (leaveSettlements && userId) {
     const h1Settlements = leaveSettlements.filter(
       (s) => s.user_id === userId && s.year === selectedYear && s.period === 'H1' && s.leave_category === 'Office Leave'

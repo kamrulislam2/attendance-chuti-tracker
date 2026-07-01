@@ -118,7 +118,8 @@ export const AdminSettlementsPanel: React.FC<AdminSettlementsPanelProps> = ({
         return saved;
       }
     }
-    return 'H1';
+    const currentMonth = new Date().getMonth(); // 0-indexed: 0 = Jan, 5 = Jun, 6 = Jul
+    return currentMonth >= 6 ? 'H2' : 'H1';
   });
   const [selectedCategory, setSelectedCategory] = useState<'Office Leave' | 'Govt Holiday' | 'Eid-ul-Fitr' | 'Eid-ul-Adha'>(() => {
     if (typeof window !== 'undefined') {

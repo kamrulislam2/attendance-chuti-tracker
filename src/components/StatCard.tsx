@@ -8,7 +8,7 @@ interface StatCardProps {
   iconColorClass?: string;
   iconBorderClass?: string;
   title: string;
-  value: string | number;
+  value: React.ReactNode;
   subtitle?: string | number;
   action?: React.ReactNode;
   className?: string;
@@ -60,7 +60,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             </div>
           ) : (
             <>
-              <span className="block text-2xl font-bold text-white mt-0.5">{value}</span>
+              <div className="block text-2xl font-bold text-white mt-0.5">{value}</div>
               {subtitle && (
                 <span className="block text-[10px] text-slate-500 mt-0.5">{subtitle}</span>
               )}

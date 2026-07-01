@@ -161,14 +161,45 @@ export const UserStats: React.FC<UserStatsProps> = ({
   const hasH1Carryover = h1Carryover > 0;
   const hasH2Carryover = halfYearlyStats ? halfYearlyStats.carryForward > 0 : false;
 
-  let officeRemainingDisplay = officeLeaveStats ? formatDaysAndHours(officeLeaveStats.remaining, workingHours) : '0 days';
+  const formatDaysAndHoursNode = (daysVal: number, workingHours: number = 9.5) => {
+    const totalMins = Math.round(daysVal * workingHours * 60);
+    const isNegative = totalMins < 0;
+    const absMins = Math.abs(totalMins);
+    
+    const minutesPerDay = Math.round(workingHours * 60);
+    const wholeDays = Math.floor(absMins / minutesPerDay);
+    const remainingMins = absMins % minutesPerDay;
+    const hours = Math.floor(remainingMins / 60);
+    const mins = remainingMins % 60;
+    
+    const dayStr = `${wholeDays} Day${wholeDays !== 1 ? 's' : ''}`;
+    
+    const hrPart = hours > 0 ? `${String(hours).padStart(2, '0')} hr${hours > 1 ? 's' : ''}` : '';
+    const minPart = mins > 0 ? `${String(mins).padStart(2, '0')} min${mins > 1 ? 's' : ''}` : '';
+    const timeParts = [hrPart, minPart].filter(Boolean).join(' ');
+    
+    return (
+      <div className="flex flex-col select-none">
+        <span className="text-2xl font-bold text-white leading-tight">
+          {isNegative ? '-' : ''}{dayStr}
+        </span>
+        {timeParts && (
+          <span className="text-sm font-semibold font-mono text-slate-300 mt-0.5 block">
+            {timeParts}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  let officeRemainingDisplay: React.ReactNode = officeLeaveStats ? formatDaysAndHoursNode(officeLeaveStats.remaining, workingHours) : '0 Days';
   let officeSubtitle = officeLeaveStats ? `Total Allocated: ${formatDaysAndHours(officeLeaveStats.total, workingHours)} (Taken: ${formatDaysAndHours(officeLeaveStats.taken, workingHours)})` : '';
 
   if (halfYearlyStats) {
     const isH1 = halfYearlyStats.currentHalf === 1;
     officeRemainingDisplay = isH1
-      ? formatDaysAndHours(halfYearlyStats.h1Remaining, workingHours)
-      : formatDaysAndHours(halfYearlyStats.h2Remaining, workingHours);
+      ? formatDaysAndHoursNode(halfYearlyStats.h1Remaining, workingHours)
+      : formatDaysAndHoursNode(halfYearlyStats.h2Remaining, workingHours);
 
     officeSubtitle = isH1
       ? (hasH1Carryover

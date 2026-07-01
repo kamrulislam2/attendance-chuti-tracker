@@ -291,10 +291,8 @@ export function AddLeaveModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting || !!validationError}
-                className={`flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 ${
-                  (submitting || !!validationError) ? '' : (isDuplicateDate ? 'opacity-50 cursor-not-allowed' : '')
-                }`}
+                disabled={submitting || !!validationError || isDuplicateDate}
+                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-orange-600 hover:bg-orange-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 {submitting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 {submitting ? 'Submitting...' : 'Submit Leave'}
